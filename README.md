@@ -147,24 +147,110 @@ Runtime behavior:
 - freshness policy: mark stale candidates in `details.scraping`, never auto-archive
 - source fetch failures (for example HTTP 404/410) are stored as failed runs in `scraping_run` with structured error metadata, and do not automatically mark offers stale in that same failed cycle
 
-Useful commands:
+### Run It
+
+Start full stack (DB + API + worker):
 
 ```powershell
-docker compose logs --tail 100 scraper-worker
-docker compose exec api python manage.py run_scrape_once --dry-run
+docker compose up -d --build
+docker compose ps
+```
+
+Watch scraper worker logs:
+
+```powershell
+docker compose logs -f scraper-worker
+```
+
+Run one manual scrape cycle:
+
+```powershell
+docker compose exec api python manage.py run_scrape_once
+```
+
+Run only one source:
+
+```powershell
 docker compose exec api python manage.py run_scrape_once --source-key unibz_master_software_engineering
 ```
 
-Key scraper environment variables (see `.env.example`):
+Dry-run (no DB writes):
 
-- `SCRAPER_TIMEOUT_SECONDS`
-- `SCRAPER_INTERVAL_MINUTES`
-- `SCRAPER_RUN_ON_START`
-- `SCRAPER_LLM_FALLBACK_THRESHOLD`
-- `SCRAPER_USER_AGENT`
-- `OLLAMA_BASE_URL`
-- `OLLAMA_MODEL`
-- `OLLAMA_TIMEOUT_SECONDS`
+```powershell
+docker compose exec api python manage.py run_scrape_once --dry-run
+```
+
+### See Scraper Results
+
+Recent run summaries:
+
+```powershell
+Invoke-RestMethod -Uri "http://localhost:8000/api/scraping/runs?limit=20" | ConvertTo-Json -Depth 6
+```
+
+Latest run detail with error payload and counters:
+
+```powershell
+$id = (Invoke-RestMethod -Uri "http://localhost:8000/api/scraping/runs?limit=1").results[0].id
+Invoke-RestMethod -Uri ("http://localhost:8000/api/scraping/runs/" + $id) | ConvertTo-Json -Depth 8
+```
+
+### Configure The Scraper
+
+Set values in `.env` (copy from `.env.example`).
+
+Defaults:
+
+- `SCRAPER_TIMEOUT_SECONDS=30` (HTTP request timeout per source page)
+- `SCRAPER_INTERVAL_MINUTES=360` (scheduler interval)
+- `SCRAPER_RUN_ON_START=true` (run one scrape cycle immediately at worker startup)
+- `SCRAPER_LLM_FALLBACK_THRESHOLD=0.60` (use Ollama fallback when deterministic confidence is below threshold)
+- `SCRAPER_USER_AGENT=SUNRISE-OSS-Scraper/1.0`
+- `INGESTION_BOT_USERNAME=ingestion_bot`
+- `OLLAMA_BASE_URL=http://host.docker.internal:11434`
+- `OLLAMA_MODEL=qwen3-coder:480b-cloud`
+- `OLLAMA_TIMEOUT_SECONDS=45`
+
+Source URLs and metadata are configured in `content/scrapers/source_registry.py`.
+
+### How Often It Runs
+
+- By default, the worker runs every `360` minutes (every 6 hours).
+- If `SCRAPER_RUN_ON_START=true`, one run happens immediately at startup, then recurring runs follow the interval.
+- Scheduler cadence is controlled by `SCRAPER_INTERVAL_MINUTES`.
+
+### What The Scraper Actually Does
+
+For each configured source page, it:
+
+1. Fetches HTML with timeout and user-agent.
+2. Extracts offer title/summary/details deterministically (H1/title/meta/JSON-LD/paragraph fallback).
+3. Optionally calls Ollama fallback for low-confidence extraction.
+4. Upserts into `offer` using natural identity `(link, organization, offer_type)`.
+5. Updates `offer_domain` relations based on source mapping.
+6. Writes telemetry in `scraping_run` (`success`/`failed`, counters, logs, error metadata).
+7. Applies freshness policy as non-destructive stale candidate flags in `offer.details.scraping`.
+
+Important failure semantics:
+
+- `404`/`410` are recorded as `failed` runs in `scraping_run`.
+- Failures are visible via `/api/scraping/runs` and `/api/scraping/runs/{run_id}`.
+- Failed fetches do not auto-delete/auto-archive offers.
+- Failed fetches in a cycle do not trigger stale-marking side effects for that failed source in the same cycle.
+
+### Troubleshooting Commands
+
+```powershell
+docker compose logs --tail 200 scraper-worker
+docker compose logs --tail 100 api
+docker compose exec api python manage.py run_scrape_once --source-key unibz_erasmus_mobility --disable-llm-fallback
+```
+
+Stop services:
+
+```powershell
+docker compose down
+```
 
 ## Seed Sources
 
