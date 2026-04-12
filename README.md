@@ -7,6 +7,7 @@ The SUNRISE One Stop Shop application.
 This branch bootstraps the data layer for Task 1/2/3 with:
 
 - Dockerized PostgreSQL
+- Dockerized API service (Django)
 - Dedicated `content` schema
 - Django ORM models + migrations
 - Deterministic seed commands
@@ -37,6 +38,19 @@ This branch bootstraps the data layer for Task 1/2/3 with:
 docker compose up -d postgres
 ```
 
+### 2b) Start PostgreSQL + API layer together
+
+```powershell
+docker compose up -d --build
+```
+
+The API container runs:
+
+1. `python manage.py migrate`
+2. `python manage.py seed_lookups`
+3. `python manage.py seed_offers`
+4. `python manage.py runserver 0.0.0.0:8000`
+
 ### 3) Configure environment
 
 Create a local `.env` from `.env.example` and adjust values if needed.
@@ -50,6 +64,10 @@ Default values:
 - `POSTGRES_PORT=5432`
 - `POSTGRES_SCHEMA=content`
 - `DJANGO_ALLOWED_HOSTS=127.0.0.1,localhost,testserver`
+- `API_PORT=8000`
+
+For local Python runs, use `POSTGRES_HOST=localhost`.
+For compose API container runs, `POSTGRES_HOST` is automatically set to `postgres`.
 
 ### 4) Run migrations
 
@@ -63,6 +81,16 @@ Default values:
 "d:/Masters/UNIBZ/Semester 2/GDSD - Sweden/.venv/Scripts/python.exe" manage.py seed_lookups
 "d:/Masters/UNIBZ/Semester 2/GDSD - Sweden/.venv/Scripts/python.exe" manage.py seed_offers
 ```
+
+## API Endpoints
+
+When compose is up, test on `http://localhost:8000`:
+
+- `/api/health`
+- `/api/lookups/offer-types`
+- `/api/lookups/domains`
+- `/api/offers`
+- `/api/offers/{offer_id}`
 
 ## Seed Sources
 
