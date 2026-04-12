@@ -4,7 +4,7 @@ from django.http import JsonResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_GET
 
-from content.models import Domain, Offer, OfferType
+from content.models import Domain, Offer, OfferType, ScrapingRun
 
 
 def _parse_positive_int(value: str | None, default: int, max_value: int) -> int:
@@ -135,3 +135,69 @@ def offer_detail(request, offer_id: str):
 		return JsonResponse({"detail": "Offer not found."}, status=404)
 
 	return JsonResponse(_offer_to_dict(offer))
+
+
+@require_GET
+def scraping_runs(request):
+	limit = _parse_positive_int(request.GET.get("limit"), default=20, max_value=100)
+	runs = (
+		ScrapingRun.objects.select_related("job")
+		.order_by("-created_at")[:limit]
+	)
+
+	results = []
+	for run in runs:
+		results.append(
+			{
+				"id": str(run.id),
+				"source_key": run.source_key,
+				"status": run.status,
+				"job": run.job.key if run.job else None,
+				"offers_processed": run.offers_processed,
+				"offers_created": run.offers_created,
+				"offers_updated": run.offers_updated,
+				"offers_unchanged": run.offers_unchanged,
+				"offers_flagged_stale": run.offers_flagged_stale,
+				"errors_count": run.errors_count,
+				"llm_calls_count": run.llm_calls_count,
+				"started_at": run.started_at.isoformat() if run.started_at else None,
+				"completed_at": run.completed_at.isoformat() if run.completed_at else None,
+				"created_at": run.created_at.isoformat(),
+			}
+		)
+
+	return JsonResponse({"count": len(results), "results": results})
+
+
+@require_GET
+def scraping_run_detail(request, run_id: str):
+	try:
+		parsed_id = UUID(run_id)
+	except ValueError:
+		return JsonResponse({"detail": "Invalid run id."}, status=400)
+
+	run = ScrapingRun.objects.select_related("job").filter(id=parsed_id).first()
+	if run is None:
+		return JsonResponse({"detail": "Scraping run not found."}, status=404)
+
+	return JsonResponse(
+		{
+			"id": str(run.id),
+			"source_key": run.source_key,
+			"status": run.status,
+			"job": run.job.key if run.job else None,
+			"offers_processed": run.offers_processed,
+			"offers_created": run.offers_created,
+			"offers_updated": run.offers_updated,
+			"offers_unchanged": run.offers_unchanged,
+			"offers_flagged_stale": run.offers_flagged_stale,
+			"offers_deleted": run.offers_deleted,
+			"errors_count": run.errors_count,
+			"llm_calls_count": run.llm_calls_count,
+			"log": run.log,
+			"started_at": run.started_at.isoformat() if run.started_at else None,
+			"completed_at": run.completed_at.isoformat() if run.completed_at else None,
+			"created_at": run.created_at.isoformat(),
+			"updated_at": run.updated_at.isoformat(),
+		}
+	)

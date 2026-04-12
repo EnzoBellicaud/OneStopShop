@@ -111,3 +111,13 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Scraper runtime configuration
+SCRAPER_TIMEOUT_SECONDS = int(os.getenv("SCRAPER_TIMEOUT_SECONDS", "30"))
+SCRAPER_INTERVAL_MINUTES = int(os.getenv("SCRAPER_INTERVAL_MINUTES", "360"))
+SCRAPER_RUN_ON_START = os.getenv("SCRAPER_RUN_ON_START", "true").lower() == "true"
+SCRAPER_LLM_FALLBACK_THRESHOLD = float(os.getenv("SCRAPER_LLM_FALLBACK_THRESHOLD", "0.60"))
+
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3-coder:480b-cloud")
+OLLAMA_TIMEOUT_SECONDS = int(os.getenv("OLLAMA_TIMEOUT_SECONDS", "45"))

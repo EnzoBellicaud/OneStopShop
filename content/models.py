@@ -227,3 +227,63 @@ class OfferContact(models.Model):
 				name="uniq_offer_contact",
 			),
 		]
+
+
+class ScrapingJob(TimeStampedModel):
+	class JobStatus(models.TextChoices):
+		ACTIVE = "active", "Active"
+		PAUSED = "paused", "Paused"
+
+	id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+	key = models.CharField(max_length=120, unique=True)
+	name = models.CharField(max_length=255)
+	source_domain = models.CharField(max_length=255)
+	status = models.CharField(max_length=20, choices=JobStatus.choices, default=JobStatus.ACTIVE)
+	is_active = models.BooleanField(default=True)
+	run_interval_minutes = models.PositiveIntegerField(default=360)
+	use_llm_fallback = models.BooleanField(default=True)
+	last_run_at = models.DateTimeField(blank=True, null=True)
+	next_run_at = models.DateTimeField(blank=True, null=True)
+
+	class Meta:
+		db_table = "scraping_job"
+		ordering = ["key"]
+
+
+class ScrapingRun(TimeStampedModel):
+	class RunStatus(models.TextChoices):
+		PENDING = "pending", "Pending"
+		RUNNING = "running", "Running"
+		SUCCESS = "success", "Success"
+		PARTIAL = "partial", "Partial"
+		FAILED = "failed", "Failed"
+
+	id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+	job = models.ForeignKey(
+		ScrapingJob,
+		on_delete=models.PROTECT,
+		related_name="runs",
+		blank=True,
+		null=True,
+	)
+	source_key = models.CharField(max_length=120, blank=True)
+	status = models.CharField(max_length=20, choices=RunStatus.choices, default=RunStatus.PENDING)
+	started_at = models.DateTimeField(blank=True, null=True)
+	completed_at = models.DateTimeField(blank=True, null=True)
+	offers_processed = models.PositiveIntegerField(default=0)
+	offers_created = models.PositiveIntegerField(default=0)
+	offers_updated = models.PositiveIntegerField(default=0)
+	offers_unchanged = models.PositiveIntegerField(default=0)
+	offers_flagged_stale = models.PositiveIntegerField(default=0)
+	offers_deleted = models.PositiveIntegerField(default=0)
+	llm_calls_count = models.PositiveIntegerField(default=0)
+	errors_count = models.PositiveIntegerField(default=0)
+	log = models.JSONField(default=list)
+
+	class Meta:
+		db_table = "scraping_run"
+		ordering = ["-created_at"]
+		indexes = [
+			models.Index(fields=["status"], name="idx_scraping_run_status"),
+			models.Index(fields=["source_key", "-created_at"], name="idx_scraping_run_source"),
+		]

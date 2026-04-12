@@ -8,6 +8,7 @@ from content.models import (
 	OfferDomain,
 	OfferType,
 	Organization,
+	ScrapingRun,
 	SourceType,
 	TargetProfile,
 	User,
@@ -83,6 +84,23 @@ class ReadApiTests(TestCase):
 		payload = response.json()
 		self.assertEqual(response.status_code, 200)
 		self.assertEqual(payload["count"], 1)
+
+	def test_scraping_runs_endpoint(self):
+		response = self.client.get("/api/scraping/runs")
+		payload = response.json()
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(payload["count"], 0)
+
+	def test_scraping_run_detail_endpoint(self):
+		run = ScrapingRun.objects.create(source_key="test-source", status=ScrapingRun.RunStatus.SUCCESS)
+		response = self.client.get(f"/api/scraping/runs/{run.id}")
+		payload = response.json()
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(payload["id"], str(run.id))
+
+	def test_scraping_run_detail_not_found(self):
+		response = self.client.get(f"/api/scraping/runs/{uuid.uuid4()}")
+		self.assertEqual(response.status_code, 404)
 
 	def test_offer_detail_endpoint(self):
 		response = self.client.get(f"/api/offers/{self.offer.id}")

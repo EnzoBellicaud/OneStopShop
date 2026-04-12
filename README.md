@@ -113,6 +113,9 @@ All endpoints are read-only (`GET`):
 - `/api/health` - service health
 - `/api/lookups/offer-types` - OfferType reference data
 - `/api/lookups/domains` - Domain reference data
+- `/api/scraping/runs` - recent scraping run summaries
+	- optional query param: `limit`
+- `/api/scraping/runs/{run_id}` - scraping run detail by UUID
 - `/api/offers` - offer list
 	- optional query params: `limit`, `status`, `offer_type`, `organization`, `target_profile`
 - `/api/offers/{offer_id}` - offer detail by UUID
@@ -121,10 +124,46 @@ All endpoints are read-only (`GET`):
 
 ```powershell
 Invoke-RestMethod -Uri "http://localhost:8000/api/health"
+Invoke-RestMethod -Uri "http://localhost:8000/api/scraping/runs"
 Invoke-RestMethod -Uri "http://localhost:8000/api/lookups/offer-types"
 Invoke-RestMethod -Uri "http://localhost:8000/api/lookups/domains"
 Invoke-RestMethod -Uri "http://localhost:8000/api/offers?limit=5"
 ```
+
+## Scraper Worker (Background Job)
+
+The compose stack includes a dedicated `scraper-worker` service that runs the university scraper on a schedule.
+
+Worker startup sequence:
+
+1. `python manage.py migrate`
+2. `python manage.py seed_lookups`
+3. `python manage.py run_scraper_worker`
+
+Runtime behavior:
+
+- deterministic extraction first (BeautifulSoup/JSON-LD/text heuristics)
+- optional Ollama fallback (`qwen3-coder:480b-cloud`) when confidence is low
+- freshness policy: mark stale candidates in `details.scraping`, never auto-archive
+
+Useful commands:
+
+```powershell
+docker compose logs --tail 100 scraper-worker
+docker compose exec api python manage.py run_scrape_once --dry-run
+docker compose exec api python manage.py run_scrape_once --source-key unibz_master_software_engineering
+```
+
+Key scraper environment variables (see `.env.example`):
+
+- `SCRAPER_TIMEOUT_SECONDS`
+- `SCRAPER_INTERVAL_MINUTES`
+- `SCRAPER_RUN_ON_START`
+- `SCRAPER_LLM_FALLBACK_THRESHOLD`
+- `SCRAPER_USER_AGENT`
+- `OLLAMA_BASE_URL`
+- `OLLAMA_MODEL`
+- `OLLAMA_TIMEOUT_SECONDS`
 
 ## Seed Sources
 

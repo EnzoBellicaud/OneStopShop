@@ -89,6 +89,18 @@
           <td>/api/lookups/domains</td>
         </tr>
         <tr>
+          <td><a href="/api/scraping/runs">/api/scraping/runs</a></td>
+          <td>GET</td>
+          <td>Recent scraping run summaries.</td>
+          <td>/api/scraping/runs?limit=20</td>
+        </tr>
+        <tr>
+          <td>/api/scraping/runs/{run_id}</td>
+          <td>GET</td>
+          <td>Scraping run detail with logs and counters.</td>
+          <td>/api/scraping/runs/8b2e9a5a-0000-0000-0000-000000000000</td>
+        </tr>
+        <tr>
           <td><a href="/api/offers">/api/offers</a></td>
           <td>GET</td>
           <td>Offer list with optional filters.</td>
@@ -104,6 +116,7 @@
     </table>
 
     <div class="code">curl http://localhost:8000/api/health
+curl http://localhost:8000/api/scraping/runs
 curl http://localhost:8000/api/lookups/offer-types
 curl "http://localhost:8000/api/offers?limit=5"
 </div>
