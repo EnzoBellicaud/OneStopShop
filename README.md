@@ -199,6 +199,10 @@ Invoke-RestMethod -Uri ("http://localhost:8000/api/scraping/runs/" + $id) | Conv
 
 Set values in `.env` (copy from `.env.example`).
 
+Required startup behavior setting:
+
+- Set `SCRAPER_RUN_ON_START=true` in `.env` to run one scrape cycle immediately when the worker starts.
+
 Defaults:
 
 - `SCRAPER_TIMEOUT_SECONDS=30` (HTTP request timeout per source page)
