@@ -5,6 +5,7 @@ from copy import deepcopy
 
 import requests
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from content.models import (
@@ -51,6 +52,7 @@ class ScrapeService:
                 "offers_updated": 0,
                 "offers_unchanged": 0,
                 "offers_flagged_stale": 0,
+                "offers_deleted": 0,
                 "errors": 0,
                 "llm_calls": 0,
             }
@@ -65,11 +67,13 @@ class ScrapeService:
             "offers_updated": 0,
             "offers_unchanged": 0,
             "offers_flagged_stale": 0,
+            "offers_deleted": 0,
             "errors": 0,
             "llm_calls": 0,
         }
         seen_keys: set[tuple[str, str, str]] = set()
         successful_source_keys: set[str] = set()
+        successful_source_urls: set[str] = set()
 
         for source in sources:
             stats["sources"] += 1
@@ -88,6 +92,7 @@ class ScrapeService:
                 run.offers_created = int(result["action"] == "created")
                 run.offers_updated = int(result["action"] == "updated")
                 run.offers_unchanged = int(result["action"] == "unchanged")
+                run.offers_deleted = 0
                 run.llm_calls_count = int(result["llm_used"])
                 run.log = [result["log"]]
 
@@ -98,6 +103,7 @@ class ScrapeService:
                 stats["llm_calls"] += run.llm_calls_count
                 seen_keys.add(result["natural_key"])
                 successful_source_keys.add(source.key)
+                successful_source_urls.add(source.url)
             except Exception as exc:  # pragma: no cover - runtime network behavior
                 run.status = ScrapingRun.RunStatus.FAILED
                 run.errors_count = 1
@@ -106,10 +112,24 @@ class ScrapeService:
                 if isinstance(exc, requests.exceptions.HTTPError) and exc.response is not None:
                     status_code = exc.response.status_code
                     if status_code in {404, 410}:
+                        deleted_count = self._delete_offers_for_invalid_source(source, source_type)
+                        run.offers_deleted = deleted_count
+                        stats["offers_deleted"] += deleted_count
+                        if deleted_count > 0:
+                            run.log.append(
+                                {
+                                    "action": "deleted_invalid_source_offers",
+                                    "source": source.key,
+                                    "url": source.url,
+                                    "http_status": status_code,
+                                    "offers_deleted": deleted_count,
+                                }
+                            )
                         LOGGER.warning(
-                            "Scraping source not found for %s (HTTP %s)",
+                            "Scraping source not found for %s (HTTP %s). Deleted %s invalid offers.",
                             source.key,
                             status_code,
+                            deleted_count,
                         )
                     else:
                         LOGGER.exception("Scraping failed for %s", source.key)
@@ -130,6 +150,12 @@ class ScrapeService:
             ingestion_user,
         )
         stats["offers_flagged_stale"] = stale_count
+
+        deleted_invalid_count = self._cleanup_invalid_offer_links(
+            source_type,
+            skip_links=successful_source_urls,
+        )
+        stats["offers_deleted"] += deleted_invalid_count
 
         return stats
 
@@ -317,6 +343,52 @@ class ScrapeService:
                 if name in domain_map
             ]
         )
+
+    def _delete_offers_for_invalid_source(self, source: SourceDefinition, source_type: SourceType) -> int:
+        offer_queryset = Offer.objects.filter(source_type=source_type).filter(
+            Q(details__scraping__source_key=source.key) | Q(link=source.url)
+        )
+        offer_count = offer_queryset.count()
+        if self.dry_run:
+            return offer_count
+        offer_queryset.delete()
+        return offer_count
+
+    def _cleanup_invalid_offer_links(self, source_type: SourceType, skip_links: set[str]) -> int:
+        deleted_count = 0
+        offers = (
+            Offer.objects.filter(source_type=source_type, details__scraping__managed=True)
+            .exclude(link__isnull=True)
+            .exclude(link="")
+            .only("id", "link")
+        )
+
+        for offer in offers.iterator():
+            if offer.link in skip_links:
+                continue
+            status_code = self._fetch_status_code(offer.link)
+            if status_code not in {404, 410}:
+                continue
+
+            deleted_count += 1
+            if self.dry_run:
+                continue
+
+            offer.delete()
+
+        return deleted_count
+
+    def _fetch_status_code(self, url: str) -> int | None:
+        try:
+            response = requests.get(
+                url,
+                headers={"User-Agent": self.user_agent, "Accept-Language": "en-US,en;q=0.9"},
+                timeout=self.request_timeout_seconds,
+                allow_redirects=True,
+            )
+            return response.status_code
+        except requests.RequestException:
+            return None
 
     def _flag_stale_candidates(
         self,

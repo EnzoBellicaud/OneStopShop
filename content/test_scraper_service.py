@@ -71,7 +71,7 @@ class ScrapeServiceBehaviorTests(TestCase):
 
     @patch("content.scrapers.service.get_sources")
     @patch("content.scrapers.service.requests.get")
-    def test_http_404_marks_run_failed_without_stale_flagging(self, mock_get, mock_get_sources):
+    def test_http_404_marks_run_failed_and_deletes_invalid_source_offers(self, mock_get, mock_get_sources):
         self._create_offer(
             {
                 "source_name": "Test Source",
@@ -95,15 +95,77 @@ class ScrapeServiceBehaviorTests(TestCase):
 
         self.assertEqual(summary["errors"], 1)
         self.assertEqual(summary["offers_flagged_stale"], 0)
+        self.assertEqual(summary["offers_deleted"], 1)
 
         run = ScrapingRun.objects.get(source_key="test_source")
         self.assertEqual(run.status, ScrapingRun.RunStatus.FAILED)
         self.assertEqual(run.errors_count, 1)
+        self.assertEqual(run.offers_deleted, 1)
         self.assertEqual(run.log[0]["error_type"], "HTTPError")
         self.assertEqual(run.log[0]["http_status"], 404)
+        self.assertEqual(run.log[1]["action"], "deleted_invalid_source_offers")
+        self.assertEqual(run.log[1]["offers_deleted"], 1)
 
-        offer = Offer.objects.get(link=self.source.url)
-        self.assertFalse(offer.details["scraping"]["stale_candidate"])
+        self.assertFalse(Offer.objects.filter(link=self.source.url).exists())
+
+    @patch("content.scrapers.service.get_sources")
+    @patch("content.scrapers.service.extract_deterministic")
+    @patch("content.scrapers.service.requests.get")
+    def test_cleanup_deletes_orphaned_scraping_offer_with_404_link(
+        self,
+        mock_get,
+        mock_extract,
+        mock_get_sources,
+    ):
+        orphan_link = "https://example.edu/retired-page"
+        self._create_offer(
+            {
+                "source_name": "Retired Source",
+                "scraping": {
+                    "managed": True,
+                    "source_key": "retired_source",
+                    "stale_candidate": False,
+                },
+            }
+        )
+        orphan_offer = Offer.objects.get(link=self.source.url)
+        orphan_offer.link = orphan_link
+        orphan_offer.save(update_fields=["link", "updated_at"])
+
+        mock_get_sources.return_value = [self.source]
+
+        source_response = Mock()
+        source_response.text = "<html><h1>live source</h1></html>"
+        source_response.raise_for_status.return_value = None
+        source_response.status_code = 200
+
+        orphan_response = Mock()
+        orphan_response.text = ""
+        orphan_response.raise_for_status.return_value = None
+        orphan_response.status_code = 404
+
+        def _request_side_effect(url, **kwargs):
+            if url == self.source.url:
+                return source_response
+            if url == orphan_link:
+                return orphan_response
+            raise AssertionError(f"Unexpected URL requested: {url}")
+
+        mock_get.side_effect = _request_side_effect
+        mock_extract.return_value = ExtractedPayload(
+            title="Stable Title",
+            summary="Stable Summary",
+            details={"source_name": "Test Source", "extra": "stable"},
+            confidence=0.9,
+            method="deterministic",
+        )
+
+        summary = run_scrape(use_llm_fallback=False)
+
+        self.assertEqual(summary["offers_processed"], 1)
+        self.assertEqual(summary["errors"], 0)
+        self.assertEqual(summary["offers_deleted"], 1)
+        self.assertFalse(Offer.objects.filter(link=orphan_link).exists())
 
     @patch("content.scrapers.service.get_sources")
     @patch("content.scrapers.service.extract_deterministic")
