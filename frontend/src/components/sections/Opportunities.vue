@@ -86,7 +86,6 @@ const uniOptions = [
   'Linköping University'
 ];
 
-// Логика фильтрации
 const filteredList = computed(() => {
   return applyFilters(rawOpportunities, {
     query: searchQuery.value,
@@ -103,7 +102,6 @@ const resetFilters = () => {
 </script>
 
 <style scoped>
-/* Твои существующие стили здесь */
 .filter-chip { cursor: pointer; transition: 0.2s; }
 .filter-chip.active { background: #000; color: #fff; border-color: #000; }
 .btn-view { text-decoration: none; }
