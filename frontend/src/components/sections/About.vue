@@ -9,7 +9,7 @@
             </div>
             <div>
             <p class="about-eyebrow">About UniPortal</p>
-            <h2>One hub for <em>all six</em> universities</h2>
+            <h2>One hub for <em>all nine</em> universities</h2>
             <p>UniPortal brings together master thesis projects, internships, job openings, and courses from six leading Swedish universities into a single, easy-to-navigate platform.</p>
             <p>Students and faculty no longer need to visit each university's website separately. We aggregate and update listings in real time, so you always see the latest opportunities in one place.</p>
             <div class="about-features">
@@ -18,7 +18,7 @@
                     <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
                 </div>
                 <div class="feat-text">
-                    <strong>6 universities</strong>
+                    <strong>9 universities</strong>
                     <span>All partner data in one feed</span>
                 </div>
                 </div>

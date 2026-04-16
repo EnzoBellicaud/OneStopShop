@@ -2,7 +2,7 @@
 <template>
     <section class="hero">
         <div>
-            <div class="hero-eyebrow">6 universities · 1 platform</div>
+            <div class="hero-eyebrow">9 universities · 1 platform</div>
             <h1>Find your next <em>academic opportunity</em></h1>
             <p class="hero-sub">Master theses, internships, jobs, and courses from six leading universities — all in one place. Discover, explore, and apply directly through each institution.</p>
             <div class="hero-actions">
