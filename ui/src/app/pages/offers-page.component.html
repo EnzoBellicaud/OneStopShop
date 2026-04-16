@@ -1,0 +1,115 @@
+<section class="offers-page">
+  <header class="hero">
+    <p class="eyebrow">SUNRISE One Stop Shop</p>
+    <h1>Offer Explorer</h1>
+    <p class="lead">
+      Search, filter, and review opportunities as cards.
+      <span *ngIf="!loading">Showing {{ offers.length }} of {{ totalCount }} total.</span>
+    </p>
+  </header>
+
+  <form class="filters" (ngSubmit)="onApplyFilters()">
+    <label>
+      Search
+      <input type="text" name="q" [(ngModel)]="q" placeholder="title, summary, or organization" />
+    </label>
+
+    <label>
+      Offer type
+      <select name="offerType" [(ngModel)]="offerType">
+        <option value="">All</option>
+        <option *ngFor="let type of offerTypes" [value]="type.name">{{ type.name }}</option>
+      </select>
+    </label>
+
+    <label>
+      Organization
+      <input type="text" name="organization" [(ngModel)]="organization" placeholder="contains text" />
+    </label>
+
+    <label>
+      Target profile
+      <select name="targetProfile" [(ngModel)]="targetProfile">
+        <option value="">All</option>
+        <option *ngFor="let profile of targetProfiles" [value]="profile">{{ profile }}</option>
+      </select>
+    </label>
+
+    <label>
+      Status
+      <select name="status" [(ngModel)]="status">
+        <option value="">All</option>
+        <option *ngFor="let item of statuses" [value]="item">{{ item }}</option>
+      </select>
+    </label>
+
+    <label>
+      Domain
+      <select name="domain" [(ngModel)]="domain">
+        <option value="">All</option>
+        <option *ngFor="let item of domains" [value]="item.name">{{ item.name }}</option>
+      </select>
+    </label>
+
+    <label>
+      Country
+      <input type="text" name="country" [(ngModel)]="country" maxlength="2" placeholder="IT, SE" />
+    </label>
+
+    <label>
+      Page size
+      <select name="pageSize" [(ngModel)]="pageSize" (change)="onPageSizeChange()">
+        <option *ngFor="let option of pageSizeOptions" [value]="option">{{ option }}</option>
+      </select>
+    </label>
+
+    <div class="actions">
+      <button type="submit">Apply filters</button>
+      <button type="button" class="ghost" (click)="onResetFilters()">Reset</button>
+    </div>
+  </form>
+
+  <p *ngIf="loadingLookups" class="hint">Loading filter values...</p>
+  <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
+  <p *ngIf="loading" class="hint">Loading offers...</p>
+
+  <section class="cards" *ngIf="!loading && !errorMessage && offers.length > 0">
+    <article class="offer-card" *ngFor="let offer of offers; trackBy: trackOffer">
+      <div class="top-row">
+        <span class="pill">{{ offer.offer_type }}</span>
+        <span class="pill muted">{{ offer.status }}</span>
+      </div>
+      <h2>{{ offer.title }}</h2>
+      <p>{{ offer.summary }}</p>
+      <ul>
+        <li><strong>Organization:</strong> {{ offer.organization.name }}</li>
+        <li><strong>Target:</strong> {{ offer.target_profile }}</li>
+        <li><strong>Country:</strong> {{ offer.country }}</li>
+      </ul>
+      <div class="domains">
+        <span *ngFor="let domainItem of offer.domains">{{ domainItem }}</span>
+      </div>
+      <a [href]="offer.link" target="_blank" rel="noreferrer">Open source page</a>
+    </article>
+  </section>
+
+  <p *ngIf="!loading && !errorMessage && offers.length === 0" class="hint">
+    No offers match the selected filters.
+  </p>
+
+  <nav class="pagination" *ngIf="!loading && totalPages > 1" aria-label="Offer pages">
+    <button (click)="onPageChange(1)" [disabled]="page === 1">First</button>
+    <button (click)="onPageChange(page - 1)" [disabled]="page === 1">Prev</button>
+
+    <button
+      *ngFor="let pageNumber of pageNumbers()"
+      [class.active]="pageNumber === page"
+      (click)="onPageChange(pageNumber)"
+    >
+      {{ pageNumber }}
+    </button>
+
+    <button (click)="onPageChange(page + 1)" [disabled]="page === totalPages">Next</button>
+    <button (click)="onPageChange(totalPages)" [disabled]="page === totalPages">Last</button>
+  </nav>
+</section>

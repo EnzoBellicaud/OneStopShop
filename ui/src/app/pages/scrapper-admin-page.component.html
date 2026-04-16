@@ -1,0 +1,84 @@
+<section class="scrapper-page">
+  <header>
+    <p class="eyebrow">Operations</p>
+    <h1>Scrapper Tracking</h1>
+    <p class="lead">
+      Read-only telemetry view for scraping runs.
+      Use it to inspect status, counters, and error logs.
+    </p>
+  </header>
+
+  <section class="toolbar">
+    <label>
+      Max runs
+      <select [(ngModel)]="limit" (change)="refreshRuns()">
+        <option [value]="10">10</option>
+        <option [value]="20">20</option>
+        <option [value]="50">50</option>
+        <option [value]="100">100</option>
+      </select>
+    </label>
+
+    <label>
+      Status
+      <select [(ngModel)]="statusFilter">
+        <option value="">All</option>
+        <option *ngFor="let status of statuses" [value]="status">{{ status }}</option>
+      </select>
+    </label>
+
+    <label>
+      Source contains
+      <input type="text" [(ngModel)]="sourceFilter" placeholder="unibz, mdu..." />
+    </label>
+
+    <button (click)="refreshRuns()">Refresh</button>
+  </section>
+
+  <p class="error" *ngIf="errorMessage">{{ errorMessage }}</p>
+  <p class="hint" *ngIf="loadingRuns">Loading runs...</p>
+
+  <div class="layout" *ngIf="!loadingRuns">
+    <aside>
+      <article
+        class="run-card"
+        *ngFor="let run of filteredRuns; trackBy: trackRun"
+        (click)="selectRun(run.id)"
+        [class.active]="selectedRun?.id === run.id"
+      >
+        <div class="status-row">
+          <span class="status" [class.failed]="run.status === 'failed'">{{ run.status }}</span>
+          <small>{{ run.created_at | date: 'short' }}</small>
+        </div>
+        <h3>{{ run.source_key }}</h3>
+        <p>processed {{ run.offers_processed }} · created {{ run.offers_created }} · updated {{ run.offers_updated }}</p>
+        <p>errors {{ run.errors_count }} · llm {{ run.llm_calls_count }}</p>
+      </article>
+
+      <p class="hint" *ngIf="filteredRuns.length === 0">No runs match the selected filters.</p>
+    </aside>
+
+    <section class="details">
+      <p class="hint" *ngIf="loadingDetail">Loading selected run details...</p>
+
+      <ng-container *ngIf="!loadingDetail && selectedRun as run">
+        <h2>{{ run.source_key }}</h2>
+        <p class="run-meta">Status: <strong>{{ run.status }}</strong> | Job: <strong>{{ run.job || 'n/a' }}</strong></p>
+
+        <div class="stats">
+          <div><span>Processed</span><strong>{{ run.offers_processed }}</strong></div>
+          <div><span>Created</span><strong>{{ run.offers_created }}</strong></div>
+          <div><span>Updated</span><strong>{{ run.offers_updated }}</strong></div>
+          <div><span>Unchanged</span><strong>{{ run.offers_unchanged }}</strong></div>
+          <div><span>Flagged stale</span><strong>{{ run.offers_flagged_stale }}</strong></div>
+          <div><span>Errors</span><strong>{{ run.errors_count }}</strong></div>
+        </div>
+
+        <h3>Run log</h3>
+        <pre>{{ run.log | json }}</pre>
+      </ng-container>
+
+      <p class="hint" *ngIf="!loadingDetail && !selectedRun">Select a run to inspect details.</p>
+    </section>
+  </div>
+</section>

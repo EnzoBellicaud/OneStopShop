@@ -1,5 +1,7 @@
+from math import ceil
 from uuid import UUID
 
+from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.urls import reverse
@@ -103,6 +105,11 @@ def _openapi_spec() -> dict:
 				"get": {
 					"summary": "List offers",
 					"parameters": [
+						{"name": "q", "in": "query", "schema": {"type": "string"}},
+						{"name": "domain", "in": "query", "schema": {"type": "string"}},
+						{"name": "country", "in": "query", "schema": {"type": "string"}},
+						{"name": "page", "in": "query", "schema": {"type": "integer", "minimum": 1}},
+						{"name": "page_size", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 200}},
 						{"name": "limit", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 200}},
 						{"name": "status", "in": "query", "schema": {"type": "string", "enum": ["draft", "published", "archived"]}},
 						{"name": "offer_type", "in": "query", "schema": {"type": "string"}},
@@ -270,10 +277,13 @@ def _openapi_spec() -> dict:
 					"type": "object",
 					"properties": {
 						"count": {"type": "integer"},
+						"page": {"type": "integer"},
+						"page_size": {"type": "integer"},
+						"total_pages": {"type": "integer"},
 						"limit": {"type": "integer"},
 						"results": {"type": "array", "items": {"$ref": "#/components/schemas/Offer"}},
 					},
-					"required": ["count", "limit", "results"],
+					"required": ["count", "page", "page_size", "total_pages", "limit", "results"],
 				},
 				"ScrapingRunSummary": {
 					"type": "object",
@@ -392,14 +402,46 @@ def offers(request):
 	if target_profile:
 		queryset = queryset.filter(target_profile__name=target_profile)
 
-	limit = _parse_positive_int(request.GET.get("limit"), default=50, max_value=200)
-	rows = list(queryset[:limit])
+	domain = request.GET.get("domain")
+	if domain:
+		queryset = queryset.filter(domains__name=domain)
+
+	country = request.GET.get("country")
+	if country:
+		queryset = queryset.filter(country__iexact=country.strip())
+
+	search_term = request.GET.get("q")
+	if search_term:
+		queryset = queryset.filter(
+			Q(title__icontains=search_term)
+			| Q(summary__icontains=search_term)
+			| Q(organization__name__icontains=search_term)
+		)
+
+	queryset = queryset.distinct()
+
+	legacy_limit = request.GET.get("limit")
+	page_size_param = request.GET.get("page_size")
+	if page_size_param is None and legacy_limit is not None:
+		page_size = _parse_positive_int(legacy_limit, default=50, max_value=200)
+	else:
+		page_size = _parse_positive_int(page_size_param, default=50, max_value=200)
+
+	page = _parse_positive_int(request.GET.get("page"), default=1, max_value=1000000)
+	total_count = queryset.count()
+	total_pages = ceil(total_count / page_size) if total_count else 0
+	offset = (page - 1) * page_size
+
+	rows = list(queryset[offset:offset + page_size])
 	payload = [_offer_to_dict(row) for row in rows]
 
 	return JsonResponse(
 		{
-			"count": len(payload),
-			"limit": limit,
+			"count": total_count,
+			"page": page,
+			"page_size": page_size,
+			"total_pages": total_pages,
+			"limit": page_size,
 			"results": payload,
 		}
 	)

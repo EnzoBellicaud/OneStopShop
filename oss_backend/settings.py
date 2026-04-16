@@ -7,18 +7,23 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+def _parse_csv_env(var_name: str, default: str = "") -> list[str]:
+    return [
+        item.strip()
+        for item in os.getenv(var_name, default).split(",")
+        if item.strip()
+    ]
+
+
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-only-secret-change-me")
 DEBUG = os.getenv("DJANGO_DEBUG", "true").lower() == "true"
-ALLOWED_HOSTS = [
-    host.strip()
-    for host in os.getenv("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost,testserver").split(",")
-    if host.strip()
-]
+ALLOWED_HOSTS = _parse_csv_env("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost,testserver")
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    'corsheaders',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -30,6 +35,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -111,6 +117,13 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# API CORS configuration (Angular dev app calls the backend from another origin).
+CORS_ALLOWED_ORIGINS = _parse_csv_env(
+    "CORS_ALLOWED_ORIGINS",
+    "http://localhost:4200,http://127.0.0.1:4200",
+)
+CORS_ALLOW_CREDENTIALS = os.getenv("CORS_ALLOW_CREDENTIALS", "false").lower() == "true"
 
 # Scraper runtime configuration
 SCRAPER_TIMEOUT_SECONDS = int(os.getenv("SCRAPER_TIMEOUT_SECONDS", "30"))

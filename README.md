@@ -71,6 +71,8 @@ Default values:
 - `POSTGRES_PORT=5432`
 - `POSTGRES_SCHEMA=content`
 - `DJANGO_ALLOWED_HOSTS=127.0.0.1,localhost,testserver`
+- `CORS_ALLOWED_ORIGINS=http://localhost:4200,http://127.0.0.1:4200`
+- `CORS_ALLOW_CREDENTIALS=false`
 - `API_PORT=8000`
 
 For local Python runs, use `POSTGRES_HOST=localhost`.
@@ -119,8 +121,34 @@ All endpoints are read-only (`GET`):
 	- optional query param: `limit`
 - `/api/scraping/runs/{run_id}` - scraping run detail by UUID
 - `/api/offers` - offer list
-	- optional query params: `limit`, `status`, `offer_type`, `organization`, `target_profile`
+	- optional query params: `q`, `status`, `offer_type`, `organization`, `target_profile`, `domain`, `country`, `page`, `page_size`, `limit`
+	- response metadata: `count`, `page`, `page_size`, `total_pages`, `limit`, `results`
 - `/api/offers/{offer_id}` - offer detail by UUID
+
+## Angular Demo UI
+
+An Angular frontend is included in `ui/` with two routes:
+
+- `http://localhost:4200/offers` - offer explorer with search, filters, cards, and classic pagination
+- `http://localhost:4200/admin/scrapper` - read-only scraper run tracking page
+
+Start the UI:
+
+```powershell
+cd ui
+npm install
+npm start
+```
+
+Build the UI:
+
+```powershell
+cd ui
+npm run build
+```
+
+The UI expects backend API at `http://localhost:8000/api`.
+If origin calls are blocked, confirm `CORS_ALLOWED_ORIGINS` in `.env` includes `http://localhost:4200`.
 
 ### Quick smoke test (PowerShell)
 
