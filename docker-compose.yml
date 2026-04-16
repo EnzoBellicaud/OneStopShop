@@ -1,0 +1,76 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: oss-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-oss_db}
+      POSTGRES_USER: ${POSTGRES_USER:-oss_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-oss_password}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-oss_user} -d ${POSTGRES_DB:-oss_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: docker/api/Dockerfile
+    container_name: oss-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-dev-only-secret-change-me}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-true}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-127.0.0.1,localhost,testserver}
+      POSTGRES_DB: ${POSTGRES_DB:-oss_db}
+      POSTGRES_USER: ${POSTGRES_USER:-oss_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-oss_password}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_SCHEMA: ${POSTGRES_SCHEMA:-content}
+    ports:
+      - "${API_PORT:-8000}:8000"
+
+  scraper-worker:
+    build:
+      context: ./backend
+      dockerfile: docker/api/Dockerfile
+    container_name: oss-scraper-worker
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-dev-only-secret-change-me}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-true}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-127.0.0.1,localhost,testserver}
+      POSTGRES_DB: ${POSTGRES_DB:-oss_db}
+      POSTGRES_USER: ${POSTGRES_USER:-oss_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-oss_password}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_SCHEMA: ${POSTGRES_SCHEMA:-content}
+      SCRAPER_TIMEOUT_SECONDS: ${SCRAPER_TIMEOUT_SECONDS:-30}
+      SCRAPER_INTERVAL_MINUTES: ${SCRAPER_INTERVAL_MINUTES:-360}
+      SCRAPER_RUN_ON_START: ${SCRAPER_RUN_ON_START:-true}
+      SCRAPER_LLM_FALLBACK_THRESHOLD: ${SCRAPER_LLM_FALLBACK_THRESHOLD:-0.60}
+      SCRAPER_USER_AGENT: ${SCRAPER_USER_AGENT:-SUNRISE-OSS-Scraper/1.0}
+      INGESTION_BOT_USERNAME: ${INGESTION_BOT_USERNAME:-ingestion_bot}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3-coder:480b-cloud}
+      OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS:-45}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: ["sh", "/app/docker/api/worker_entrypoint.sh"]
+
+volumes:
+  postgres_data:
