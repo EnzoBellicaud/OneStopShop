@@ -357,7 +357,7 @@ class ScrapeService:
     def _cleanup_invalid_offer_links(self, source_type: SourceType, skip_links: set[str]) -> int:
         deleted_count = 0
         offers = (
-            Offer.objects.filter(source_type=source_type, details__scraping__managed=True)
+            Offer.objects.filter(source_type=source_type)
             .exclude(link__isnull=True)
             .exclude(link="")
             .only("id", "link")

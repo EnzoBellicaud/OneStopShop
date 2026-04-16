@@ -111,7 +111,7 @@ class ScrapeServiceBehaviorTests(TestCase):
     @patch("content.scrapers.service.get_sources")
     @patch("content.scrapers.service.extract_deterministic")
     @patch("content.scrapers.service.requests.get")
-    def test_cleanup_deletes_orphaned_scraping_offer_with_404_link(
+    def test_cleanup_deletes_orphaned_legacy_scraping_offer_with_404_link(
         self,
         mock_get,
         mock_extract,
@@ -121,11 +121,6 @@ class ScrapeServiceBehaviorTests(TestCase):
         self._create_offer(
             {
                 "source_name": "Retired Source",
-                "scraping": {
-                    "managed": True,
-                    "source_key": "retired_source",
-                    "stale_candidate": False,
-                },
             }
         )
         orphan_offer = Offer.objects.get(link=self.source.url)

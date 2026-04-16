@@ -313,7 +313,7 @@
       "id": "{offer_009}",
       "title": "NOI Techpark Industrial IoT Validation Testbed",
       "summary": "The IoT Validation Testbed at NOI Techpark Bozen-Bolzano provides SMEs and industry partners with a controlled environment to test, validate, and demonstrate IoT and Industry 4.0 solutions. The facility includes a simulated production floor with PLC arrays, SCADA systems, industrial sensors, and multi-protocol connectivity (5G, LoRaWAN, Zigbee). Access requires a formal engagement agreement with UNIBZ or NOI. Minimum engagement: 3 months.",
-      "link": "https://noi.bz.it/en/services/laboratories",
+      "link": "https://noi.bz.it/en/labs",
       "country": "IT",
       "status": "published",
       "offer_type_id": "{ot_testbed}",
