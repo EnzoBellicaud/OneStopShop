@@ -8,3 +8,7 @@ __pycache__/
 
 .vscode/
 .idea/
+node_modules/
+frontend/node_modules/
+frontend/dist/
+*.pyc
