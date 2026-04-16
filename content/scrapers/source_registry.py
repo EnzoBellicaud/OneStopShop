@@ -34,8 +34,8 @@ SOURCE_REGISTRY: list[SourceDefinition] = [
     ),
     SourceDefinition(
         key="unibz_erasmus_mobility",
-        name="UNIBZ Erasmus Mobility",
-        url="https://www.unibz.it/en/services/student-exchange/erasmus/",
+        name="UNIBZ International Mobility",
+        url="https://www.unibz.it/en/applicants/international/",
         organization_token="unibz",
         offer_type="mobility",
         target_profile="student",
@@ -44,8 +44,8 @@ SOURCE_REGISTRY: list[SourceDefinition] = [
     ),
     SourceDefinition(
         key="mdu_fas_licentiate_thesis",
-        name="MDU FAS Licentiate Thesis",
-        url="https://www.mdu.se/en/malardalen-university/research/research-specialisations/future-autonomous-systems",
+        name="MDU Research Schools Thesis Track",
+        url="https://www.mdu.se/en/malardalen-university/research/research-schools",
         organization_token="mdu",
         offer_type="thesis",
         target_profile="researcher",
@@ -53,9 +53,9 @@ SOURCE_REGISTRY: list[SourceDefinition] = [
         domain_names=["Robotics", "AI"],
     ),
     SourceDefinition(
-        key="mdu_fas_research_group",
-        name="MDU FAS Research Group",
-        url="https://www.mdu.se/en/malardalen-university/research/research-specialisations/future-autonomous-systems",
+        key="mdu_embedded_systems_research_group",
+        name="MDU Embedded Systems Research Group",
+        url="https://www.mdu.se/en/malardalen-university/research/research-specialisations/embedded-systems",
         organization_token="mdu",
         offer_type="research_group",
         target_profile="researcher",
@@ -65,7 +65,7 @@ SOURCE_REGISTRY: list[SourceDefinition] = [
     SourceDefinition(
         key="mdu_din_funding_partner",
         name="MDU DIN Funding Partner",
-        url="https://www.mdu.se/en/malardalen-university/research/industrial-research-schools/din",
+        url="https://www.mdu.se/en/malardalen-university/research/research-specialisations/innovation-and-product-realisation",
         organization_token="mdu",
         offer_type="funding_partner",
         target_profile="company",

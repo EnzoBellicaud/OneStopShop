@@ -101,15 +101,17 @@ docker compose logs --tail 100 api
 When compose is running, use:
 
 - API base: `http://localhost:8000/api`
-- API quick docs page: `http://localhost:8000/api` or `http://localhost:8000/api/docs`
+- API Swagger UI: `http://localhost:8000/api` or `http://localhost:8000/api/docs`
+- OpenAPI schema JSON: `http://localhost:8000/api/openapi.json`
 - Health check: `http://localhost:8000/api/health`
 
 ## Current API Endpoints
 
 All endpoints are read-only (`GET`):
 
-- `/api` - human-friendly quick docs page
-- `/api/docs` - same quick docs page
+- `/api` - Swagger UI
+- `/api/docs` - same Swagger UI page
+- `/api/openapi.json` - OpenAPI 3 schema
 - `/api/health` - service health
 - `/api/lookups/offer-types` - OfferType reference data
 - `/api/lookups/domains` - Domain reference data

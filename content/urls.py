@@ -5,6 +5,7 @@ from content import views
 urlpatterns = [
     path("", views.api_docs, name="api-docs-home"),
     path("docs", views.api_docs, name="api-docs"),
+    path("openapi.json", views.openapi_schema, name="openapi-schema"),
     path("health", views.health, name="health"),
     path("scraping/runs", views.scraping_runs, name="scraping-runs"),
     path("scraping/runs/<str:run_id>", views.scraping_run_detail, name="scraping-run-detail"),

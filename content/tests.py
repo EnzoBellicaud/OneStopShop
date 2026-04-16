@@ -58,7 +58,14 @@ class ReadApiTests(TestCase):
 	def test_docs_endpoint(self):
 		response = self.client.get("/api/docs")
 		self.assertEqual(response.status_code, 200)
-		self.assertContains(response, "SUNRISE OSS API Quick Docs")
+		self.assertContains(response, "SwaggerUIBundle")
+
+	def test_openapi_schema_endpoint(self):
+		response = self.client.get("/api/openapi.json")
+		payload = response.json()
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(payload["openapi"], "3.0.3")
+		self.assertIn("/api/offers", payload["paths"])
 
 	def test_offer_types_endpoint(self):
 		response = self.client.get("/api/lookups/offer-types")

@@ -2,6 +2,7 @@ from uuid import UUID
 
 from django.http import JsonResponse
 from django.shortcuts import render
+from django.urls import reverse
 from django.views.decorators.http import require_GET
 
 from content.models import Domain, Offer, OfferType, ScrapingRun
@@ -43,6 +44,288 @@ def _offer_to_dict(offer: Offer) -> dict:
 	}
 
 
+def _openapi_spec() -> dict:
+	return {
+		"openapi": "3.0.3",
+		"info": {
+			"title": "SUNRISE OSS API",
+			"version": "1.0.0",
+			"description": "Read-only API for offers, lookup tables, and scraping run telemetry.",
+		},
+		"servers": [{"url": "/"}],
+		"paths": {
+			"/api/health": {
+				"get": {
+					"summary": "Health check",
+					"responses": {
+						"200": {
+							"description": "OK",
+							"content": {
+								"application/json": {
+									"schema": {"$ref": "#/components/schemas/HealthResponse"}
+								}
+							},
+						}
+					},
+				}
+			},
+			"/api/lookups/offer-types": {
+				"get": {
+					"summary": "List offer types",
+					"responses": {
+						"200": {
+							"description": "Offer type lookup entries",
+							"content": {
+								"application/json": {
+									"schema": {"$ref": "#/components/schemas/OfferTypeLookupResponse"}
+								}
+							},
+						}
+					},
+				}
+			},
+			"/api/lookups/domains": {
+				"get": {
+					"summary": "List domains",
+					"responses": {
+						"200": {
+							"description": "Domain lookup entries",
+							"content": {
+								"application/json": {
+									"schema": {"$ref": "#/components/schemas/DomainLookupResponse"}
+								}
+							},
+						}
+					},
+				}
+			},
+			"/api/offers": {
+				"get": {
+					"summary": "List offers",
+					"parameters": [
+						{"name": "limit", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 200}},
+						{"name": "status", "in": "query", "schema": {"type": "string", "enum": ["draft", "published", "archived"]}},
+						{"name": "offer_type", "in": "query", "schema": {"type": "string"}},
+						{"name": "organization", "in": "query", "schema": {"type": "string"}},
+						{"name": "target_profile", "in": "query", "schema": {"type": "string"}},
+					],
+					"responses": {
+						"200": {
+							"description": "Offer list",
+							"content": {
+								"application/json": {
+									"schema": {"$ref": "#/components/schemas/OfferListResponse"}
+								}
+							},
+						}
+					},
+				}
+			},
+			"/api/offers/{offer_id}": {
+				"get": {
+					"summary": "Get offer by id",
+					"parameters": [
+						{"name": "offer_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}}
+					],
+					"responses": {
+						"200": {
+							"description": "Offer detail",
+							"content": {"application/json": {"schema": {"$ref": "#/components/schemas/Offer"}}},
+						},
+						"400": {
+							"description": "Invalid offer id",
+							"content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}},
+						},
+						"404": {
+							"description": "Offer not found",
+							"content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}},
+						},
+					},
+				}
+			},
+			"/api/scraping/runs": {
+				"get": {
+					"summary": "List scraping runs",
+					"parameters": [
+						{"name": "limit", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 100}}
+					],
+					"responses": {
+						"200": {
+							"description": "Scraping run summaries",
+							"content": {
+								"application/json": {
+									"schema": {"$ref": "#/components/schemas/ScrapingRunListResponse"}
+								}
+							},
+						}
+					},
+				}
+			},
+			"/api/scraping/runs/{run_id}": {
+				"get": {
+					"summary": "Get scraping run by id",
+					"parameters": [
+						{"name": "run_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}}
+					],
+					"responses": {
+						"200": {
+							"description": "Scraping run detail",
+							"content": {
+								"application/json": {
+									"schema": {"$ref": "#/components/schemas/ScrapingRunDetail"}
+								}
+							},
+						},
+						"400": {
+							"description": "Invalid run id",
+							"content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}},
+						},
+						"404": {
+							"description": "Scraping run not found",
+							"content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}},
+						},
+					},
+				}
+			},
+		},
+		"components": {
+			"schemas": {
+				"HealthResponse": {
+					"type": "object",
+					"properties": {"status": {"type": "string", "example": "ok"}},
+					"required": ["status"],
+				},
+				"ErrorResponse": {
+					"type": "object",
+					"properties": {"detail": {"type": "string"}},
+					"required": ["detail"],
+				},
+				"OfferTypeLookup": {
+					"type": "object",
+					"properties": {
+						"id": {"type": "string", "format": "uuid"},
+						"name": {"type": "string"},
+						"description": {"type": "string"},
+					},
+					"required": ["id", "name", "description"],
+				},
+				"OfferTypeLookupResponse": {
+					"type": "object",
+					"properties": {
+						"count": {"type": "integer"},
+						"results": {"type": "array", "items": {"$ref": "#/components/schemas/OfferTypeLookup"}},
+					},
+					"required": ["count", "results"],
+				},
+				"DomainLookup": {
+					"type": "object",
+					"properties": {
+						"id": {"type": "string", "format": "uuid"},
+						"name": {"type": "string"},
+					},
+					"required": ["id", "name"],
+				},
+				"DomainLookupResponse": {
+					"type": "object",
+					"properties": {
+						"count": {"type": "integer"},
+						"results": {"type": "array", "items": {"$ref": "#/components/schemas/DomainLookup"}},
+					},
+					"required": ["count", "results"],
+				},
+				"OrganizationSummary": {
+					"type": "object",
+					"properties": {
+						"id": {"type": "string", "format": "uuid"},
+						"name": {"type": "string"},
+						"type": {"type": "string"},
+						"country": {"type": "string"},
+					},
+					"required": ["id", "name", "type", "country"],
+				},
+				"Offer": {
+					"type": "object",
+					"properties": {
+						"id": {"type": "string", "format": "uuid"},
+						"title": {"type": "string"},
+						"summary": {"type": "string"},
+						"link": {"type": "string", "format": "uri"},
+						"country": {"type": "string"},
+						"status": {"type": "string", "enum": ["draft", "published", "archived"]},
+						"offer_type": {"type": "string"},
+						"organization": {"$ref": "#/components/schemas/OrganizationSummary"},
+						"source_type": {"type": "string"},
+						"target_profile": {"type": "string"},
+						"domains": {"type": "array", "items": {"type": "string"}},
+						"details": {"type": "object", "additionalProperties": True},
+						"created_at": {"type": "string", "format": "date-time"},
+						"updated_at": {"type": "string", "format": "date-time"},
+					},
+					"required": [
+						"id", "title", "summary", "link", "country", "status", "offer_type", "organization",
+						"source_type", "target_profile", "domains", "details", "created_at", "updated_at"
+					],
+				},
+				"OfferListResponse": {
+					"type": "object",
+					"properties": {
+						"count": {"type": "integer"},
+						"limit": {"type": "integer"},
+						"results": {"type": "array", "items": {"$ref": "#/components/schemas/Offer"}},
+					},
+					"required": ["count", "limit", "results"],
+				},
+				"ScrapingRunSummary": {
+					"type": "object",
+					"properties": {
+						"id": {"type": "string", "format": "uuid"},
+						"source_key": {"type": "string"},
+						"status": {"type": "string"},
+						"job": {"type": "string", "nullable": True},
+						"offers_processed": {"type": "integer"},
+						"offers_created": {"type": "integer"},
+						"offers_updated": {"type": "integer"},
+						"offers_unchanged": {"type": "integer"},
+						"offers_flagged_stale": {"type": "integer"},
+						"errors_count": {"type": "integer"},
+						"llm_calls_count": {"type": "integer"},
+						"started_at": {"type": "string", "format": "date-time", "nullable": True},
+						"completed_at": {"type": "string", "format": "date-time", "nullable": True},
+						"created_at": {"type": "string", "format": "date-time"},
+					},
+					"required": [
+						"id", "source_key", "status", "job", "offers_processed", "offers_created", "offers_updated",
+						"offers_unchanged", "offers_flagged_stale", "errors_count", "llm_calls_count",
+						"started_at", "completed_at", "created_at"
+					],
+				},
+				"ScrapingRunListResponse": {
+					"type": "object",
+					"properties": {
+						"count": {"type": "integer"},
+						"results": {"type": "array", "items": {"$ref": "#/components/schemas/ScrapingRunSummary"}},
+					},
+					"required": ["count", "results"],
+				},
+				"ScrapingRunDetail": {
+					"allOf": [
+						{"$ref": "#/components/schemas/ScrapingRunSummary"},
+						{
+							"type": "object",
+							"properties": {
+								"offers_deleted": {"type": "integer"},
+								"log": {"type": "array", "items": {"type": "object", "additionalProperties": True}},
+								"updated_at": {"type": "string", "format": "date-time"},
+							},
+							"required": ["offers_deleted", "log", "updated_at"],
+						},
+					],
+				},
+			},
+		},
+	}
+
+
 @require_GET
 def health(request):
 	return JsonResponse({"status": "ok"})
@@ -50,7 +333,16 @@ def health(request):
 
 @require_GET
 def api_docs(request):
-	return render(request, "content/api_docs.html")
+	return render(
+		request,
+		"content/api_docs.html",
+		{"schema_url": reverse("openapi-schema")},
+	)
+
+
+@require_GET
+def openapi_schema(request):
+	return JsonResponse(_openapi_spec())
 
 
 @require_GET
