@@ -29,7 +29,7 @@ This branch bootstraps the data layer for Task 1/2/3 with:
 ### 1) Install dependencies
 
 ```powershell
-"d:/Masters/UNIBZ/Semester 2/GDSD - Sweden/.venv/Scripts/python.exe" -m pip install -r requirements.txt
+"d:/Masters/UNIBZ/Semester 2/GDSD - Sweden/.venv/Scripts/python.exe" -m pip install -r backend/requirements.txt
 ```
 
 ### 2) Start PostgreSQL
@@ -60,7 +60,7 @@ The API container runs:
 
 ### 3) Configure environment
 
-Create a local `.env` from `.env.example` and adjust values if needed.
+Create a local `.env` from `backend/.env.example` and adjust values if needed.
 
 Default values:
 
@@ -88,14 +88,14 @@ docker compose logs --tail 100 api
 ### 4) Run migrations
 
 ```powershell
-"d:/Masters/UNIBZ/Semester 2/GDSD - Sweden/.venv/Scripts/python.exe" manage.py migrate
+"d:/Masters/UNIBZ/Semester 2/GDSD - Sweden/.venv/Scripts/python.exe" backend/manage.py migrate
 ```
 
 ### 5) Seed lookup data and offers
 
 ```powershell
-"d:/Masters/UNIBZ/Semester 2/GDSD - Sweden/.venv/Scripts/python.exe" manage.py seed_lookups
-"d:/Masters/UNIBZ/Semester 2/GDSD - Sweden/.venv/Scripts/python.exe" manage.py seed_offers
+"d:/Masters/UNIBZ/Semester 2/GDSD - Sweden/.venv/Scripts/python.exe" backend/manage.py seed_lookups
+"d:/Masters/UNIBZ/Semester 2/GDSD - Sweden/.venv/Scripts/python.exe" backend/manage.py seed_offers
 ```
 
 ## Local URLs
@@ -245,7 +245,7 @@ Defaults:
 - `OLLAMA_MODEL=qwen3-coder:480b-cloud`
 - `OLLAMA_TIMEOUT_SECONDS=45`
 
-Source URLs and metadata are configured in `content/scrapers/source_registry.py`.
+Source URLs and metadata are configured in `backend/content/scrapers/source_registry.py`.
 
 ### How Often It Runs
 
@@ -269,7 +269,7 @@ Important failure semantics:
 
 - `404`/`410` are recorded as `failed` runs in `scraping_run`.
 - Failures are visible via `/api/scraping/runs` and `/api/scraping/runs/{run_id}`.
-- Failed fetches do not auto-delete/auto-archive offers.
+- For `404`/`410`, scraper offers tied to the invalid source are deleted and counted in `offers_deleted`.
 - Failed fetches in a cycle do not trigger stale-marking side effects for that failed source in the same cycle.
 
 ### Troubleshooting Commands
@@ -288,8 +288,8 @@ docker compose down
 
 ## Seed Sources
 
-- `seed_data/task2/OSS_Mapping_Seed.json`
-- `seed_data/task3/OSS_Sample_Offers.json`
+- `backend/seed_data/task2/OSS_Mapping_Seed.json`
+- `backend/seed_data/task3/OSS_Sample_Offers.json`
 
 The offer seeder excludes fictional Task 3 records by design:
 
