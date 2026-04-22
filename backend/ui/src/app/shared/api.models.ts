@@ -98,3 +98,293 @@ export interface OfferQueryParams {
   page_size?: number;
   limit?: number;
 }
+
+export interface ApiErrorResponse {
+  error: string;
+  message: string;
+  details?: Record<string, unknown>;
+}
+
+export interface PaginatedResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
+
+export interface UserOrganization {
+  id: string;
+  name: string;
+  role: string;
+}
+
+export interface UserProfile {
+  id: string;
+  user_id: string;
+  bio: string;
+  avatar_url: string | null;
+  preferred_domains: string[];
+  preferred_countries: string[];
+  notification_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserSummary {
+  id: string;
+  username: string;
+  email: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserDetail extends UserSummary {
+  profile: UserProfile;
+  organizations: UserOrganization[];
+}
+
+export interface UserUpsertRequest {
+  email: string;
+  username: string;
+  organization_id?: string | null;
+}
+
+export interface UserUpdateRequest {
+  email?: string;
+  username?: string;
+}
+
+export interface UserUpsertResponse extends UserDetail {
+  is_new: boolean;
+}
+
+export interface DashboardStats {
+  active_needs_count: number;
+  total_favorites: number;
+  new_matches_count: number;
+}
+
+export interface NeedSummary {
+  id: string;
+  title: string;
+}
+
+export interface UserNeed {
+  id: string;
+  title: string;
+  description: string;
+  status: 'active' | 'fulfilled' | 'archived';
+  target_profile_id: string;
+  domain_ids: string[];
+  countries: string[];
+  matching_hits_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserNeedCreateRequest {
+  title: string;
+  description: string;
+  target_profile_id: string;
+  domain_ids: string[];
+  countries: string[];
+}
+
+export interface OfferPreview {
+  id: string;
+  title: string;
+  organization: string;
+  link: string;
+}
+
+export interface UserFavorite {
+  id: string;
+  offer: OfferPreview;
+  note: string | null;
+  created_at: string;
+}
+
+export interface UserFavoriteCreateRequest {
+  offer_id: string;
+  note?: string | null;
+}
+
+export interface MatchingHit {
+  id: string;
+  need: NeedSummary;
+  offer: OfferPreview;
+  match_score: number;
+  match_reason: string;
+  status: 'new' | 'viewed' | 'interested' | 'declined';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MatchingHitUpdateRequest {
+  status: 'viewed' | 'interested' | 'declined';
+}
+
+export interface DashboardResponse {
+  user: UserDetail;
+  stats: DashboardStats;
+  recent_favorites: UserFavorite[];
+  recent_matches: MatchingHit[];
+}
+
+export interface UserNeedsQueryParams {
+  status?: 'active' | 'fulfilled' | 'archived';
+  page?: number;
+  page_size?: number;
+}
+
+export interface UserFavoritesQueryParams {
+  page?: number;
+  page_size?: number;
+}
+
+export interface MatchingHitsQueryParams {
+  status?: 'new' | 'viewed' | 'interested' | 'declined';
+  sort?: '-match_score' | 'created_at';
+  page?: number;
+}
+
+export interface AdminAccountStats {
+  needs_count: number;
+  favorites_count: number;
+  offers_created: number;
+  last_login: string | null;
+}
+
+export interface AdminUserDetail extends UserDetail {
+  password_hash: string;
+  account_stats: AdminAccountStats;
+}
+
+export interface AdminUserUpdateRequest {
+  username?: string;
+  email?: string;
+  is_active?: boolean;
+}
+
+export interface AdminUsersQueryParams {
+  search?: string;
+  page?: number;
+  page_size?: number;
+  created_after?: string;
+  status?: 'active' | 'inactive' | 'deleted';
+}
+
+export interface AdminUserNeed {
+  id: string;
+  title: string;
+  status: 'active' | 'fulfilled' | 'archived';
+  domains: string[];
+  created_at: string;
+  matching_hits_count: number;
+}
+
+export interface AdminUserFavorite {
+  id: string;
+  offer_id: string;
+  offer: OfferPreview;
+  note: string | null;
+  created_at: string;
+}
+
+export interface AdminMatchingHit {
+  id: string;
+  need_id: string;
+  need_title: string;
+  offer_id: string;
+  offer_title: string;
+  match_score: number;
+  status: 'new' | 'viewed' | 'interested' | 'declined';
+  created_at: string;
+}
+
+export interface AnalyticsPeriod {
+  from: string;
+  to: string;
+}
+
+export interface AdminAnalyticsUserMetrics {
+  total_users: number;
+  active_users: number;
+  new_users: number;
+  deleted_users: number;
+}
+
+export interface AdminAnalyticsContentMetrics {
+  total_needs: number;
+  active_needs: number;
+  fulfilled_needs: number;
+  total_favorites: number;
+  total_matches: number;
+}
+
+export interface AdminAnalyticsEngagementMetrics {
+  avg_needs_per_user: number;
+  avg_favorites_per_user: number;
+  match_acceptance_rate: number;
+  need_fulfillment_rate: number;
+}
+
+export interface AdminAnalyticsResponse {
+  period: AnalyticsPeriod;
+  user_metrics: AdminAnalyticsUserMetrics;
+  content_metrics: AdminAnalyticsContentMetrics;
+  engagement_metrics: AdminAnalyticsEngagementMetrics;
+}
+
+export interface OrganizationUserStats {
+  count: number;
+  active: number;
+}
+
+export interface AdminGrowthMetrics {
+  last_7_days: number;
+  last_30_days: number;
+  trend: 'up' | 'down' | 'flat';
+}
+
+export interface AdminUserStatsResponse {
+  total_users: number;
+  active_users: number;
+  inactive_users: number;
+  by_status: Record<string, number>;
+  by_organization: Record<string, OrganizationUserStats>;
+  growth: AdminGrowthMetrics;
+}
+
+export interface AdminNeedsStats {
+  total: number;
+  active: number;
+  fulfilled: number;
+  archived: number;
+  by_domain: Record<string, number>;
+}
+
+export interface AdminFavoritesStats {
+  total: number;
+  unique_offers: number;
+  avg_per_user: number;
+}
+
+export interface AdminMatchingDistribution {
+  excellent: number;
+  good: number;
+  fair: number;
+}
+
+export interface AdminMatchingStats {
+  total_matches: number;
+  avg_score: number;
+  score_distribution: AdminMatchingDistribution;
+}
+
+export interface AdminContentStatsResponse {
+  needs: AdminNeedsStats;
+  favorites: AdminFavoritesStats;
+  matching: AdminMatchingStats;
+}

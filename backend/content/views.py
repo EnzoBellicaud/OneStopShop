@@ -46,18 +46,1147 @@ def _offer_to_dict(offer: Offer) -> dict:
 	}
 
 
+def _build_stage_zero_paths() -> dict:
+	# Stage 0 publishes the future dashboard contract early so frontend work can
+	# start before the backing views and models are fully implemented.
+	return {
+		"/api/users": {
+			"post": {
+				"tags": ["Users"],
+				"summary": "Create or update a user profile",
+				"description": "Upsert a user record using the lightweight pre-auth flow planned for stages 2-5.",
+				"requestBody": {
+					"required": True,
+					"content": {
+						"application/json": {
+							"schema": {"$ref": "#/components/schemas/UserUpsertRequest"},
+							"examples": {
+								"default": {
+									"value": {
+										"email": "john@example.com",
+										"username": "john_doe",
+										"organization_id": "550e8400-e29b-41d4-a716-446655440000",
+									}
+								}
+							},
+						}
+					},
+				},
+				"responses": {
+					"200": {
+						"description": "Existing user updated",
+						"content": {
+							"application/json": {
+								"schema": {"$ref": "#/components/schemas/UserUpsertResponse"}
+							}
+						},
+					},
+					"201": {
+						"description": "New user created",
+						"content": {
+							"application/json": {
+								"schema": {"$ref": "#/components/schemas/UserUpsertResponse"}
+							}
+						},
+					},
+					"400": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {"$ref": "#/components/schemas/ApiErrorResponse"}
+							}
+						},
+					},
+				},
+			}
+		},
+		"/api/users/{user_id}": {
+			"get": {
+				"tags": ["Users"],
+				"summary": "Get user profile",
+				"parameters": [
+					{
+						"name": "user_id",
+						"in": "path",
+						"required": True,
+						"schema": {"type": "string", "format": "uuid"},
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "User profile",
+						"content": {
+							"application/json": {
+								"schema": {"$ref": "#/components/schemas/UserDetail"}
+							}
+						},
+					},
+					"404": {
+						"description": "User not found",
+						"content": {
+							"application/json": {
+								"schema": {"$ref": "#/components/schemas/ApiErrorResponse"}
+							}
+						},
+					},
+				},
+			},
+			"patch": {
+				"tags": ["Users"],
+				"summary": "Update a user",
+				"parameters": [
+					{
+						"name": "user_id",
+						"in": "path",
+						"required": True,
+						"schema": {"type": "string", "format": "uuid"},
+					}
+				],
+				"requestBody": {
+					"required": True,
+					"content": {
+						"application/json": {
+							"schema": {"$ref": "#/components/schemas/UserUpdateRequest"}
+						}
+					},
+				},
+				"responses": {
+					"200": {
+						"description": "Updated user",
+						"content": {
+							"application/json": {
+								"schema": {"$ref": "#/components/schemas/UserDetail"}
+							}
+						},
+					},
+					"400": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {"$ref": "#/components/schemas/ApiErrorResponse"}
+							}
+						},
+					},
+				},
+			},
+		},
+		"/api/users/{user_id}/dashboard": {
+			"get": {
+				"tags": ["Dashboard"],
+				"summary": "Get dashboard summary",
+				"parameters": [
+					{
+						"name": "user_id",
+						"in": "path",
+						"required": True,
+						"schema": {"type": "string", "format": "uuid"},
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Dashboard summary",
+						"content": {
+							"application/json": {
+								"schema": {"$ref": "#/components/schemas/DashboardResponse"}
+							}
+						},
+					}
+				},
+			}
+		},
+		"/api/users/{user_id}/needs": {
+			"get": {
+				"tags": ["Needs"],
+				"summary": "List needs",
+				"parameters": [
+					{
+						"name": "user_id",
+						"in": "path",
+						"required": True,
+						"schema": {"type": "string", "format": "uuid"},
+					},
+					{
+						"name": "status",
+						"in": "query",
+						"schema": {"type": "string", "enum": ["active", "fulfilled", "archived"]},
+					},
+					{"name": "page", "in": "query", "schema": {"type": "integer", "minimum": 1}},
+					{"name": "page_size", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 100}},
+				],
+				"responses": {
+					"200": {
+						"description": "Paginated list of user needs",
+						"content": {
+							"application/json": {
+								"schema": {"$ref": "#/components/schemas/UserNeedListResponse"}
+							}
+						},
+					}
+				},
+			},
+			"post": {
+				"tags": ["Needs"],
+				"summary": "Create a need",
+				"parameters": [
+					{
+						"name": "user_id",
+						"in": "path",
+						"required": True,
+						"schema": {"type": "string", "format": "uuid"},
+					}
+				],
+				"requestBody": {
+					"required": True,
+					"content": {
+						"application/json": {
+							"schema": {"$ref": "#/components/schemas/UserNeedCreateRequest"}
+						}
+					},
+				},
+				"responses": {
+					"201": {
+						"description": "Need created",
+						"content": {
+							"application/json": {
+								"schema": {"$ref": "#/components/schemas/UserNeed"}
+							}
+						},
+					},
+					"400": {
+						"description": "Validation error",
+						"content": {
+							"application/json": {
+								"schema": {"$ref": "#/components/schemas/ApiErrorResponse"}
+							}
+						},
+					},
+				},
+			},
+		},
+		"/api/users/{user_id}/favorites": {
+			"get": {
+				"tags": ["Favorites"],
+				"summary": "List favorites",
+				"parameters": [
+					{
+						"name": "user_id",
+						"in": "path",
+						"required": True,
+						"schema": {"type": "string", "format": "uuid"},
+					},
+					{"name": "page", "in": "query", "schema": {"type": "integer", "minimum": 1}},
+					{"name": "page_size", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 100}},
+				],
+				"responses": {
+					"200": {
+						"description": "Paginated user favorites",
+						"content": {
+							"application/json": {
+								"schema": {"$ref": "#/components/schemas/UserFavoriteListResponse"}
+							}
+						},
+					}
+				},
+			},
+			"post": {
+				"tags": ["Favorites"],
+				"summary": "Add a favorite",
+				"parameters": [
+					{
+						"name": "user_id",
+						"in": "path",
+						"required": True,
+						"schema": {"type": "string", "format": "uuid"},
+					}
+				],
+				"requestBody": {
+					"required": True,
+					"content": {
+						"application/json": {
+							"schema": {"$ref": "#/components/schemas/UserFavoriteCreateRequest"}
+						}
+					},
+				},
+				"responses": {
+					"201": {
+						"description": "Favorite created",
+						"content": {
+							"application/json": {
+								"schema": {"$ref": "#/components/schemas/UserFavorite"}
+							}
+						},
+					}
+				},
+			},
+		},
+		"/api/users/{user_id}/matching-hits": {
+			"get": {
+				"tags": ["Matching"],
+				"summary": "List matching hits",
+				"parameters": [
+					{
+						"name": "user_id",
+						"in": "path",
+						"required": True,
+						"schema": {"type": "string", "format": "uuid"},
+					},
+					{
+						"name": "status",
+						"in": "query",
+						"schema": {"type": "string", "enum": ["new", "viewed", "interested", "declined"]},
+					},
+					{
+						"name": "sort",
+						"in": "query",
+						"schema": {"type": "string", "enum": ["-match_score", "created_at"]},
+					},
+					{"name": "page", "in": "query", "schema": {"type": "integer", "minimum": 1}},
+				],
+				"responses": {
+					"200": {
+						"description": "Paginated matching hits",
+						"content": {
+							"application/json": {
+								"schema": {"$ref": "#/components/schemas/MatchingHitListResponse"}
+							}
+						},
+					}
+				},
+			}
+		},
+		"/api/users/{user_id}/matching-hits/{hit_id}": {
+			"patch": {
+				"tags": ["Matching"],
+				"summary": "Update match status",
+				"parameters": [
+					{
+						"name": "user_id",
+						"in": "path",
+						"required": True,
+						"schema": {"type": "string", "format": "uuid"},
+					},
+					{
+						"name": "hit_id",
+						"in": "path",
+						"required": True,
+						"schema": {"type": "string", "format": "uuid"},
+					},
+				],
+				"requestBody": {
+					"required": True,
+					"content": {
+						"application/json": {
+							"schema": {"$ref": "#/components/schemas/MatchingHitUpdateRequest"}
+						}
+					},
+				},
+				"responses": {
+					"200": {
+						"description": "Updated matching hit",
+						"content": {
+							"application/json": {
+								"schema": {"$ref": "#/components/schemas/MatchingHit"}
+							}
+						},
+					}
+				},
+			}
+		},
+		"/api/admin/users": {
+			"get": {
+				"tags": ["Admin"],
+				"summary": "List all users",
+				"description": "Planned admin endpoint. Authentication is intentionally deferred until Stage 6.",
+				"parameters": [
+					{"name": "search", "in": "query", "schema": {"type": "string"}},
+					{"name": "page", "in": "query", "schema": {"type": "integer", "minimum": 1}},
+					{"name": "page_size", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 100}},
+					{"name": "created_after", "in": "query", "schema": {"type": "string", "format": "date"}},
+					{"name": "status", "in": "query", "schema": {"type": "string", "enum": ["active", "inactive", "deleted"]}},
+				],
+				"responses": {
+					"200": {
+						"description": "Paginated user list",
+						"content": {
+							"application/json": {
+								"schema": {"$ref": "#/components/schemas/AdminUserListResponse"}
+							}
+						},
+					},
+					"403": {
+						"description": "Forbidden",
+						"content": {
+							"application/json": {
+								"schema": {"$ref": "#/components/schemas/ApiErrorResponse"}
+							}
+						},
+					},
+				},
+			}
+		},
+		"/api/admin/users/{user_id}": {
+			"get": {
+				"tags": ["Admin"],
+				"summary": "Get a full user profile",
+				"parameters": [
+					{
+						"name": "user_id",
+						"in": "path",
+						"required": True,
+						"schema": {"type": "string", "format": "uuid"},
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "Detailed user view",
+						"content": {
+							"application/json": {
+								"schema": {"$ref": "#/components/schemas/AdminUserDetail"}
+							}
+						},
+					}
+				},
+			},
+			"patch": {
+				"tags": ["Admin"],
+				"summary": "Update a user as admin",
+				"parameters": [
+					{
+						"name": "user_id",
+						"in": "path",
+						"required": True,
+						"schema": {"type": "string", "format": "uuid"},
+					}
+				],
+				"requestBody": {
+					"required": True,
+					"content": {
+						"application/json": {
+							"schema": {"$ref": "#/components/schemas/AdminUserUpdateRequest"}
+						}
+					},
+				},
+				"responses": {
+					"200": {
+						"description": "Updated user",
+						"content": {
+							"application/json": {
+								"schema": {"$ref": "#/components/schemas/AdminUserDetail"}
+							}
+						},
+					}
+				},
+			},
+			"delete": {
+				"tags": ["Admin"],
+				"summary": "Hard delete a user",
+				"parameters": [
+					{
+						"name": "user_id",
+						"in": "path",
+						"required": True,
+						"schema": {"type": "string", "format": "uuid"},
+					}
+				],
+				"responses": {"204": {"description": "User deleted"}},
+			},
+		},
+		"/api/admin/users/{user_id}/profiles": {
+			"get": {
+				"tags": ["Admin"],
+				"summary": "Get a user's profile",
+				"parameters": [
+					{
+						"name": "user_id",
+						"in": "path",
+						"required": True,
+						"schema": {"type": "string", "format": "uuid"},
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "User profile",
+						"content": {
+							"application/json": {
+								"schema": {"$ref": "#/components/schemas/UserProfile"}
+							}
+						},
+					}
+				},
+			}
+		},
+		"/api/admin/users/{user_id}/needs": {
+			"get": {
+				"tags": ["Admin"],
+				"summary": "Get all needs for a user",
+				"parameters": [
+					{
+						"name": "user_id",
+						"in": "path",
+						"required": True,
+						"schema": {"type": "string", "format": "uuid"},
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "All user needs",
+						"content": {
+							"application/json": {
+								"schema": {"$ref": "#/components/schemas/AdminUserNeedListResponse"}
+							}
+						},
+					}
+				},
+			}
+		},
+		"/api/admin/users/{user_id}/favorites": {
+			"get": {
+				"tags": ["Admin"],
+				"summary": "Get all favorites for a user",
+				"parameters": [
+					{
+						"name": "user_id",
+						"in": "path",
+						"required": True,
+						"schema": {"type": "string", "format": "uuid"},
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "All user favorites",
+						"content": {
+							"application/json": {
+								"schema": {"$ref": "#/components/schemas/AdminUserFavoriteListResponse"}
+							}
+						},
+					}
+				},
+			}
+		},
+		"/api/admin/users/{user_id}/matching-hits": {
+			"get": {
+				"tags": ["Admin"],
+				"summary": "Get all matching hits for a user",
+				"parameters": [
+					{
+						"name": "user_id",
+						"in": "path",
+						"required": True,
+						"schema": {"type": "string", "format": "uuid"},
+					}
+				],
+				"responses": {
+					"200": {
+						"description": "All matching hits",
+						"content": {
+							"application/json": {
+								"schema": {"$ref": "#/components/schemas/AdminMatchingHitListResponse"}
+							}
+						},
+					}
+				},
+			}
+		},
+		"/api/admin/dashboard/analytics": {
+			"get": {
+				"tags": ["Admin"],
+				"summary": "Get system analytics",
+				"parameters": [
+					{"name": "date_from", "in": "query", "schema": {"type": "string", "format": "date"}},
+					{"name": "date_to", "in": "query", "schema": {"type": "string", "format": "date"}},
+				],
+				"responses": {
+					"200": {
+						"description": "Analytics response",
+						"content": {
+							"application/json": {
+								"schema": {"$ref": "#/components/schemas/AdminAnalyticsResponse"}
+							}
+						},
+					}
+				},
+			}
+		},
+		"/api/admin/dashboard/users-stats": {
+			"get": {
+				"tags": ["Admin"],
+				"summary": "Get user statistics",
+				"responses": {
+					"200": {
+						"description": "User statistics",
+						"content": {
+							"application/json": {
+								"schema": {"$ref": "#/components/schemas/AdminUserStatsResponse"}
+							}
+						},
+					}
+				},
+			}
+		},
+		"/api/admin/dashboard/content-stats": {
+			"get": {
+				"tags": ["Admin"],
+				"summary": "Get content statistics",
+				"responses": {
+					"200": {
+						"description": "Content statistics",
+						"content": {
+							"application/json": {
+								"schema": {"$ref": "#/components/schemas/AdminContentStatsResponse"}
+							}
+						},
+					}
+				},
+			}
+		},
+	}
+
+
+def _build_stage_zero_schemas() -> dict:
+	return {
+		"ApiErrorResponse": {
+			"type": "object",
+			"properties": {
+				"error": {"type": "string", "example": "validation_error"},
+				"message": {"type": "string", "example": "Email is required."},
+				"details": {"type": "object", "additionalProperties": True},
+			},
+			"required": ["error", "message"],
+		},
+		"PaginationEnvelope": {
+			"type": "object",
+			"properties": {
+				"count": {"type": "integer"},
+				"next": {"type": "string", "nullable": True},
+				"previous": {"type": "string", "nullable": True},
+			},
+			"required": ["count", "next", "previous"],
+		},
+		"UserOrganization": {
+			"type": "object",
+			"properties": {
+				"id": {"type": "string", "format": "uuid"},
+				"name": {"type": "string"},
+				"role": {"type": "string", "example": "member"},
+			},
+			"required": ["id", "name", "role"],
+		},
+		"UserProfile": {
+			"type": "object",
+			"properties": {
+				"id": {"type": "string", "format": "uuid"},
+				"user_id": {"type": "string", "format": "uuid"},
+				"bio": {"type": "string"},
+				"avatar_url": {"type": "string", "format": "uri", "nullable": True},
+				"preferred_domains": {"type": "array", "items": {"type": "string"}},
+				"preferred_countries": {"type": "array", "items": {"type": "string"}},
+				"notification_enabled": {"type": "boolean"},
+				"created_at": {"type": "string", "format": "date-time"},
+				"updated_at": {"type": "string", "format": "date-time"},
+			},
+			"required": [
+				"id", "user_id", "bio", "avatar_url", "preferred_domains",
+				"preferred_countries", "notification_enabled", "created_at", "updated_at",
+			],
+		},
+		"UserSummary": {
+			"type": "object",
+			"properties": {
+				"id": {"type": "string", "format": "uuid"},
+				"username": {"type": "string"},
+				"email": {"type": "string", "format": "email"},
+				"is_active": {"type": "boolean"},
+				"created_at": {"type": "string", "format": "date-time"},
+				"updated_at": {"type": "string", "format": "date-time"},
+			},
+			"required": ["id", "username", "email", "is_active", "created_at", "updated_at"],
+		},
+		"UserDetail": {
+			"allOf": [
+				{"$ref": "#/components/schemas/UserSummary"},
+				{
+					"type": "object",
+					"properties": {
+						"profile": {"$ref": "#/components/schemas/UserProfile"},
+						"organizations": {
+							"type": "array",
+							"items": {"$ref": "#/components/schemas/UserOrganization"},
+						},
+					},
+					"required": ["profile", "organizations"],
+				},
+			],
+		},
+		"UserUpsertRequest": {
+			"type": "object",
+			"properties": {
+				"email": {"type": "string", "format": "email"},
+				"username": {"type": "string"},
+				"organization_id": {"type": "string", "format": "uuid", "nullable": True},
+			},
+			"required": ["email", "username"],
+		},
+		"UserUpdateRequest": {
+			"type": "object",
+			"properties": {
+				"email": {"type": "string", "format": "email"},
+				"username": {"type": "string"},
+			},
+		},
+		"UserUpsertResponse": {
+			"allOf": [
+				{"$ref": "#/components/schemas/UserDetail"},
+				{
+					"type": "object",
+					"properties": {"is_new": {"type": "boolean"}},
+					"required": ["is_new"],
+				},
+			],
+		},
+		"DashboardStats": {
+			"type": "object",
+			"properties": {
+				"active_needs_count": {"type": "integer"},
+				"total_favorites": {"type": "integer"},
+				"new_matches_count": {"type": "integer"},
+			},
+			"required": ["active_needs_count", "total_favorites", "new_matches_count"],
+		},
+		"NeedSummary": {
+			"type": "object",
+			"properties": {
+				"id": {"type": "string", "format": "uuid"},
+				"title": {"type": "string"},
+			},
+			"required": ["id", "title"],
+		},
+		"UserNeed": {
+			"type": "object",
+			"properties": {
+				"id": {"type": "string", "format": "uuid"},
+				"title": {"type": "string"},
+				"description": {"type": "string"},
+				"status": {"type": "string", "enum": ["active", "fulfilled", "archived"]},
+				"target_profile_id": {"type": "string", "format": "uuid"},
+				"domain_ids": {"type": "array", "items": {"type": "string", "format": "uuid"}},
+				"countries": {"type": "array", "items": {"type": "string"}},
+				"matching_hits_count": {"type": "integer"},
+				"created_at": {"type": "string", "format": "date-time"},
+				"updated_at": {"type": "string", "format": "date-time"},
+			},
+			"required": [
+				"id", "title", "description", "status", "target_profile_id",
+				"domain_ids", "countries", "matching_hits_count", "created_at", "updated_at",
+			],
+		},
+		"UserNeedCreateRequest": {
+			"type": "object",
+			"properties": {
+				"title": {"type": "string"},
+				"description": {"type": "string"},
+				"target_profile_id": {"type": "string", "format": "uuid"},
+				"domain_ids": {"type": "array", "items": {"type": "string", "format": "uuid"}},
+				"countries": {"type": "array", "items": {"type": "string"}},
+			},
+			"required": ["title", "description", "target_profile_id", "domain_ids", "countries"],
+		},
+		"UserNeedListResponse": {
+			"allOf": [
+				{"$ref": "#/components/schemas/PaginationEnvelope"},
+				{
+					"type": "object",
+					"properties": {
+						"results": {
+							"type": "array",
+							"items": {"$ref": "#/components/schemas/UserNeed"},
+						}
+					},
+					"required": ["results"],
+				},
+			],
+		},
+		"OfferPreview": {
+			"type": "object",
+			"properties": {
+				"id": {"type": "string", "format": "uuid"},
+				"title": {"type": "string"},
+				"organization": {"type": "string"},
+				"link": {"type": "string", "format": "uri"},
+			},
+			"required": ["id", "title", "organization", "link"],
+		},
+		"UserFavorite": {
+			"type": "object",
+			"properties": {
+				"id": {"type": "string", "format": "uuid"},
+				"offer": {"$ref": "#/components/schemas/OfferPreview"},
+				"note": {"type": "string", "nullable": True},
+				"created_at": {"type": "string", "format": "date-time"},
+			},
+			"required": ["id", "offer", "note", "created_at"],
+		},
+		"UserFavoriteCreateRequest": {
+			"type": "object",
+			"properties": {
+				"offer_id": {"type": "string", "format": "uuid"},
+				"note": {"type": "string", "nullable": True},
+			},
+			"required": ["offer_id"],
+		},
+		"UserFavoriteListResponse": {
+			"allOf": [
+				{"$ref": "#/components/schemas/PaginationEnvelope"},
+				{
+					"type": "object",
+					"properties": {
+						"results": {
+							"type": "array",
+							"items": {"$ref": "#/components/schemas/UserFavorite"},
+						}
+					},
+					"required": ["results"],
+				},
+			],
+		},
+		"MatchingHit": {
+			"type": "object",
+			"properties": {
+				"id": {"type": "string", "format": "uuid"},
+				"need": {"$ref": "#/components/schemas/NeedSummary"},
+				"offer": {"$ref": "#/components/schemas/OfferPreview"},
+				"match_score": {"type": "number", "format": "float"},
+				"match_reason": {"type": "string"},
+				"status": {"type": "string", "enum": ["new", "viewed", "interested", "declined"]},
+				"created_at": {"type": "string", "format": "date-time"},
+				"updated_at": {"type": "string", "format": "date-time"},
+			},
+			"required": [
+				"id", "need", "offer", "match_score", "match_reason",
+				"status", "created_at", "updated_at",
+			],
+		},
+		"MatchingHitListResponse": {
+			"allOf": [
+				{"$ref": "#/components/schemas/PaginationEnvelope"},
+				{
+					"type": "object",
+					"properties": {
+						"results": {
+							"type": "array",
+							"items": {"$ref": "#/components/schemas/MatchingHit"},
+						}
+					},
+					"required": ["results"],
+				},
+			],
+		},
+		"MatchingHitUpdateRequest": {
+			"type": "object",
+			"properties": {
+				"status": {"type": "string", "enum": ["viewed", "interested", "declined"]},
+			},
+			"required": ["status"],
+		},
+		"DashboardResponse": {
+			"type": "object",
+			"properties": {
+				"user": {"$ref": "#/components/schemas/UserDetail"},
+				"stats": {"$ref": "#/components/schemas/DashboardStats"},
+				"recent_favorites": {
+					"type": "array",
+					"items": {"$ref": "#/components/schemas/UserFavorite"},
+				},
+				"recent_matches": {
+					"type": "array",
+					"items": {"$ref": "#/components/schemas/MatchingHit"},
+				},
+			},
+			"required": ["user", "stats", "recent_favorites", "recent_matches"],
+		},
+		"AdminAccountStats": {
+			"type": "object",
+			"properties": {
+				"needs_count": {"type": "integer"},
+				"favorites_count": {"type": "integer"},
+				"offers_created": {"type": "integer"},
+				"last_login": {"type": "string", "format": "date-time", "nullable": True},
+			},
+			"required": ["needs_count", "favorites_count", "offers_created", "last_login"],
+		},
+		"AdminUserDetail": {
+			"allOf": [
+				{"$ref": "#/components/schemas/UserDetail"},
+				{
+					"type": "object",
+					"properties": {
+						"password_hash": {"type": "string", "example": "***"},
+						"account_stats": {"$ref": "#/components/schemas/AdminAccountStats"},
+					},
+					"required": ["password_hash", "account_stats"],
+				},
+			],
+		},
+		"AdminUserUpdateRequest": {
+			"type": "object",
+			"properties": {
+				"username": {"type": "string"},
+				"email": {"type": "string", "format": "email"},
+				"is_active": {"type": "boolean"},
+			},
+		},
+		"AdminUserListResponse": {
+			"allOf": [
+				{"$ref": "#/components/schemas/PaginationEnvelope"},
+				{
+					"type": "object",
+					"properties": {
+						"results": {
+							"type": "array",
+							"items": {"$ref": "#/components/schemas/UserSummary"},
+						}
+					},
+					"required": ["results"],
+				},
+			],
+		},
+		"AdminUserNeed": {
+			"type": "object",
+			"properties": {
+				"id": {"type": "string", "format": "uuid"},
+				"title": {"type": "string"},
+				"status": {"type": "string", "enum": ["active", "fulfilled", "archived"]},
+				"domains": {"type": "array", "items": {"type": "string"}},
+				"created_at": {"type": "string", "format": "date-time"},
+				"matching_hits_count": {"type": "integer"},
+			},
+			"required": ["id", "title", "status", "domains", "created_at", "matching_hits_count"],
+		},
+		"AdminUserNeedListResponse": {
+			"type": "object",
+			"properties": {
+				"count": {"type": "integer"},
+				"results": {"type": "array", "items": {"$ref": "#/components/schemas/AdminUserNeed"}},
+			},
+			"required": ["count", "results"],
+		},
+		"AdminUserFavorite": {
+			"type": "object",
+			"properties": {
+				"id": {"type": "string", "format": "uuid"},
+				"offer_id": {"type": "string", "format": "uuid"},
+				"offer": {"$ref": "#/components/schemas/OfferPreview"},
+				"note": {"type": "string", "nullable": True},
+				"created_at": {"type": "string", "format": "date-time"},
+			},
+			"required": ["id", "offer_id", "offer", "note", "created_at"],
+		},
+		"AdminUserFavoriteListResponse": {
+			"type": "object",
+			"properties": {
+				"count": {"type": "integer"},
+				"results": {"type": "array", "items": {"$ref": "#/components/schemas/AdminUserFavorite"}},
+			},
+			"required": ["count", "results"],
+		},
+		"AdminMatchingHit": {
+			"type": "object",
+			"properties": {
+				"id": {"type": "string", "format": "uuid"},
+				"need_id": {"type": "string", "format": "uuid"},
+				"need_title": {"type": "string"},
+				"offer_id": {"type": "string", "format": "uuid"},
+				"offer_title": {"type": "string"},
+				"match_score": {"type": "number", "format": "float"},
+				"status": {"type": "string", "enum": ["new", "viewed", "interested", "declined"]},
+				"created_at": {"type": "string", "format": "date-time"},
+			},
+			"required": [
+				"id", "need_id", "need_title", "offer_id", "offer_title",
+				"match_score", "status", "created_at",
+			],
+		},
+		"AdminMatchingHitListResponse": {
+			"type": "object",
+			"properties": {
+				"count": {"type": "integer"},
+				"results": {"type": "array", "items": {"$ref": "#/components/schemas/AdminMatchingHit"}},
+			},
+			"required": ["count", "results"],
+		},
+		"AnalyticsPeriod": {
+			"type": "object",
+			"properties": {
+				"from": {"type": "string", "format": "date"},
+				"to": {"type": "string", "format": "date"},
+			},
+			"required": ["from", "to"],
+		},
+		"AdminAnalyticsUserMetrics": {
+			"type": "object",
+			"properties": {
+				"total_users": {"type": "integer"},
+				"active_users": {"type": "integer"},
+				"new_users": {"type": "integer"},
+				"deleted_users": {"type": "integer"},
+			},
+			"required": ["total_users", "active_users", "new_users", "deleted_users"],
+		},
+		"AdminAnalyticsContentMetrics": {
+			"type": "object",
+			"properties": {
+				"total_needs": {"type": "integer"},
+				"active_needs": {"type": "integer"},
+				"fulfilled_needs": {"type": "integer"},
+				"total_favorites": {"type": "integer"},
+				"total_matches": {"type": "integer"},
+			},
+			"required": [
+				"total_needs", "active_needs", "fulfilled_needs",
+				"total_favorites", "total_matches",
+			],
+		},
+		"AdminAnalyticsEngagementMetrics": {
+			"type": "object",
+			"properties": {
+				"avg_needs_per_user": {"type": "number", "format": "float"},
+				"avg_favorites_per_user": {"type": "number", "format": "float"},
+				"match_acceptance_rate": {"type": "number", "format": "float"},
+				"need_fulfillment_rate": {"type": "number", "format": "float"},
+			},
+			"required": [
+				"avg_needs_per_user", "avg_favorites_per_user",
+				"match_acceptance_rate", "need_fulfillment_rate",
+			],
+		},
+		"AdminAnalyticsResponse": {
+			"type": "object",
+			"properties": {
+				"period": {"$ref": "#/components/schemas/AnalyticsPeriod"},
+				"user_metrics": {"$ref": "#/components/schemas/AdminAnalyticsUserMetrics"},
+				"content_metrics": {"$ref": "#/components/schemas/AdminAnalyticsContentMetrics"},
+				"engagement_metrics": {"$ref": "#/components/schemas/AdminAnalyticsEngagementMetrics"},
+			},
+			"required": ["period", "user_metrics", "content_metrics", "engagement_metrics"],
+		},
+		"AdminUserStatsByStatus": {
+			"type": "object",
+			"additionalProperties": {"type": "integer"},
+		},
+		"AdminUserStatsByOrganization": {
+			"type": "object",
+			"additionalProperties": {
+				"type": "object",
+				"properties": {
+					"count": {"type": "integer"},
+					"active": {"type": "integer"},
+				},
+				"required": ["count", "active"],
+			},
+		},
+		"AdminGrowthMetrics": {
+			"type": "object",
+			"properties": {
+				"last_7_days": {"type": "integer"},
+				"last_30_days": {"type": "integer"},
+				"trend": {"type": "string", "enum": ["up", "down", "flat"]},
+			},
+			"required": ["last_7_days", "last_30_days", "trend"],
+		},
+		"AdminUserStatsResponse": {
+			"type": "object",
+			"properties": {
+				"total_users": {"type": "integer"},
+				"active_users": {"type": "integer"},
+				"inactive_users": {"type": "integer"},
+				"by_status": {"$ref": "#/components/schemas/AdminUserStatsByStatus"},
+				"by_organization": {"$ref": "#/components/schemas/AdminUserStatsByOrganization"},
+				"growth": {"$ref": "#/components/schemas/AdminGrowthMetrics"},
+			},
+			"required": [
+				"total_users", "active_users", "inactive_users",
+				"by_status", "by_organization", "growth",
+			],
+		},
+		"AdminNeedsStats": {
+			"type": "object",
+			"properties": {
+				"total": {"type": "integer"},
+				"active": {"type": "integer"},
+				"fulfilled": {"type": "integer"},
+				"archived": {"type": "integer"},
+				"by_domain": {"type": "object", "additionalProperties": {"type": "integer"}},
+			},
+			"required": ["total", "active", "fulfilled", "archived", "by_domain"],
+		},
+		"AdminFavoritesStats": {
+			"type": "object",
+			"properties": {
+				"total": {"type": "integer"},
+				"unique_offers": {"type": "integer"},
+				"avg_per_user": {"type": "number", "format": "float"},
+			},
+			"required": ["total", "unique_offers", "avg_per_user"],
+		},
+		"AdminMatchingDistribution": {
+			"type": "object",
+			"properties": {
+				"excellent": {"type": "integer"},
+				"good": {"type": "integer"},
+				"fair": {"type": "integer"},
+			},
+			"required": ["excellent", "good", "fair"],
+		},
+		"AdminMatchingStats": {
+			"type": "object",
+			"properties": {
+				"total_matches": {"type": "integer"},
+				"avg_score": {"type": "number", "format": "float"},
+				"score_distribution": {"$ref": "#/components/schemas/AdminMatchingDistribution"},
+			},
+			"required": ["total_matches", "avg_score", "score_distribution"],
+		},
+		"AdminContentStatsResponse": {
+			"type": "object",
+			"properties": {
+				"needs": {"$ref": "#/components/schemas/AdminNeedsStats"},
+				"favorites": {"$ref": "#/components/schemas/AdminFavoritesStats"},
+				"matching": {"$ref": "#/components/schemas/AdminMatchingStats"},
+			},
+			"required": ["needs", "favorites", "matching"],
+		},
+	}
+
+
 def _openapi_spec() -> dict:
+	stage_zero_paths = _build_stage_zero_paths()
+	stage_zero_schemas = _build_stage_zero_schemas()
 	return {
 		"openapi": "3.0.3",
 		"info": {
 			"title": "SUNRISE OSS API",
-			"version": "1.0.0",
-			"description": "Read-only API for offers, lookup tables, and scraping run telemetry.",
+			"version": "1.1.0-stage0",
+			"description": (
+				"Stage 0 contract for current OSS endpoints plus the planned user dashboard and "
+				"admin APIs needed for frontend-first development."
+			),
 		},
 		"servers": [{"url": "/"}],
+		"tags": [
+			{"name": "System", "description": "Operational and documentation endpoints"},
+			{"name": "Lookups", "description": "Offer lookup datasets"},
+			{"name": "Offers", "description": "Current offer catalogue endpoints"},
+			{"name": "Scraping", "description": "Current scraping telemetry endpoints"},
+			{"name": "Users", "description": "Planned user management endpoints"},
+			{"name": "Dashboard", "description": "Planned user dashboard endpoints"},
+			{"name": "Needs", "description": "Planned need management endpoints"},
+			{"name": "Favorites", "description": "Planned favorite endpoints"},
+			{"name": "Matching", "description": "Planned matching-hit endpoints"},
+			{"name": "Admin", "description": "Planned admin-only endpoints for Stage 6+"},
+		],
 		"paths": {
 			"/api/health": {
 				"get": {
+					"tags": ["System"],
 					"summary": "Health check",
 					"responses": {
 						"200": {
@@ -73,6 +1202,7 @@ def _openapi_spec() -> dict:
 			},
 			"/api/lookups/offer-types": {
 				"get": {
+					"tags": ["Lookups"],
 					"summary": "List offer types",
 					"responses": {
 						"200": {
@@ -88,6 +1218,7 @@ def _openapi_spec() -> dict:
 			},
 			"/api/lookups/domains": {
 				"get": {
+					"tags": ["Lookups"],
 					"summary": "List domains",
 					"responses": {
 						"200": {
@@ -103,6 +1234,7 @@ def _openapi_spec() -> dict:
 			},
 			"/api/lookups/organizations": {
 				"get": {
+					"tags": ["Lookups"],
 					"summary": "List organizations",
 					"responses": {
 						"200": {
@@ -118,6 +1250,7 @@ def _openapi_spec() -> dict:
 			},
 			"/api/lookups/countries": {
 				"get": {
+					"tags": ["Lookups"],
 					"summary": "List countries used by offers",
 					"responses": {
 						"200": {
@@ -133,6 +1266,7 @@ def _openapi_spec() -> dict:
 			},
 			"/api/offers": {
 				"get": {
+					"tags": ["Offers"],
 					"summary": "List offers",
 					"parameters": [
 						{"name": "q", "in": "query", "schema": {"type": "string"}},
@@ -160,6 +1294,7 @@ def _openapi_spec() -> dict:
 			},
 			"/api/offers/{offer_id}": {
 				"get": {
+					"tags": ["Offers"],
 					"summary": "Get offer by id",
 					"parameters": [
 						{"name": "offer_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}}
@@ -182,6 +1317,7 @@ def _openapi_spec() -> dict:
 			},
 			"/api/scraping/runs": {
 				"get": {
+					"tags": ["Scraping"],
 					"summary": "List scraping runs",
 					"parameters": [
 						{"name": "limit", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 100}}
@@ -200,6 +1336,7 @@ def _openapi_spec() -> dict:
 			},
 			"/api/scraping/runs/{run_id}": {
 				"get": {
+					"tags": ["Scraping"],
 					"summary": "Get scraping run by id",
 					"parameters": [
 						{"name": "run_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}}
@@ -224,6 +1361,21 @@ def _openapi_spec() -> dict:
 					},
 				}
 			},
+			"/api/docs": {
+				"get": {
+					"tags": ["System"],
+					"summary": "Swagger UI documentation",
+					"responses": {"200": {"description": "HTML documentation page"}},
+				}
+			},
+			"/api/redoc": {
+				"get": {
+					"tags": ["System"],
+					"summary": "ReDoc documentation",
+					"responses": {"200": {"description": "HTML documentation page"}},
+				}
+			},
+			**stage_zero_paths,
 		},
 		"components": {
 			"schemas": {
@@ -394,6 +1546,7 @@ def _openapi_spec() -> dict:
 						},
 					],
 				},
+				**stage_zero_schemas,
 			},
 		},
 	}
@@ -409,7 +1562,24 @@ def api_docs(request):
 	return render(
 		request,
 		"content/api_docs.html",
-		{"schema_url": reverse("openapi-schema")},
+		{
+			"schema_url": reverse("openapi-schema"),
+			"page_title": "SUNRISE OSS Swagger UI",
+			"docs_variant": "swagger",
+		},
+	)
+
+
+@require_GET
+def redoc_docs(request):
+	return render(
+		request,
+		"content/api_docs.html",
+		{
+			"schema_url": reverse("openapi-schema"),
+			"page_title": "SUNRISE OSS ReDoc",
+			"docs_variant": "redoc",
+		},
 	)
 
 
