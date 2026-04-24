@@ -6,6 +6,7 @@ from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
+from django_ratelimit.decorators import ratelimit
 import json
 
 from content.models import User
@@ -82,6 +83,7 @@ def verify_token(token: str) -> dict | None:
 
 
 @csrf_exempt
+@ratelimit(key='ip', rate='5/h', method='POST')
 @require_http_methods(["POST"])
 def register(request):
 	"""User registration endpoint."""
@@ -148,6 +150,7 @@ def register(request):
 
 
 @csrf_exempt
+@ratelimit(key='ip', rate='10/h', method='POST')
 @require_http_methods(["POST"])
 def login(request):
 	"""User login endpoint."""
@@ -300,6 +303,7 @@ def update_user_profile(request):
 
 
 @csrf_exempt
+@ratelimit(key='ip', rate='5/h', method='POST')
 @require_http_methods(["POST"])
 def change_password(request):
 	"""Change user password."""
