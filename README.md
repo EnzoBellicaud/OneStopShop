@@ -210,6 +210,12 @@ Dry-run (no DB writes):
 docker compose exec api python manage.py run_scrape_once --dry-run
 ```
 
+Run in crawler queue mode (depth-1 link discovery for crawl-enabled sources):
+
+```powershell
+docker compose exec api python manage.py run_scrape_once --crawl --source-key unibz_crawler_seed
+```
+
 ### See Scraper Results
 
 Recent run summaries:
@@ -243,6 +249,8 @@ Defaults:
 - `INGESTION_BOT_USERNAME=ingestion_bot`
 - `OLLAMA_BASE_URL=http://host.docker.internal:11434`
 - `OLLAMA_MODEL=qwen3-coder:480b-cloud`
+- `OLLAMA_MODEL_POOL=qwen3-coder:480b-cloud,llama3.1:70b,mistral-large`
+- `OLLAMA_MODEL_COOLDOWN_SECONDS=60` (cooldown after rate-limit on a model before retrying it)
 - `OLLAMA_TIMEOUT_SECONDS=45`
 
 Source URLs and metadata are configured in `backend/content/scrapers/source_registry.py`.
@@ -271,6 +279,48 @@ Important failure semantics:
 - Failures are visible via `/api/scraping/runs` and `/api/scraping/runs/{run_id}`.
 - For `404`/`410`, scraper offers tied to the invalid source are deleted and counted in `offers_deleted`.
 - Failed fetches in a cycle do not trigger stale-marking side effects for that failed source in the same cycle.
+
+### Crawler Decision Engine (Crawl Mode)
+
+When a source has `crawl_enabled=True` (or `--crawl` flag is passed), the scraper runs in crawler mode:
+
+1. Fetches the seed URL and extracts all depth-1 same-domain links.
+2. Filters links using `crawl_match_patterns` (include) and `crawl_exclude_patterns` (exclude).
+3. Caps discovered links at `crawl_max_pages` (default 25).
+4. For each discovered page, makes an explicit **neglect or map** decision:
+
+| Decision | Reason code | When |
+|---|---|---|
+| `neglect` | `fetch_error` | Page fetch failed (network/HTTP error) |
+| `neglect` | `missing_core_fields` | No title and no summary extractable |
+| `neglect` | `non_relevant_page` | Extraction produced only fallback placeholders (title = source name, summary = "Auto-extracted from …") indicating a non-offer navigation page |
+| `map` | — | Real content extracted; offer upserted |
+
+Partial failure safety: if any page fetch fails during a crawl run, the source is excluded from stale-marking for that cycle. This prevents transient fetch failures from incorrectly flagging existing offers as stale.
+
+Counters returned by `run_scrape_once`:
+
+- `links_discovered` — pages queued from depth-1 crawl
+- `links_skipped` — links filtered out (wrong domain, excluded pattern, cap reached)
+- `links_mapped` — pages that produced a mapped offer
+- `model_switches` — Ollama model rotations due to rate-limiting
+
+Run a pilot crawl manually:
+
+```powershell
+docker compose exec api python manage.py run_scrape_once --source-key unibz_crawler_seed
+docker compose exec api python manage.py run_scrape_once --source-key mdu_crawler_seed
+```
+
+### Windows / Docker API Compatibility Note
+
+On Windows with Docker Desktop, the `OLLAMA_BASE_URL` must point to `host.docker.internal` (not `localhost`) for the container to reach a locally running Ollama instance:
+
+```
+OLLAMA_BASE_URL=http://host.docker.internal:11434
+```
+
+This is the default. If Ollama is not running, LLM fallback calls will fail silently and the scraper continues with deterministic extraction only.
 
 ### Troubleshooting Commands
 

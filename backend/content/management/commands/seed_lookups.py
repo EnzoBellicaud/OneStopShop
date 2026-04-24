@@ -71,6 +71,48 @@ class Command(BaseCommand):
                 "country": "SE",
                 "website": "https://www.mdu.se/en/malardalen-university",
             },
+            {
+                "token": "tu_ilmenau",
+                "name": "TU Ilmenau",
+                "country": "DE",
+                "website": "https://www.tu-ilmenau.de/",
+            },
+            {
+                "token": "uitm",
+                "name": "University of Information Technology and Management (UITM)",
+                "country": "PL",
+                "website": "https://www.uitm.edu.eu/",
+            },
+            {
+                "token": "utc",
+                "name": "Université de Technologie de Compiègne (UTC)",
+                "country": "FR",
+                "website": "https://www.utc.fr/",
+            },
+            {
+                "token": "euc",
+                "name": "European University Cyprus (EUC)",
+                "country": "CY",
+                "website": "https://www.euc.ac.cy/",
+            },
+            {
+                "token": "univpm",
+                "name": "Università Politecnica delle Marche (UNIVPM)",
+                "country": "IT",
+                "website": "https://www.univpm.it/",
+            },
+            {
+                "token": "unmo",
+                "name": "University of Mostar (UNMO)",
+                "country": "BA",
+                "website": "https://www.unmo.ba/",
+            },
+            {
+                "token": "ipvc",
+                "name": "Instituto Politécnico de Viana do Castelo (IPVC)",
+                "country": "PT",
+                "website": "https://www.ipvc.pt/",
+            },
         ]
 
         organization_map = {}

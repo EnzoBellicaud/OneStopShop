@@ -25,11 +25,17 @@ class Command(BaseCommand):
             action="store_true",
             help="Disable Ollama fallback even when confidence is low.",
         )
+        parser.add_argument(
+            "--crawl",
+            action="store_true",
+            help="Enable depth-1 crawler queue mode for selected sources.",
+        )
 
     def handle(self, *args, **options):
         summary = run_scrape(
             source_keys=options.get("source_keys"),
             dry_run=bool(options.get("dry_run")),
             use_llm_fallback=not bool(options.get("disable_llm_fallback")),
+            crawl=bool(options.get("crawl")),
         )
         self.stdout.write(json.dumps(summary, indent=2))

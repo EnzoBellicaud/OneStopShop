@@ -15,6 +15,10 @@ class SourceDefinition:
     llm_fallback_enabled: bool = True
     enabled: bool = True
     quality: str = "real"
+    crawl_enabled: bool = False
+    crawl_max_pages: int = 25
+    crawl_match_patterns: list[str] = field(default_factory=list)
+    crawl_exclude_patterns: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -24,3 +28,11 @@ class ExtractedPayload:
     details: dict = field(default_factory=dict)
     confidence: float = 0.0
     method: str = "deterministic"
+
+
+@dataclass
+class PageDecision:
+    page_url: str
+    decision: str
+    reason: str
+    payload: ExtractedPayload | None = None

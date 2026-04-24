@@ -1,11 +1,37 @@
 import json
 import re
+from urllib.parse import urljoin, urlparse, urlunparse
 
 from bs4 import BeautifulSoup
 
 from content.scrapers.types import ExtractedPayload, SourceDefinition
 
 WHITESPACE_RE = re.compile(r"\s+")
+
+_GENERIC_TITLE_KEYWORDS: frozenset[str] = frozenset({
+    "contact", "contact us", "apply", "application", "applications", "login",
+    "sign in", "log in", "search", "cookie", "cookies", "privacy", "privacy policy",
+    "imprint", "impressum", "sitemap", "404", "page not found", "error",
+    "news", "events", "event", "newsletter", "alumni", "donate", "shop",
+    "career", "careers", "jobs", "press", "media", "awards", "recognition",
+    "gallery", "map", "campus map", "home", "welcome", "about", "about us",
+    "accessibility", "legal notice", "terms", "disclaimer",
+})
+
+
+_COMPOSITE_SEPARATORS = (" - ", " | ", " — ", " · ", " : ")
+
+
+def is_generic_page(title: str) -> bool:
+    normalized = WHITESPACE_RE.sub(" ", title).strip().lower()
+    if normalized in _GENERIC_TITLE_KEYWORDS:
+        return True
+    for sep in _COMPOSITE_SEPARATORS:
+        if sep in normalized:
+            base = normalized.split(sep)[0].strip()
+            if base in _GENERIC_TITLE_KEYWORDS:
+                return True
+    return False
 
 
 def _normalize_text(value: str) -> str:
@@ -28,6 +54,65 @@ def _extract_json_ld(soup: BeautifulSoup) -> list[dict]:
         elif isinstance(parsed, list):
             payloads.extend([item for item in parsed if isinstance(item, dict)])
     return payloads
+
+
+def _normalize_link(url: str) -> str:
+    parsed = urlparse(url)
+    cleaned = parsed._replace(fragment="")
+    return urlunparse(cleaned)
+
+
+def extract_depth1_links(
+    html: str,
+    seed_url: str,
+    include_patterns: list[str] | None = None,
+    exclude_patterns: list[str] | None = None,
+    max_links: int = 25,
+) -> tuple[list[str], int]:
+    include_patterns = include_patterns or []
+    exclude_patterns = exclude_patterns or []
+
+    soup = BeautifulSoup(html, "html.parser")
+    seed = urlparse(seed_url)
+    seed_host = seed.netloc.lower()
+
+    links: list[str] = []
+    seen: set[str] = set()
+    skipped = 0
+
+    for anchor in soup.find_all("a", href=True):
+        href = (anchor.get("href") or "").strip()
+        if not href or href.startswith("javascript:") or href.startswith("mailto:"):
+            skipped += 1
+            continue
+
+        absolute = _normalize_link(urljoin(seed_url, href))
+        parsed = urlparse(absolute)
+        host = parsed.netloc.lower()
+        if host != seed_host:
+            skipped += 1
+            continue
+
+        path = parsed.path or "/"
+        if include_patterns and not any(pattern in path for pattern in include_patterns):
+            skipped += 1
+            continue
+
+        if exclude_patterns and any(pattern in path for pattern in exclude_patterns):
+            skipped += 1
+            continue
+
+        if absolute in seen:
+            continue
+
+        if len(links) >= max_links:
+            skipped += 1
+            continue
+
+        seen.add(absolute)
+        links.append(absolute)
+
+    return links, skipped
 
 
 def extract_deterministic(html: str, source: SourceDefinition) -> ExtractedPayload:
