@@ -8,6 +8,8 @@ urlpatterns = [
     path("auth/login", auth.login, name="login"),
     path("auth/refresh", auth.refresh_token, name="refresh-token"),
     path("auth/me", auth.get_current_user, name="get-current-user"),
+    path("auth/me/update", auth.update_user_profile, name="update-user-profile"),
+    path("auth/change-password", auth.change_password, name="change-password"),
 
     # API documentation
     path("", views.api_docs, name="api-docs-home"),

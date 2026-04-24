@@ -95,6 +95,7 @@ def register(request):
 	password = data.get('password', '')
 	first_name = data.get('first_name', '').strip()
 	last_name = data.get('last_name', '').strip()
+	profile = data.get('profile', User.ProfileType.STUDENT).strip()
 
 	# Validation
 	if not username or len(username) < 3:
@@ -105,6 +106,11 @@ def register(request):
 
 	if not password or len(password) < 8:
 		return JsonResponse({'detail': 'Password must be at least 8 characters'}, status=400)
+
+	# Validate profile
+	valid_profiles = [choice[0] for choice in User.ProfileType.choices]
+	if profile not in valid_profiles:
+		return JsonResponse({'detail': f'Profile must be one of: {", ".join(valid_profiles)}'}, status=400)
 
 	# Check if user already exists
 	if User.objects.filter(username=username).exists():
@@ -121,6 +127,7 @@ def register(request):
 			password_hash=hash_password(password),
 			first_name=first_name,
 			last_name=last_name,
+			profile=profile,
 		)
 
 		tokens = generate_tokens(user.id, user.username)
@@ -132,6 +139,7 @@ def register(request):
 				'email': user.email,
 				'first_name': user.first_name,
 				'last_name': user.last_name,
+				'profile': user.profile,
 			},
 			'tokens': tokens,
 		}, status=201)
@@ -169,6 +177,7 @@ def login(request):
 			'email': user.email,
 			'first_name': user.first_name,
 			'last_name': user.last_name,
+			'profile': user.profile,
 		},
 		'tokens': tokens,
 	}, status=200)
@@ -232,5 +241,106 @@ def get_current_user(request):
 			'email': user.email,
 			'first_name': user.first_name,
 			'last_name': user.last_name,
+			'profile': user.profile,
 		},
+	}, status=200)
+
+
+@csrf_exempt
+@require_http_methods(["PATCH"])
+def update_user_profile(request):
+	"""Update user profile information."""
+	auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+
+	if not auth_header.startswith('Bearer '):
+		return JsonResponse({'detail': 'Missing or invalid authorization header'}, status=401)
+
+	token = auth_header[7:]
+	payload = verify_token(token)
+
+	if not payload or payload.get('type') != 'access':
+		return JsonResponse({'detail': 'Invalid token'}, status=401)
+
+	user = User.objects.filter(id=payload['user_id']).first()
+
+	if not user:
+		return JsonResponse({'detail': 'User not found'}, status=404)
+
+	try:
+		data = json.loads(request.body)
+	except json.JSONDecodeError:
+		return JsonResponse({'detail': 'Invalid JSON'}, status=400)
+
+	# Update allowed fields
+	if 'first_name' in data:
+		user.first_name = data['first_name'].strip()
+
+	if 'last_name' in data:
+		user.last_name = data['last_name'].strip()
+
+	if 'profile' in data:
+		profile = data['profile'].strip()
+		valid_profiles = [choice[0] for choice in User.ProfileType.choices]
+		if profile not in valid_profiles:
+			return JsonResponse({'detail': f'Profile must be one of: {", ".join(valid_profiles)}'}, status=400)
+		user.profile = profile
+
+	user.save()
+
+	return JsonResponse({
+		'user': {
+			'id': str(user.id),
+			'username': user.username,
+			'email': user.email,
+			'first_name': user.first_name,
+			'last_name': user.last_name,
+			'profile': user.profile,
+		},
+	}, status=200)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def change_password(request):
+	"""Change user password."""
+	auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+
+	if not auth_header.startswith('Bearer '):
+		return JsonResponse({'detail': 'Missing or invalid authorization header'}, status=401)
+
+	token = auth_header[7:]
+	payload = verify_token(token)
+
+	if not payload or payload.get('type') != 'access':
+		return JsonResponse({'detail': 'Invalid token'}, status=401)
+
+	user = User.objects.filter(id=payload['user_id']).first()
+
+	if not user:
+		return JsonResponse({'detail': 'User not found'}, status=404)
+
+	try:
+		data = json.loads(request.body)
+	except json.JSONDecodeError:
+		return JsonResponse({'detail': 'Invalid JSON'}, status=400)
+
+	old_password = data.get('old_password', '')
+	new_password = data.get('new_password', '')
+
+	if not old_password or not new_password:
+		return JsonResponse({'detail': 'Old and new passwords required'}, status=400)
+
+	if len(new_password) < 8:
+		return JsonResponse({'detail': 'New password must be at least 8 characters'}, status=400)
+
+	# Verify old password
+	if not verify_password(old_password, user.password_hash):
+		return JsonResponse({'detail': 'Invalid current password'}, status=401)
+
+	# Update password
+	user.password_hash = hash_password(new_password)
+	user.save()
+
+	return JsonResponse({
+		'detail': 'Password changed successfully',
 	}, status=200)
