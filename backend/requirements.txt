@@ -6,3 +6,5 @@ requests==2.32.3
 beautifulsoup4==4.12.3
 fastapi
 uvicorn[standard]
+PyJWT==2.8.1
+djangorestframework==3.14.0

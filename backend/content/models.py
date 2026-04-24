@@ -95,10 +95,22 @@ class Organization(TimeStampedModel):
 
 
 class User(TimeStampedModel):
+	class ProfileType(models.TextChoices):
+		STUDENT = "Student", "Student"
+		ACADEMIC_STAFF = "Academic staff", "Academic staff"
+		COMPANY = "Company", "Company"
+
 	id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 	username = models.CharField(max_length=150, unique=True)
 	email = models.EmailField(unique=True)
 	password_hash = models.CharField(max_length=255)
+	first_name = models.CharField(max_length=150, blank=True)
+	last_name = models.CharField(max_length=150, blank=True)
+	profile = models.CharField(
+		max_length=30,
+		choices=ProfileType.choices,
+		default=ProfileType.STUDENT,
+	)
 
 	class Meta:
 		db_table = "oss_user"
