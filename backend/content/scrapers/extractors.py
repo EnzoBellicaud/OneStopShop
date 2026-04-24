@@ -2,6 +2,7 @@ import json
 import re
 from urllib.parse import urljoin, urlparse, urlunparse
 
+import trafilatura
 from bs4 import BeautifulSoup
 
 from content.scrapers.types import ExtractedPayload, SourceDefinition
@@ -9,6 +10,7 @@ from content.scrapers.types import ExtractedPayload, SourceDefinition
 WHITESPACE_RE = re.compile(r"\s+")
 
 _GENERIC_TITLE_KEYWORDS: frozenset[str] = frozenset({
+    # English
     "contact", "contact us", "apply", "application", "applications", "login",
     "sign in", "log in", "search", "cookie", "cookies", "privacy", "privacy policy",
     "imprint", "impressum", "sitemap", "404", "page not found", "error",
@@ -16,6 +18,16 @@ _GENERIC_TITLE_KEYWORDS: frozenset[str] = frozenset({
     "career", "careers", "jobs", "press", "media", "awards", "recognition",
     "gallery", "map", "campus map", "home", "welcome", "about", "about us",
     "accessibility", "legal notice", "terms", "disclaimer",
+    # French
+    "recherchez", "recherchez sur le site", "accueil", "actualites", "agenda",
+    "nous contacter", "plan du site", "mentions legales",
+    # Portuguese / Spanish
+    "pesquisa", "inicio", "noticias", "contacto", "contactos", "sobre",
+    "mapa do site", "aviso legal", "politica de privacidade",
+    # German
+    "suche", "startseite", "kontakt", "datenschutz",
+    # Italian
+    "cerca", "contatti", "notizie",
 })
 
 
@@ -118,14 +130,26 @@ def extract_depth1_links(
 def extract_deterministic(html: str, source: SourceDefinition) -> ExtractedPayload:
     soup = BeautifulSoup(html, "html.parser")
 
+    # Title: h1 → trafilatura fallback if h1 is generic → <title> tag
     page_title = ""
     h1 = soup.find("h1")
     if h1:
         page_title = _normalize_text(h1.get_text(" ", strip=True))
 
+    if not page_title or is_generic_page(page_title):
+        try:
+            traf_meta = trafilatura.extract_metadata(filecontent=html)
+            if traf_meta and traf_meta.title:
+                candidate = _normalize_text(traf_meta.title)
+                if candidate and not is_generic_page(candidate):
+                    page_title = candidate
+        except Exception:
+            pass
+
     if not page_title and soup.title and soup.title.string:
         page_title = _normalize_text(soup.title.string)
 
+    # Summary: meta description → OG → trafilatura main content → first <p>
     meta_description = ""
     description_meta = soup.find("meta", attrs={"name": "description"})
     if description_meta and description_meta.get("content"):
@@ -136,6 +160,16 @@ def extract_deterministic(html: str, source: SourceDefinition) -> ExtractedPaylo
         if og_description and og_description.get("content"):
             meta_description = _normalize_text(og_description["content"])
 
+    main_content = ""
+    try:
+        raw = trafilatura.extract(html, include_comments=False, favor_recall=True) or ""
+        main_content = raw.strip()
+    except Exception:
+        pass
+
+    if not meta_description and main_content:
+        meta_description = main_content[:300]
+
     if not meta_description:
         first_paragraph = soup.find("p")
         if first_paragraph:
@@ -143,20 +177,23 @@ def extract_deterministic(html: str, source: SourceDefinition) -> ExtractedPaylo
 
     json_ld = _extract_json_ld(soup)
 
+    # Content-aware confidence: rewards pages with real body content
+    confidence = 0.25
+    if page_title:
+        confidence += 0.30
+    if meta_description:
+        confidence += 0.20
+    if json_ld:
+        confidence += 0.10
+    if len(main_content) > 150:
+        confidence += 0.15
+
     details = {
         "source_url": source.url,
         "source_name": source.name,
         "json_ld_detected": bool(json_ld),
         "json_ld_sample": json_ld[:2],
     }
-
-    confidence = 0.25
-    if page_title:
-        confidence += 0.35
-    if meta_description:
-        confidence += 0.25
-    if json_ld:
-        confidence += 0.15
 
     title = page_title or source.name
     summary = meta_description or f"Auto-extracted from {source.url}"

@@ -69,6 +69,7 @@ services:
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3-coder:480b-cloud}
       OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS:-45}
       OLLAMA_REQUEST_DELAY_SECONDS: ${OLLAMA_REQUEST_DELAY_SECONDS:-2}
+      OLLAMA_COOLDOWN_MAX_WAIT_SECONDS: ${OLLAMA_COOLDOWN_MAX_WAIT_SECONDS:-65}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     command: ["sh", "/app/docker/api/worker_entrypoint.sh"]

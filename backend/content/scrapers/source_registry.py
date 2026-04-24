@@ -98,6 +98,13 @@ SOURCE_REGISTRY: list[SourceDefinition] = [
         enabled=True,
         crawl_enabled=True,
         crawl_match_patterns=["/en/", "/faculties/", "/applicants/"],
+        crawl_exclude_patterns=[
+            "/en/home/",
+            "/news", "/events", "/contact", "/alumni",
+            "/sustainability", "/quality-assurance",
+            "/assignments", "/position-calls", "/5x1000",
+            "/companies-and-partnerships",
+        ],
     ),
     SourceDefinition(
         key="uitm_crawler_seed",
@@ -195,7 +202,12 @@ SOURCE_REGISTRY: list[SourceDefinition] = [
         enabled=True,
         crawl_enabled=True,
         crawl_match_patterns=["/en/", "/cursos", "/investigacao"],
-        crawl_exclude_patterns=["/contact", "/news", "/events", "/login", "/apply", "/noticias", "/agenda", "/alumni", "/imprensa"],
+        crawl_exclude_patterns=[
+            "/contact", "/news", "/events", "/login", "/apply",
+            "/noticias", "/agenda", "/alumni", "/imprensa",
+            "/sobre-o-ipvc/", "/organizacao/",
+            "/orcamento", "/contratos-publicos", "/projetos-institucionais",
+        ],
     ),
 ]
 

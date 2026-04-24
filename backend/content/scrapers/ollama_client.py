@@ -27,6 +27,7 @@ class OllamaClient:
             self.model_pool = [self.model]
         self.timeout_seconds = int(os.getenv("OLLAMA_TIMEOUT_SECONDS", "45"))
         self.model_cooldown_seconds = int(os.getenv("OLLAMA_MODEL_COOLDOWN_SECONDS", "60"))
+        self.cooldown_max_wait_seconds = int(os.getenv("OLLAMA_COOLDOWN_MAX_WAIT_SECONDS", "65"))
         self.request_delay_seconds = int(os.getenv("OLLAMA_REQUEST_DELAY_SECONDS", "2"))
         self.last_switch_count = 0
 
@@ -38,6 +39,24 @@ class OllamaClient:
             if _SHARED_MODEL_COOLDOWN.get(model, 0) <= now
         ]
 
+    def _wait_for_available_model(self) -> list[str]:
+        models = self._available_models()
+        if models:
+            return models
+        if not _SHARED_MODEL_COOLDOWN:
+            return []
+        soonest = min(_SHARED_MODEL_COOLDOWN.values())
+        wait = max(0.0, soonest - time.time())
+        if wait > self.cooldown_max_wait_seconds:
+            LOGGER.debug(
+                "All models in cooldown for %.0fs (max wait %.0fs) — skipping LLM",
+                wait, self.cooldown_max_wait_seconds,
+            )
+            return []
+        LOGGER.info("All models in cooldown — waiting %.1fs before retry", wait)
+        time.sleep(wait + 0.5)
+        return self._available_models()
+
     def extract_fallback(
         self,
         html: str,
@@ -48,7 +67,7 @@ class OllamaClient:
         url = f"{self.base_url.rstrip('/')}/api/generate"
         self.last_switch_count = 0
 
-        models = self._available_models()
+        models = self._wait_for_available_model()
         if not models:
             LOGGER.debug("Ollama fallback skipped for %s: all models in cooldown", source.key)
             return None
@@ -127,7 +146,7 @@ class OllamaClient:
         url = f"{self.base_url.rstrip('/')}/api/generate"
         self.last_switch_count = 0
 
-        models = self._available_models()
+        models = self._wait_for_available_model()
         if not models:
             LOGGER.debug("Ollama relevance check skipped for %s: all models in cooldown", source.key)
             return True, None, ""
