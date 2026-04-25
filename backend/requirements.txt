@@ -7,3 +7,5 @@ beautifulsoup4==4.12.3
 fastapi
 uvicorn[standard]
 trafilatura>=1.9
+ollama>=0.4
+scrapy>=2.11

@@ -1,9 +1,11 @@
 import json
 import re
-from urllib.parse import urljoin, urlparse, urlunparse
+from urllib.parse import urlparse, urlunparse
 
 import trafilatura
 from bs4 import BeautifulSoup
+from scrapy.http import HtmlResponse
+from scrapy.linkextractors import LinkExtractor
 
 from content.scrapers.types import ExtractedPayload, SourceDefinition
 
@@ -74,57 +76,45 @@ def _normalize_link(url: str) -> str:
     return urlunparse(cleaned)
 
 
-def extract_depth1_links(
+def extract_links_from_html(
     html: str,
     seed_url: str,
     include_patterns: list[str] | None = None,
     exclude_patterns: list[str] | None = None,
     max_links: int = 25,
 ) -> tuple[list[str], int]:
-    include_patterns = include_patterns or []
-    exclude_patterns = exclude_patterns or []
+    """Extract links from HTML using Scrapy's LinkExtractor.
 
-    soup = BeautifulSoup(html, "html.parser")
-    seed = urlparse(seed_url)
-    seed_host = seed.netloc.lower()
+    Patterns are treated as regex substrings matched against the full URL.
+    Returns (links, skipped_count) where skipped_count is links beyond max_links.
+    """
+    seed_host = urlparse(seed_url).netloc.lower()
 
-    links: list[str] = []
+    scrapy_response = HtmlResponse(
+        url=seed_url,
+        body=html.encode("utf-8", errors="replace"),
+        encoding="utf-8",
+    )
+    extractor = LinkExtractor(
+        allow=include_patterns or [],
+        deny=exclude_patterns or [],
+        allow_domains=[seed_host],
+        unique=True,
+    )
+    raw_links = extractor.extract_links(scrapy_response)
+
     seen: set[str] = set()
-    skipped = 0
+    links: list[str] = []
+    for link in raw_links:
+        normalized = _normalize_link(link.url)
+        if normalized not in seen:
+            seen.add(normalized)
+            links.append(normalized)
 
-    for anchor in soup.find_all("a", href=True):
-        href = (anchor.get("href") or "").strip()
-        if not href or href.startswith("javascript:") or href.startswith("mailto:"):
-            skipped += 1
-            continue
-
-        absolute = _normalize_link(urljoin(seed_url, href))
-        parsed = urlparse(absolute)
-        host = parsed.netloc.lower()
-        if host != seed_host:
-            skipped += 1
-            continue
-
-        path = parsed.path or "/"
-        if include_patterns and not any(pattern in path for pattern in include_patterns):
-            skipped += 1
-            continue
-
-        if exclude_patterns and any(pattern in path for pattern in exclude_patterns):
-            skipped += 1
-            continue
-
-        if absolute in seen:
-            continue
-
-        if len(links) >= max_links:
-            skipped += 1
-            continue
-
-        seen.add(absolute)
-        links.append(absolute)
-
-    return links, skipped
+    if len(links) > max_links:
+        skipped = len(links) - max_links
+        return links[:max_links], skipped
+    return links, 0
 
 
 def extract_deterministic(html: str, source: SourceDefinition) -> ExtractedPayload:

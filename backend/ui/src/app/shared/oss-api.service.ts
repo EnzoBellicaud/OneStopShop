@@ -4,20 +4,24 @@ import { Observable } from 'rxjs';
 import {
   CountryLookup,
   DomainLookup,
+  LlmStats,
   LookupResponse,
   OfferListResponse,
   OfferQueryParams,
   OrganizationLookup,
   OfferTypeLookup,
+  ScrapingOverview,
   ScrapingRunDetail,
   ScrapingRunListResponse,
+  SourcesHealthResponse,
 } from './api.models';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root',
 })
 export class OssApiService {
-  private readonly apiBaseUrl = 'http://localhost:8000/api';
+  private readonly apiBaseUrl = environment.apiBaseUrl;
 
   constructor(private readonly http: HttpClient) {}
 
@@ -51,6 +55,22 @@ export class OssApiService {
 
   getScrapingRunDetail(runId: string): Observable<ScrapingRunDetail> {
     return this.http.get<ScrapingRunDetail>(`${this.apiBaseUrl}/scraping/runs/${runId}`);
+  }
+
+  getScrapingOverview(window: '24h' | '7d' | '30d' = '24h'): Observable<ScrapingOverview> {
+    return this.http.get<ScrapingOverview>(`${this.apiBaseUrl}/scraping/overview`, {
+      params: this.buildParams({ window }),
+    });
+  }
+
+  getSourcesHealth(): Observable<SourcesHealthResponse> {
+    return this.http.get<SourcesHealthResponse>(`${this.apiBaseUrl}/scraping/sources/health`);
+  }
+
+  getLlmStats(window: '24h' | '7d' | '30d' = '24h'): Observable<LlmStats> {
+    return this.http.get<LlmStats>(`${this.apiBaseUrl}/scraping/llm/stats`, {
+      params: this.buildParams({ window }),
+    });
   }
 
   private buildParams(

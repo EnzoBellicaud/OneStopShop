@@ -1,10 +1,11 @@
+import datetime
 import json
 import logging
 import os
 import re
 import time
 
-import requests
+import ollama
 
 from content.scrapers.types import ExtractedPayload, SourceDefinition
 
@@ -15,6 +16,14 @@ JSON_BLOCK_RE = re.compile(r"\{[\s\S]*\}")
 # Prevents a model that hit cooldown at the end of run N from being retried
 # at the start of run N+1 before the cooldown has expired.
 _SHARED_MODEL_COOLDOWN: dict[str, float] = {}
+
+# Buffer for cooldown events emitted during _wait_for_available_model.
+# Flushed into run.log by ScrapeService after each LLM call.
+_COOLDOWN_LOG_BUFFER: list[dict] = []
+
+
+def _utc_now() -> str:
+    return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 class OllamaClient:
@@ -30,6 +39,7 @@ class OllamaClient:
         self.cooldown_max_wait_seconds = int(os.getenv("OLLAMA_COOLDOWN_MAX_WAIT_SECONDS", "65"))
         self.request_delay_seconds = int(os.getenv("OLLAMA_REQUEST_DELAY_SECONDS", "2"))
         self.last_switch_count = 0
+        self._client = ollama.Client(host=self.base_url, timeout=self.timeout_seconds)
 
     def _available_models(self) -> list[str]:
         now = time.time()
@@ -54,8 +64,21 @@ class OllamaClient:
             )
             return []
         LOGGER.info("All models in cooldown — waiting %.1fs before retry", wait)
-        time.sleep(wait + 0.5)
+        actual_wait = round(wait + 0.5, 1)
+        _COOLDOWN_LOG_BUFFER.append({
+            "ts": _utc_now(),
+            "event": "cooldown_wait",
+            "level": "warn",
+            "seconds": actual_wait,
+            "message": f"All models in cooldown — waiting {wait:.1f}s before retry",
+        })
+        time.sleep(actual_wait)
         return self._available_models()
+
+    def flush_cooldown_events(self) -> list[dict]:
+        events = list(_COOLDOWN_LOG_BUFFER)
+        _COOLDOWN_LOG_BUFFER.clear()
+        return events
 
     def extract_fallback(
         self,
@@ -64,7 +87,6 @@ class OllamaClient:
         deterministic_payload: ExtractedPayload,
     ) -> ExtractedPayload | None:
         prompt = self._build_prompt(html, source, deterministic_payload)
-        url = f"{self.base_url.rstrip('/')}/api/generate"
         self.last_switch_count = 0
 
         models = self._wait_for_available_model()
@@ -74,28 +96,20 @@ class OllamaClient:
 
         for index, model in enumerate(models):
             try:
-                response = requests.post(
-                    url,
-                    json={
-                        "model": model,
-                        "stream": False,
-                        "format": "json",
-                        "prompt": prompt,
-                    },
-                    timeout=self.timeout_seconds,
+                response = self._client.generate(
+                    model=model,
+                    prompt=prompt,
+                    stream=False,
+                    format="json",
                 )
-                response.raise_for_status()
-                payload = response.json()
             except Exception as exc:  # pragma: no cover - depends on local Ollama runtime
-                status_code = None
-                if isinstance(exc, requests.exceptions.HTTPError) and exc.response is not None:
-                    status_code = exc.response.status_code
+                status_code = exc.status_code if isinstance(exc, ollama.ResponseError) else None
                 _SHARED_MODEL_COOLDOWN[model] = time.time() + self.model_cooldown_seconds
                 if status_code != 429:
                     LOGGER.warning("Ollama fallback unavailable for %s using %s: %s", source.key, model, exc)
                 continue
 
-            text = payload.get("response", "")
+            text = response.response
             parsed = self._parse_response(text)
             if not parsed:
                 continue
@@ -143,7 +157,6 @@ class OllamaClient:
         When LLM is unavailable returns (True, None, '') — caller falls back to deterministic.
         """
         prompt = self._build_relevance_prompt(html, source, deterministic_payload)
-        url = f"{self.base_url.rstrip('/')}/api/generate"
         self.last_switch_count = 0
 
         models = self._wait_for_available_model()
@@ -153,28 +166,20 @@ class OllamaClient:
 
         for index, model in enumerate(models):
             try:
-                response = requests.post(
-                    url,
-                    json={
-                        "model": model,
-                        "stream": False,
-                        "format": "json",
-                        "prompt": prompt,
-                    },
-                    timeout=self.timeout_seconds,
+                response = self._client.generate(
+                    model=model,
+                    prompt=prompt,
+                    stream=False,
+                    format="json",
                 )
-                response.raise_for_status()
-                payload = response.json()
             except Exception as exc:  # pragma: no cover - depends on local Ollama runtime
-                status_code = None
-                if isinstance(exc, requests.exceptions.HTTPError) and exc.response is not None:
-                    status_code = exc.response.status_code
+                status_code = exc.status_code if isinstance(exc, ollama.ResponseError) else None
                 _SHARED_MODEL_COOLDOWN[model] = time.time() + self.model_cooldown_seconds
                 if status_code != 429:
                     LOGGER.warning("Ollama relevance check unavailable for %s using %s: %s", source.key, model, exc)
                 continue
 
-            text = payload.get("response", "")
+            text = response.response
             parsed = self._parse_response(text)
             if not parsed:
                 continue
@@ -239,8 +244,11 @@ class OllamaClient:
         trimmed_html = html[:14000]
         return (
             "You are evaluating a university web page for a One Stop Shop academic offer catalog. "
-            "Decide if this page describes a real educational or research opportunity: "
-            "degree program, research group, mobility/exchange program, thesis track, funding, or similar. "
+            "Decide if this page describes a real opportunity of ANY of these types: "
+            "training (degree/course/exchange), thesis, internship, research_group, funding_partner, "
+            "co_creation, service (e.g. IP/patent/TTO/advisory/lab access for companies or researchers), "
+            "hackathon, challenge, lab, testbed, or project_opportunity. "
+            "Mark is_offer=true even for service or infrastructure pages if they describe something a company or researcher could actually use. "
             "Navigation pages, contact pages, alumni pages, donation pages, and generic institutional info are NOT offers. "
             "Respond with strict JSON only, keys: "
             "is_offer (bool), reason (string, required when is_offer is false), "

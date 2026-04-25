@@ -16,6 +16,7 @@ class SourceDefinition:
     enabled: bool = True
     quality: str = "real"
     crawl_enabled: bool = False
+    crawl_depth: int = 1
     crawl_max_pages: int = 25
     crawl_match_patterns: list[str] = field(default_factory=list)
     crawl_exclude_patterns: list[str] = field(default_factory=list)

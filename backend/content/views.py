@@ -1,13 +1,22 @@
+from collections import defaultdict
+from datetime import timedelta
 from math import ceil
 from uuid import UUID
 
-from django.db.models import Q
+from django.db.models import Count, Max, Q
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.http import require_GET
 
-from content.models import Domain, Offer, OfferType, Organization, ScrapingRun
+from content.models import CrawlUrl, Domain, Offer, OfferType, Organization, ScrapingRun
+
+_WINDOW_DELTAS = {
+	"24h": timedelta(hours=24),
+	"7d": timedelta(days=7),
+	"30d": timedelta(days=30),
+}
 
 
 def _parse_positive_int(value: str | None, default: int, max_value: int) -> int:
@@ -43,6 +52,23 @@ def _offer_to_dict(offer: Offer) -> dict:
 		"details": offer.details,
 		"created_at": offer.created_at.isoformat(),
 		"updated_at": offer.updated_at.isoformat(),
+	}
+
+
+def _run_summary(run: ScrapingRun) -> dict:
+	return {
+		"id": str(run.id),
+		"source_key": run.source_key,
+		"status": run.status,
+		"offers_processed": run.offers_processed,
+		"offers_created": run.offers_created,
+		"offers_updated": run.offers_updated,
+		"offers_unchanged": run.offers_unchanged,
+		"urls_neglected": run.urls_neglected or 0,
+		"errors_count": run.errors_count,
+		"started_at": run.started_at.isoformat() if run.started_at else None,
+		"completed_at": run.completed_at.isoformat() if run.completed_at else None,
+		"created_at": run.created_at.isoformat(),
 	}
 
 
@@ -206,7 +232,7 @@ def _openapi_spec() -> dict:
 					],
 					"responses": {
 						"200": {
-							"description": "Scraping run detail",
+							"description": "Scraping run detail with full log",
 							"content": {
 								"application/json": {
 									"schema": {"$ref": "#/components/schemas/ScrapingRunDetail"}
@@ -221,6 +247,57 @@ def _openapi_spec() -> dict:
 							"description": "Scraping run not found",
 							"content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}},
 						},
+					},
+				}
+			},
+			"/api/scraping/overview": {
+				"get": {
+					"summary": "Scraping activity overview",
+					"parameters": [
+						{"name": "window", "in": "query", "schema": {"type": "string", "enum": ["24h", "7d", "30d"]}}
+					],
+					"responses": {
+						"200": {
+							"description": "Aggregated scraping stats for time window",
+							"content": {
+								"application/json": {
+									"schema": {"$ref": "#/components/schemas/ScrapingOverviewResponse"}
+								}
+							},
+						}
+					},
+				}
+			},
+			"/api/scraping/sources/health": {
+				"get": {
+					"summary": "Per-source crawl queue health from CrawlUrl table",
+					"responses": {
+						"200": {
+							"description": "URL queue stats per source key",
+							"content": {
+								"application/json": {
+									"schema": {"$ref": "#/components/schemas/SourcesHealthResponse"}
+								}
+							},
+						}
+					},
+				}
+			},
+			"/api/scraping/llm/stats": {
+				"get": {
+					"summary": "LLM extraction method and confidence stats",
+					"parameters": [
+						{"name": "window", "in": "query", "schema": {"type": "string", "enum": ["24h", "7d", "30d"]}}
+					],
+					"responses": {
+						"200": {
+							"description": "Method split and confidence averages",
+							"content": {
+								"application/json": {
+									"schema": {"$ref": "#/components/schemas/LlmStatsResponse"}
+								}
+							},
+						}
 					},
 				}
 			},
@@ -354,22 +431,19 @@ def _openapi_spec() -> dict:
 						"id": {"type": "string", "format": "uuid"},
 						"source_key": {"type": "string"},
 						"status": {"type": "string"},
-						"job": {"type": "string", "nullable": True},
 						"offers_processed": {"type": "integer"},
 						"offers_created": {"type": "integer"},
 						"offers_updated": {"type": "integer"},
 						"offers_unchanged": {"type": "integer"},
-						"offers_flagged_stale": {"type": "integer"},
+						"urls_neglected": {"type": "integer"},
 						"errors_count": {"type": "integer"},
-						"llm_calls_count": {"type": "integer"},
 						"started_at": {"type": "string", "format": "date-time", "nullable": True},
 						"completed_at": {"type": "string", "format": "date-time", "nullable": True},
 						"created_at": {"type": "string", "format": "date-time"},
 					},
 					"required": [
-						"id", "source_key", "status", "job", "offers_processed", "offers_created", "offers_updated",
-						"offers_unchanged", "offers_flagged_stale", "errors_count", "llm_calls_count",
-						"started_at", "completed_at", "created_at"
+						"id", "source_key", "status", "offers_processed", "offers_created", "offers_updated",
+						"offers_unchanged", "urls_neglected", "errors_count", "started_at", "completed_at", "created_at"
 					],
 				},
 				"ScrapingRunListResponse": {
@@ -386,13 +460,70 @@ def _openapi_spec() -> dict:
 						{
 							"type": "object",
 							"properties": {
-								"offers_deleted": {"type": "integer"},
 								"log": {"type": "array", "items": {"type": "object", "additionalProperties": True}},
 								"updated_at": {"type": "string", "format": "date-time"},
 							},
-							"required": ["offers_deleted", "log", "updated_at"],
+							"required": ["log", "updated_at"],
 						},
 					],
+				},
+				"ScrapingRunTimelineBucket": {
+					"type": "object",
+					"properties": {
+						"bucket": {"type": "string", "format": "date-time"},
+						"runs": {"type": "integer"},
+						"errors": {"type": "integer"},
+					},
+					"required": ["bucket", "runs", "errors"],
+				},
+				"ScrapingOverviewResponse": {
+					"type": "object",
+					"properties": {
+						"window": {"type": "string"},
+						"runs_total": {"type": "integer"},
+						"runs_success": {"type": "integer"},
+						"offers_processed": {"type": "integer"},
+						"offers_created": {"type": "integer"},
+						"offers_updated": {"type": "integer"},
+						"urls_neglected_total": {"type": "integer"},
+						"errors_total": {"type": "integer"},
+						"runs_timeline": {"type": "array", "items": {"$ref": "#/components/schemas/ScrapingRunTimelineBucket"}},
+					},
+					"required": [
+						"window", "runs_total", "runs_success",
+						"offers_processed", "offers_created", "offers_updated",
+						"urls_neglected_total", "errors_total", "runs_timeline"
+					],
+				},
+				"SourceHealth": {
+					"type": "object",
+					"properties": {
+						"source_key": {"type": "string"},
+						"total_urls": {"type": "integer"},
+						"pending": {"type": "integer"},
+						"done": {"type": "integer"},
+						"error": {"type": "integer"},
+						"archived": {"type": "integer"},
+						"last_scraped_at": {"type": "string", "format": "date-time", "nullable": True},
+					},
+					"required": ["source_key", "total_urls", "pending", "done", "error", "archived", "last_scraped_at"],
+				},
+				"SourcesHealthResponse": {
+					"type": "object",
+					"properties": {
+						"results": {"type": "array", "items": {"$ref": "#/components/schemas/SourceHealth"}},
+					},
+					"required": ["results"],
+				},
+				"LlmStatsResponse": {
+					"type": "object",
+					"properties": {
+						"window": {"type": "string"},
+						"method_split": {"type": "object", "additionalProperties": {"type": "integer"}},
+						"avg_confidence_llm": {"type": "number", "nullable": True},
+						"avg_confidence_deterministic": {"type": "number", "nullable": True},
+					},
+					"required": ["window", "method_split", "avg_confidence_llm", "avg_confidence_deterministic"],
 				},
 			},
 		},
@@ -558,33 +689,8 @@ def offer_detail(request, offer_id: str):
 @require_GET
 def scraping_runs(request):
 	limit = _parse_positive_int(request.GET.get("limit"), default=20, max_value=100)
-	runs = (
-		ScrapingRun.objects.select_related("job")
-		.order_by("-created_at")[:limit]
-	)
-
-	results = []
-	for run in runs:
-		results.append(
-			{
-				"id": str(run.id),
-				"source_key": run.source_key,
-				"status": run.status,
-				"job": run.job.key if run.job else None,
-				"offers_processed": run.offers_processed,
-				"offers_created": run.offers_created,
-				"offers_updated": run.offers_updated,
-				"offers_unchanged": run.offers_unchanged,
-				"offers_flagged_stale": run.offers_flagged_stale,
-				"errors_count": run.errors_count,
-				"llm_calls_count": run.llm_calls_count,
-				"started_at": run.started_at.isoformat() if run.started_at else None,
-				"completed_at": run.completed_at.isoformat() if run.completed_at else None,
-				"created_at": run.created_at.isoformat(),
-			}
-		)
-
-	return JsonResponse({"count": len(results), "results": results})
+	runs = ScrapingRun.objects.order_by("-created_at")[:limit]
+	return JsonResponse({"count": len(list(runs)), "results": [_run_summary(r) for r in runs]})
 
 
 @require_GET
@@ -594,28 +700,129 @@ def scraping_run_detail(request, run_id: str):
 	except ValueError:
 		return JsonResponse({"detail": "Invalid run id."}, status=400)
 
-	run = ScrapingRun.objects.select_related("job").filter(id=parsed_id).first()
+	run = ScrapingRun.objects.filter(id=parsed_id).first()
 	if run is None:
 		return JsonResponse({"detail": "Scraping run not found."}, status=404)
 
-	return JsonResponse(
-		{
-			"id": str(run.id),
-			"source_key": run.source_key,
-			"status": run.status,
-			"job": run.job.key if run.job else None,
-			"offers_processed": run.offers_processed,
-			"offers_created": run.offers_created,
-			"offers_updated": run.offers_updated,
-			"offers_unchanged": run.offers_unchanged,
-			"offers_flagged_stale": run.offers_flagged_stale,
-			"offers_deleted": run.offers_deleted,
-			"errors_count": run.errors_count,
-			"llm_calls_count": run.llm_calls_count,
-			"log": run.log,
-			"started_at": run.started_at.isoformat() if run.started_at else None,
-			"completed_at": run.completed_at.isoformat() if run.completed_at else None,
-			"created_at": run.created_at.isoformat(),
-			"updated_at": run.updated_at.isoformat(),
-		}
+	data = _run_summary(run)
+	data["log"] = run.log
+	data["updated_at"] = run.updated_at.isoformat()
+	return JsonResponse(data)
+
+
+@require_GET
+def scraping_overview(request):
+	window_str = request.GET.get("window", "24h")
+	if window_str not in _WINDOW_DELTAS:
+		return JsonResponse({"detail": f"Invalid window. Use: {', '.join(_WINDOW_DELTAS)}"}, status=400)
+
+	now = timezone.now()
+	since = now - _WINDOW_DELTAS[window_str]
+	runs = list(ScrapingRun.objects.filter(created_at__gte=since).order_by("created_at"))
+
+	# Pre-fill every expected bucket with zeros so the chart always has full data.
+	if window_str == "24h":
+		n_buckets, bucket_hours = 24, 1
+	elif window_str == "7d":
+		n_buckets, bucket_hours = 7, 24
+	else:
+		n_buckets, bucket_hours = 30, 24
+
+	bucket_map: dict = {}
+	for i in range(n_buckets):
+		dt = now - timedelta(hours=bucket_hours * (n_buckets - 1 - i))
+		if bucket_hours == 1:
+			key = dt.strftime("%Y-%m-%dT%H:00:00Z")
+		else:
+			key = dt.strftime("%Y-%m-%d")
+		bucket_map[key] = {"bucket": key, "runs": 0, "errors": 0}
+
+	for run in runs:
+		ts = run.created_at
+		key = ts.strftime("%Y-%m-%dT%H:00:00Z") if bucket_hours == 1 else ts.strftime("%Y-%m-%d")
+		if key in bucket_map:
+			bucket_map[key]["runs"] += 1
+			bucket_map[key]["errors"] += run.errors_count
+
+	return JsonResponse({
+		"window": window_str,
+		"runs_total": len(runs),
+		"runs_success": sum(1 for r in runs if r.status == "success"),
+		"offers_processed": sum(r.offers_processed for r in runs),
+		"offers_created": sum(r.offers_created for r in runs),
+		"offers_updated": sum(r.offers_updated for r in runs),
+		"urls_neglected_total": sum(r.urls_neglected or 0 for r in runs),
+		"errors_total": sum(r.errors_count for r in runs),
+		"runs_timeline": list(bucket_map.values()),
+	})
+
+
+@require_GET
+def scraping_sources_health(request):
+	rows = list(
+		CrawlUrl.objects.values("source_key", "status").annotate(count=Count("id"))
 	)
+	last_scraped = dict(
+		CrawlUrl.objects.values("source_key").annotate(ts=Max("last_scraped_at")).values_list("source_key", "ts")
+	)
+
+	source_stats: dict = {}
+	for row in rows:
+		key = row["source_key"]
+		if key not in source_stats:
+			source_stats[key] = {"pending": 0, "processing": 0, "done": 0, "error": 0, "archived": 0}
+		source_stats[key][row["status"]] = row["count"]
+
+	results = []
+	for key in sorted(source_stats):
+		s = source_stats[key]
+		total = sum(s.values())
+		ts = last_scraped.get(key)
+		results.append({
+			"source_key": key,
+			"total_urls": total,
+			"pending": s.get("pending", 0),
+			"done": s.get("done", 0),
+			"error": s.get("error", 0),
+			"archived": s.get("archived", 0),
+			"last_scraped_at": ts.isoformat() if ts else None,
+		})
+
+	return JsonResponse({"results": results})
+
+
+@require_GET
+def scraping_llm_stats(request):
+	window_str = request.GET.get("window", "24h")
+	if window_str not in _WINDOW_DELTAS:
+		return JsonResponse({"detail": f"Invalid window. Use: {', '.join(_WINDOW_DELTAS)}"}, status=400)
+
+	since = timezone.now() - _WINDOW_DELTAS[window_str]
+	runs = list(ScrapingRun.objects.filter(created_at__gte=since).only("log"))
+
+	method_split: dict = defaultdict(int)
+	confidence_llm: list = []
+	confidence_det: list = []
+
+	for run in runs:
+		for entry in (run.log or []):
+			if not isinstance(entry, dict):
+				continue
+			if entry.get("event") != "url_processed":
+				continue
+			method = entry.get("method")
+			if method:
+				method_split[method] += 1
+			conf = entry.get("confidence")
+			if conf is not None:
+				if method in ("llm_primary", "llm_fallback"):
+					confidence_llm.append(float(conf))
+				elif method == "deterministic":
+					confidence_det.append(float(conf))
+
+	return JsonResponse({
+		"window": window_str,
+		"method_split": dict(method_split),
+		"avg_confidence_llm": round(sum(confidence_llm) / len(confidence_llm), 3) if confidence_llm else None,
+		"avg_confidence_deterministic": round(sum(confidence_det) / len(confidence_det), 3) if confidence_det else None,
+	})

@@ -24,13 +24,17 @@ from content.models import (
     TargetProfile,
     User,
 )
-from content.scrapers.extractors import extract_depth1_links, extract_deterministic, is_generic_page
+from content.scrapers.extractors import extract_links_from_html, extract_deterministic, is_generic_page
 from content.scrapers.ollama_client import OllamaClient
 from content.scrapers.source_registry import get_sources
 from content.scrapers.types import ExtractedPayload, SourceDefinition
 from content.seeding import uuid_from_token
 
 LOGGER = logging.getLogger(__name__)
+
+
+def _ts() -> str:
+    return timezone.now().isoformat().replace("+00:00", "Z")
 
 
 class ScrapeService:
@@ -66,6 +70,7 @@ class ScrapeService:
                 "offers_deleted": 0,
                 "errors": 0,
                 "llm_calls": 0,
+                "urls_neglected": 0,
                 "links_discovered": 0,
                 "links_skipped": 0,
                 "links_mapped": 0,
@@ -85,6 +90,7 @@ class ScrapeService:
             "offers_deleted": 0,
             "errors": 0,
             "llm_calls": 0,
+            "urls_neglected": 0,
             "links_discovered": 0,
             "links_skipped": 0,
             "links_mapped": 0,
@@ -113,6 +119,7 @@ class ScrapeService:
                 run.offers_updated = result["offers_updated"]
                 run.offers_unchanged = result["offers_unchanged"]
                 run.llm_calls_count = result["llm_calls"]
+                run.urls_neglected = result["urls_neglected"]
                 run.log = result["logs"]
 
                 stats["offers_processed"] += run.offers_processed
@@ -120,6 +127,7 @@ class ScrapeService:
                 stats["offers_updated"] += run.offers_updated
                 stats["offers_unchanged"] += run.offers_unchanged
                 stats["llm_calls"] += run.llm_calls_count
+                stats["urls_neglected"] += run.urls_neglected
                 stats["links_discovered"] += result["links_discovered"]
                 stats["links_skipped"] += result["links_skipped"]
                 stats["links_mapped"] += result["links_mapped"]
@@ -128,10 +136,11 @@ class ScrapeService:
                 successful_source_urls.update(result["skip_links"])
 
                 LOGGER.info(
-                    "[%s] Done — discovered=%d skipped=%d mapped=%d created=%d updated=%d unchanged=%d llm_calls=%d errors=%d",
+                    "[%s] Done — discovered=%d skipped=%d neglected=%d mapped=%d created=%d updated=%d unchanged=%d llm_calls=%d errors=%d",
                     source.key,
                     result["links_discovered"],
                     result["links_skipped"],
+                    result["urls_neglected"],
                     result["links_mapped"],
                     result["offers_created"],
                     result["offers_updated"],
@@ -165,11 +174,14 @@ class ScrapeService:
                         if deleted_count > 0:
                             run.log.append(
                                 {
-                                    "action": "deleted_invalid_source_offers",
-                                    "source": source.key,
+                                    "ts": _ts(),
+                                    "event": "url_failed",
+                                    "level": "warn",
+                                    "source_key": source.key,
                                     "url": source.url,
                                     "http_status": status_code,
-                                    "offers_deleted": deleted_count,
+                                    "action": "deleted_invalid_source_offers",
+                                    "message": f"Deleted {deleted_count} invalid offers (HTTP {status_code})",
                                 }
                             )
                         LOGGER.warning(
@@ -243,18 +255,11 @@ class ScrapeService:
 
         if use_crawl:
             try:
-                seed_html, _ = self._fetch_html_url(source.url)
+                page_urls, links_skipped = self._discover_urls_bfs(source)
             except requests.RequestException as exc:
                 raise requests.RequestException(
-                    f"Seed URL fetch failed for {source.key}: {exc}"
+                    f"Seed URL crawl failed for {source.key}: {exc}"
                 ) from exc
-            page_urls, links_skipped = extract_depth1_links(
-                html=seed_html,
-                seed_url=source.url,
-                include_patterns=source.crawl_match_patterns,
-                exclude_patterns=source.crawl_exclude_patterns,
-                max_links=source.crawl_max_pages,
-            )
         else:
             page_urls = [source.url]
             links_skipped = 0
@@ -266,6 +271,7 @@ class ScrapeService:
         offers_updated = 0
         offers_unchanged = 0
         llm_calls = 0
+        urls_neglected = 0
         model_switches = 0
         links_mapped = 0
         page_errors = 0
@@ -284,11 +290,13 @@ class ScrapeService:
                 LOGGER.warning("[%s] Fetch error — %s: %s", source.key, page_url, exc)
                 logs.append(
                     {
-                        "source": source.key,
+                        "ts": _ts(),
+                        "event": "url_failed",
+                        "level": "warn",
+                        "source_key": source.key,
                         "url": page_url,
-                        "decision": "neglect",
                         "reason": "fetch_error",
-                        "error": str(exc),
+                        "message": str(exc),
                     }
                 )
                 continue
@@ -305,13 +313,17 @@ class ScrapeService:
             extracted = extract_deterministic(html, page_source)
 
             if use_crawl and is_generic_page(extracted.title):
+                urls_neglected += 1
                 LOGGER.info("[%s] NEGLECT %s — generic_page_title (%r)", source.key, page_url, extracted.title)
                 logs.append(
                     {
-                        "source": source.key,
+                        "ts": _ts(),
+                        "event": "url_failed",
+                        "level": "info",
+                        "source_key": source.key,
                         "url": page_url,
-                        "decision": "neglect",
                         "reason": "generic_page_title",
+                        "message": f"Generic title: {extracted.title!r}",
                     }
                 )
                 continue
@@ -323,16 +335,20 @@ class ScrapeService:
                     is_relevant, llm_payload, reason = self.ollama_client.assess_and_extract(
                         html, page_source, extracted
                     )
+                    logs.extend(self.ollama_client.flush_cooldown_events())
                     model_switches += self.ollama_client.last_switch_count
                     if llm_payload is not None:
                         llm_calls += 1
                     if not is_relevant:
+                        urls_neglected += 1
                         LOGGER.info("[%s] NEGLECT %s — %s", source.key, page_url, reason or "non_relevant_page")
                         logs.append(
                             {
-                                "source": source.key,
+                                "ts": _ts(),
+                                "event": "url_failed",
+                                "level": "info",
+                                "source_key": source.key,
                                 "url": page_url,
-                                "decision": "neglect",
                                 "reason": reason or "non_relevant_page",
                             }
                         )
@@ -345,11 +361,14 @@ class ScrapeService:
                         extracted.title == source.name
                         and extracted.summary.startswith("Auto-extracted from")
                     ):
+                        urls_neglected += 1
                         logs.append(
                             {
-                                "source": source.key,
+                                "ts": _ts(),
+                                "event": "url_failed",
+                                "level": "info",
+                                "source_key": source.key,
                                 "url": page_url,
-                                "decision": "neglect",
                                 "reason": "non_relevant_page",
                             }
                         )
@@ -359,6 +378,7 @@ class ScrapeService:
                 if self.use_llm_fallback and source.llm_fallback_enabled:
                     if extracted.confidence < self.llm_threshold or not extracted.summary or not extracted.title:
                         llm_payload = self.ollama_client.extract_fallback(html, page_source, extracted)
+                        logs.extend(self.ollama_client.flush_cooldown_events())
                         if llm_payload is not None:
                             llm_calls += 1
                             model_switches += self.ollama_client.last_switch_count
@@ -373,9 +393,11 @@ class ScrapeService:
             if not extracted.title and not extracted.summary:
                 logs.append(
                     {
-                        "source": source.key,
+                        "ts": _ts(),
+                        "event": "url_failed",
+                        "level": "warn",
+                        "source_key": source.key,
                         "url": page_url,
-                        "decision": "neglect",
                         "reason": "missing_core_fields",
                     }
                 )
@@ -391,12 +413,14 @@ class ScrapeService:
             seen_keys.add(natural_key)
             logs.append(
                 {
-                    "source": source.key,
+                    "ts": _ts(),
+                    "event": "url_processed",
+                    "level": "info",
+                    "source_key": source.key,
                     "url": page_url,
                     "method": extracted.method,
                     "confidence": extracted.confidence,
                     "action": action,
-                    "decision": "map",
                 }
             )
 
@@ -406,6 +430,7 @@ class ScrapeService:
             "offers_updated": offers_updated,
             "offers_unchanged": offers_unchanged,
             "llm_calls": llm_calls,
+            "urls_neglected": urls_neglected,
             "links_discovered": len(page_urls),
             "links_skipped": links_skipped,
             "links_mapped": links_mapped,
@@ -415,6 +440,61 @@ class ScrapeService:
             "skip_links": skip_links | seen_canonical_urls,
             "logs": logs,
         }
+
+    def _discover_urls_bfs(self, source: SourceDefinition) -> tuple[list[str], int]:
+        """BFS crawl up to source.crawl_depth levels from seed URL.
+
+        Returns (discovered_urls, total_skipped).
+        Raises requests.RequestException if the seed fetch fails.
+        """
+        seed_html, seed_canonical = self._fetch_html_url(source.url)
+
+        frontier: list[str] = [seed_canonical]
+        visited: set[str] = {seed_canonical}
+        discovered: list[str] = []
+        total_skipped = 0
+
+        for _ in range(source.crawl_depth):
+            if len(discovered) >= source.crawl_max_pages:
+                break
+            next_frontier: list[str] = []
+            for frontier_url in frontier:
+                remaining = source.crawl_max_pages - len(discovered)
+                if remaining <= 0:
+                    break
+                try:
+                    if frontier_url == seed_canonical:
+                        html = seed_html
+                    else:
+                        html, _ = self._fetch_html_url(frontier_url)
+                except requests.RequestException as exc:
+                    LOGGER.warning("[%s] BFS fetch error — %s: %s", source.key, frontier_url, exc)
+                    total_skipped += 1
+                    continue
+
+                links, skipped = extract_links_from_html(
+                    html=html,
+                    seed_url=frontier_url,
+                    include_patterns=source.crawl_match_patterns,
+                    exclude_patterns=source.crawl_exclude_patterns,
+                    max_links=remaining,
+                )
+                total_skipped += skipped
+                for link in links:
+                    if link not in visited and len(discovered) < source.crawl_max_pages:
+                        visited.add(link)
+                        discovered.append(link)
+                        next_frontier.append(link)
+
+            frontier = next_frontier
+            if not frontier:
+                break
+
+        LOGGER.info(
+            "[%s] BFS discovery done — depth=%d discovered=%d skipped=%d",
+            source.key, source.crawl_depth, len(discovered), total_skipped,
+        )
+        return discovered, total_skipped
 
     def _fetch_html_url(self, url: str) -> tuple[str, str]:
         response = requests.get(
@@ -662,15 +742,18 @@ class ScrapeService:
 
     @staticmethod
     def _build_error_log(source: SourceDefinition, exc: Exception) -> dict:
-        error_entry = {
-            "error": str(exc),
-            "source": source.key,
+        entry = {
+            "ts": timezone.now().isoformat().replace("+00:00", "Z"),
+            "event": "url_failed",
+            "level": "error",
+            "source_key": source.key,
             "url": source.url,
+            "message": str(exc),
             "error_type": exc.__class__.__name__,
         }
         if isinstance(exc, requests.exceptions.HTTPError) and exc.response is not None:
-            error_entry["http_status"] = exc.response.status_code
-        return error_entry
+            entry["http_status"] = exc.response.status_code
+        return entry
 
 
 def run_scrape(

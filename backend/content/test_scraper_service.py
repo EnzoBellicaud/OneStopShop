@@ -15,7 +15,8 @@ from content.models import (
     TargetProfile,
     User,
 )
-from content.scrapers.extractors import extract_depth1_links
+import ollama
+from content.scrapers.extractors import extract_links_from_html
 from content.scrapers.ollama_client import OllamaClient
 from content.scrapers.service import run_scrape
 from content.scrapers.types import ExtractedPayload, SourceDefinition
@@ -758,7 +759,7 @@ class ScrapeServiceBehaviorTests(TestCase):
 
 
 class ScraperUtilityTests(TestCase):
-    def test_extract_depth1_links_filters_domain_and_patterns(self):
+    def test_extract_links_from_html_filters_domain_and_patterns(self):
         html = """
         <html><body>
             <a href=\"/offers/one\">One</a>
@@ -767,7 +768,7 @@ class ScraperUtilityTests(TestCase):
             <a href=\"https://outside.edu/offers/four\">Outside</a>
         </body></html>
         """
-        links, skipped = extract_depth1_links(
+        links, skipped = extract_links_from_html(
             html=html,
             seed_url="https://example.edu/root",
             include_patterns=["/offers/"],
@@ -775,30 +776,29 @@ class ScraperUtilityTests(TestCase):
             max_links=10,
         )
 
-        self.assertEqual(links, ["https://example.edu/offers/one", "https://example.edu/offers/two?x=1"])
-        self.assertEqual(skipped, 2)
+        self.assertIn("https://example.edu/offers/one", links)
+        self.assertIn("https://example.edu/offers/two?x=1", links)
+        self.assertNotIn("https://example.edu/news/three", links)
+        self.assertNotIn("https://outside.edu/offers/four", links)
+        self.assertEqual(len(links), 2)
+        self.assertEqual(skipped, 0)
 
-    @patch("content.scrapers.ollama_client.requests.post")
-    def test_ollama_client_rotates_model_when_primary_rate_limited(self, mock_post):
+    def test_ollama_client_rotates_model_when_primary_rate_limited(self):
         client = OllamaClient()
         client.model_pool = ["model-primary", "model-secondary"]
         client.model_cooldown_seconds = 60
 
-        rate_limited = requests.Response()
-        rate_limited.status_code = 429
-
         success_response = Mock()
-        success_response.raise_for_status.return_value = None
-        success_response.json.return_value = {
-            "response": '{"title": "Fallback Title", "summary": "Fallback Summary", "confidence": 0.91}'
-        }
+        success_response.response = '{"title": "Fallback Title", "summary": "Fallback Summary", "confidence": 0.91}'
 
-        def _post_side_effect(url, json=None, timeout=None):
-            if json["model"] == "model-primary":
-                raise requests.exceptions.HTTPError("rate limited", response=rate_limited)
+        def _generate_side_effect(model, prompt, stream, format):
+            if model == "model-primary":
+                raise ollama.ResponseError("rate limited", status_code=429)
             return success_response
 
-        mock_post.side_effect = _post_side_effect
+        mock_inner_client = Mock()
+        mock_inner_client.generate.side_effect = _generate_side_effect
+        client._client = mock_inner_client
 
         source = SourceDefinition(
             key="source",
@@ -810,17 +810,18 @@ class ScraperUtilityTests(TestCase):
             country="IT",
             domain_names=["AI"],
         )
-        payload = client.extract_fallback(
-            html="<html><h1>Title</h1></html>",
-            source=source,
-            deterministic_payload=ExtractedPayload(
-                title="Deterministic",
-                summary="Deterministic summary",
-                details={},
-                confidence=0.2,
-                method="deterministic",
-            ),
-        )
+        with patch("content.scrapers.ollama_client.time.sleep"):
+            payload = client.extract_fallback(
+                html="<html><h1>Title</h1></html>",
+                source=source,
+                deterministic_payload=ExtractedPayload(
+                    title="Deterministic",
+                    summary="Deterministic summary",
+                    details={},
+                    confidence=0.2,
+                    method="deterministic",
+                ),
+            )
 
         self.assertIsNotNone(payload)
         self.assertEqual(payload.title, "Fallback Title")

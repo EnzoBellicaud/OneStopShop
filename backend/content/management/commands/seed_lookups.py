@@ -166,4 +166,29 @@ class Command(BaseCommand):
                     role=admin_role,
                 )
 
+        # Remove deprecated types. Safe: scraper no longer assigns these;
+        # Offer FK is PROTECT so deletion will surface any orphaned offers
+        # that need manual reclassification rather than silently losing data.
+        removed_types = OfferType.objects.filter(
+            name__in=["mobility", "expertise", "event"]
+        )
+        for ot in removed_types:
+            orphans = ot.offer_set.count()
+            if orphans:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"Skipping removal of offer_type '{ot.name}' — {orphans} offer(s) still reference it. Reclassify first."
+                    )
+                )
+            else:
+                ot.delete()
+                self.stdout.write(f"  Removed deprecated offer_type: {ot.name}")
+
+        removed_domains = Domain.objects.filter(
+            name__in=["Multilingualism", "Industry_collaboration"]
+        )
+        for dom in removed_domains:
+            dom.delete()
+            self.stdout.write(f"  Removed deprecated domain: {dom.name}")
+
         self.stdout.write(self.style.SUCCESS("Lookup and foundational seed completed."))

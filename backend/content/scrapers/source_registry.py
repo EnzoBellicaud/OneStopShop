@@ -10,7 +10,7 @@ SOURCE_REGISTRY: list[SourceDefinition] = [
         offer_type="training",
         target_profile="student",
         country="IT",
-        domain_names=["AI", "Digitalisation", "Industry_collaboration"],
+        domain_names=["AI", "Digitalisation", "Technology_transfer"],
     ),
     SourceDefinition(
         key="unibz_phd_computer_science",
@@ -37,10 +37,10 @@ SOURCE_REGISTRY: list[SourceDefinition] = [
         name="UNIBZ International Mobility",
         url="https://www.unibz.it/en/applicants/international/",
         organization_token="unibz",
-        offer_type="mobility",
+        offer_type="training",
         target_profile="student",
         country="IT",
-        domain_names=["Mobility"],
+        domain_names=["Mobility", "Digitalisation"],
     ),
     SourceDefinition(
         key="mdu_fas_licentiate_thesis",
@@ -70,7 +70,7 @@ SOURCE_REGISTRY: list[SourceDefinition] = [
         offer_type="funding_partner",
         target_profile="company",
         country="SE",
-        domain_names=["Industry_collaboration", "Innovation_and_entrepreneurship"],
+        domain_names=["Technology_transfer", "Innovation_and_entrepreneurship"],
     ),
     SourceDefinition(
         key="tu_ilmenau_crawler_seed",
@@ -84,7 +84,7 @@ SOURCE_REGISTRY: list[SourceDefinition] = [
         enabled=True,
         crawl_enabled=True,
         crawl_match_patterns=["/en/", "/studium/studiengaenge", "/forschung/"],
-        crawl_exclude_patterns=["/studium/vor-dem-studium", "/news", "/events", "/presse", "/veranstaltungen"],
+        crawl_exclude_patterns=["/studium/vor-dem-studium", "/news", "/events", "/presse", "/veranstaltungen", "/forschung-international/sunrise"],
     ),
     SourceDefinition(
         key="unibz_crawler_seed",
