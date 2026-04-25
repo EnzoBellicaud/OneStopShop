@@ -28,7 +28,7 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll))
 const cssVars = computed(() => ({
   '--ink': isScrolled.value ? '#ffffff' : '#111110',
   '--ink-soft': isScrolled.value ? '#ffffff' : '#111110',
-  '--blank': isScrolled.value ? '#111110' : '#00000017',
+  '--blank': isScrolled.value ? '#111110' : '#ffffff00',
   '--surface': isScrolled.value ? '111110' : '#fafaf8',
 }))
 </script>

@@ -10,7 +10,7 @@
             <a class="btn-ghost" href="#about">Learn more</a>
         </div>
     </div>
-    <div class="hero-img" v-if="showNav">
+    <div class="hero-img">
             <div class="img-icon">
                 <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
             </div>
@@ -18,9 +18,3 @@
     </div>
     </section>
 </template>
-
-<script setup>
-defineProps({
-  showNav: { type: Boolean, default: true },
-})
-</script>
