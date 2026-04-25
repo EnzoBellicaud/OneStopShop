@@ -10,7 +10,6 @@ import AboutSec from './components/sections/About.vue'
 import HowItWorks from './components/sections/HowWorks.vue'
 import Contacs from './components/sections/Contact.vue'
 
-
 </script>
 
 <template>

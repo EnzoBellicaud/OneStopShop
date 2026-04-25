@@ -8,7 +8,7 @@
             <li><a href="#contact">Contact</a></li>
         </ul>
         <div class="nav-right">
-            <a class="btn-nav" href="#opportunities">Browse opportunities</a>
+            <a class="btn-nav" href="#opportunities">Log in / Register</a>
         </div>
     </nav>
 </template>
@@ -28,6 +28,7 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll))
 const cssVars = computed(() => ({
   '--ink': isScrolled.value ? '#ffffff' : '#111110',
   '--ink-soft': isScrolled.value ? '#ffffff' : '#111110',
-  '--surface': isScrolled.value ? '#111110' : '#ffffff'
+  '--blank': isScrolled.value ? '#111110' : '#00000017',
+  '--surface': isScrolled.value ? '111110' : '#fafaf8',
 }))
 </script>

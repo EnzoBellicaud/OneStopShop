@@ -1,7 +1,8 @@
-<script setup>
-import OneStopShop from './OneStopShop.vue';
-</script>
+<!-- <script setup>
+import OneStopShop from './Home.vue';
+import Landing from './Landing.vue';
+</script> -->
 
 <template>
-  <OneStopShop />
+  <router-view></router-view>
 </template>
