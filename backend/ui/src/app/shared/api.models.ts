@@ -153,6 +153,6 @@ export interface PreviewResult {
 }
 
 export interface ConfirmResult {
-  imported: number;
-  publish: boolean;
+  drafts: number;
+  published: number;
 }

@@ -24,7 +24,17 @@ _VALID_COUNTRY_RE = re.compile(r"^[A-Za-z]{2}$")
 _VALID_PROFILES = {"student", "company", "researcher"}
 
 REQUIRED_COLUMNS = {"url", "offer_type", "organization", "target_profile", "country"}
-ALL_COLUMNS = list(REQUIRED_COLUMNS) + ["title", "summary", "domains"]
+DOMAIN_COLUMNS = [f"domain_{i}" for i in range(1, 6)]
+ALL_COLUMNS = list(REQUIRED_COLUMNS) + ["title", "summary"] + DOMAIN_COLUMNS
+
+
+def _extract_domains(row: dict) -> list[str]:
+    """Read domain_1…domain_5 columns; fall back to legacy comma-separated 'domains' field."""
+    values = [row.get(col, "").strip() for col in DOMAIN_COLUMNS]
+    result = [v for v in values if v]
+    if not result and row.get("domains"):
+        result = [d.strip() for d in row["domains"].split(",") if d.strip()]
+    return result
 
 
 @dataclass
@@ -38,11 +48,11 @@ class PreviewResult:
 
 @dataclass
 class ConfirmResult:
-    imported: int = 0
-    publish: bool = False
+    drafts: int = 0
+    published: int = 0
 
     def to_dict(self) -> dict:
-        return {"imported": self.imported, "publish": self.publish}
+        return {"drafts": self.drafts, "published": self.published}
 
 
 class ImportService:
@@ -70,21 +80,25 @@ class ImportService:
 
         return PreviewResult(valid=valid, invalid=invalid)
 
-    def confirm(self, valid_rows: list[dict], publish: bool) -> ConfirmResult:
-        """Write confirmed rows to DB."""
-        status = Offer.OfferStatus.PUBLISHED if publish else Offer.OfferStatus.DRAFT
+    def confirm(self, valid_rows: list[dict]) -> ConfirmResult:
+        """Write confirmed rows to DB. Each entry carries its own 'status' field."""
         bot_username = getattr(settings, "INGESTION_BOT_USERNAME", "ingestion_bot")
         ingestion_user = User.objects.get(username=bot_username)
         source_type = SourceType.objects.get(name="manual")
-        imported = 0
+        drafts = published = 0
 
         for entry in valid_rows:
             row = entry["data"]
+            row_status = entry.get("status", "draft")
+            status = Offer.OfferStatus.PUBLISHED if row_status == "published" else Offer.OfferStatus.DRAFT
             offer = self._create_offer(row, status, source_type, ingestion_user)
             self._enqueue_url(offer, row["url"])
-            imported += 1
+            if row_status == "published":
+                published += 1
+            else:
+                drafts += 1
 
-        return ConfirmResult(imported=imported, publish=publish)
+        return ConfirmResult(drafts=drafts, published=published)
 
     # ── Private ──────────────────────────────────────────────────────────────
 
@@ -174,11 +188,9 @@ class ImportService:
         if url in existing_urls:
             warnings.append(f"URL already exists in system: {url}")
 
-        domain_str = row.get("domains", "")
-        if domain_str:
-            for d in [x.strip() for x in domain_str.split(",") if x.strip()]:
-                if d not in valid_domains:
-                    warnings.append(f"Unknown domain {d!r} — will be skipped")
+        for d in _extract_domains(row):
+            if d not in valid_domains:
+                warnings.append(f"Unknown domain {d!r} — will be skipped")
 
         return errors, warnings
 
@@ -187,7 +199,7 @@ class ImportService:
         offer_type = OfferType.objects.get(name__iexact=row["offer_type"])
         target_profile = TargetProfile.objects.get(name__iexact=row["target_profile"])
 
-        offer, created = Offer.objects.update_or_create(
+        offer, created = Offer.objects.get_or_create(
             link=row["url"],
             organization=org,
             offer_type=offer_type,
@@ -202,11 +214,22 @@ class ImportService:
                 "updated_by": ingestion_user,
             },
         )
+        if not created:
+            offer.title = row.get("title") or offer.title
+            offer.summary = row.get("summary") or offer.summary
+            offer.country = row["country"].upper()
+            offer.target_profile = target_profile
+            offer.source_type = source_type
+            offer.status = status
+            offer.updated_by = ingestion_user
+            offer.save(update_fields=[
+                "title", "summary", "country", "target_profile",
+                "source_type", "status", "updated_by", "updated_at",
+            ])
 
-        domain_names = [d.strip() for d in (row.get("domains") or "").split(",") if d.strip()]
+        domain_names = _extract_domains(row)
         if domain_names:
-            domains = Domain.objects.filter(name__in=domain_names)
-            offer.domains.set(domains)
+            offer.domains.set(Domain.objects.filter(name__in=domain_names))
 
         return offer
 

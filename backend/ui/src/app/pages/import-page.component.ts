@@ -1,11 +1,11 @@
 import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ConfirmResult, ImportInvalidRow, ImportValidRow, PreviewResult } from '../shared/api.models';
 import { OssApiService } from '../shared/oss-api.service';
 
 type PageState = 'upload' | 'preview' | 'result';
+type RowStatus = 'draft' | 'published';
 
 @Component({
   selector: 'app-import-page',
@@ -16,9 +16,9 @@ type PageState = 'upload' | 'preview' | 'result';
 })
 export class ImportPageComponent {
   private readonly api = inject(OssApiService);
-  private readonly http = inject(HttpClient);
 
   state = signal<PageState>('upload');
+  activeTab = signal<'new' | 'existing'>('new');
 
   // Upload state
   selectedFile: File | null = null;
@@ -29,18 +29,41 @@ export class ImportPageComponent {
   validRows: ImportValidRow[] = [];
   invalidRows: ImportInvalidRow[] = [];
   selectedRows = new Set<number>();
+  rowStatuses = new Map<number, RowStatus>();
 
   // Result state
   confirmResult: ConfirmResult | null = null;
   confirming = signal(false);
   confirmError = signal<string | null>(null);
 
+  get newRows(): ImportValidRow[] {
+    return this.validRows.filter(
+      (r) => !r.warnings.some((w) => w.includes('URL already exists')),
+    );
+  }
+
+  get existingRows(): ImportValidRow[] {
+    return this.validRows.filter((r) =>
+      r.warnings.some((w) => w.includes('URL already exists')),
+    );
+  }
+
+  get activeRows(): ImportValidRow[] {
+    return this.activeTab() === 'new' ? this.newRows : this.existingRows;
+  }
+
   get allSelected(): boolean {
-    return this.validRows.length > 0 && this.selectedRows.size === this.validRows.length;
+    const rows = this.activeRows;
+    return rows.length > 0 && rows.every((r) => this.selectedRows.has(r.row));
   }
 
   get someSelected(): boolean {
-    return this.selectedRows.size > 0 && !this.allSelected;
+    const rows = this.activeRows;
+    return rows.some((r) => this.selectedRows.has(r.row)) && !this.allSelected;
+  }
+
+  get totalSelected(): number {
+    return this.selectedRows.size;
   }
 
   onFileChange(event: Event): void {
@@ -60,6 +83,8 @@ export class ImportPageComponent {
         this.validRows = result.valid;
         this.invalidRows = result.invalid;
         this.selectedRows = new Set(result.valid.map((r) => r.row));
+        this.rowStatuses = new Map(result.valid.map((r) => [r.row, 'draft']));
+        this.activeTab.set('new');
         this.state.set('preview');
       },
       error: (err) => {
@@ -75,30 +100,44 @@ export class ImportPageComponent {
     } else {
       this.selectedRows.add(row);
     }
-    // Force change detection for Set mutation
     this.selectedRows = new Set(this.selectedRows);
   }
 
   toggleAll(): void {
+    const rows = this.activeRows;
     if (this.allSelected) {
-      this.selectedRows = new Set();
+      rows.forEach((r) => this.selectedRows.delete(r.row));
     } else {
-      this.selectedRows = new Set(this.validRows.map((r) => r.row));
+      rows.forEach((r) => this.selectedRows.add(r.row));
     }
+    this.selectedRows = new Set(this.selectedRows);
   }
 
   isSelected(row: number): boolean {
     return this.selectedRows.has(row);
   }
 
-  onConfirm(publish: boolean): void {
-    const rows = this.validRows.filter((r) => this.selectedRows.has(r.row));
+  getRowStatus(row: number): RowStatus {
+    return this.rowStatuses.get(row) ?? 'draft';
+  }
+
+  setRowStatus(row: number, event: Event): void {
+    const value = (event.target as HTMLSelectElement).value as RowStatus;
+    this.rowStatuses.set(row, value);
+    this.rowStatuses = new Map(this.rowStatuses);
+  }
+
+  onConfirm(): void {
+    const rows = this.validRows
+      .filter((r) => this.selectedRows.has(r.row))
+      .map((r) => ({ ...r, status: this.getRowStatus(r.row) }));
+
     if (rows.length === 0) return;
 
     this.confirming.set(true);
     this.confirmError.set(null);
 
-    this.api.confirmImport(rows, publish).subscribe({
+    this.api.confirmImport(rows).subscribe({
       next: (result: ConfirmResult) => {
         this.confirming.set(false);
         this.confirmResult = result;
@@ -127,15 +166,9 @@ export class ImportPageComponent {
     this.validRows = [];
     this.invalidRows = [];
     this.selectedRows = new Set();
+    this.rowStatuses = new Map();
     this.confirmResult = null;
     this.uploadError.set(null);
     this.confirmError.set(null);
-  }
-
-  rowDataPreview(row: ImportValidRow | ImportInvalidRow): string {
-    const d = row.data;
-    return [d['title'] || d['url'] || '', d['organization'] || '', d['offer_type'] || '']
-      .filter(Boolean)
-      .join(' · ');
   }
 }

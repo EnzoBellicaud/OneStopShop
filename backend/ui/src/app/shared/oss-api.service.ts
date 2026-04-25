@@ -82,8 +82,8 @@ export class OssApiService {
     return this.http.post<PreviewResult>(`${this.apiBaseUrl}/offers/import/preview`, form);
   }
 
-  confirmImport(rows: ImportValidRow[], publish: boolean): Observable<ConfirmResult> {
-    return this.http.post<ConfirmResult>(`${this.apiBaseUrl}/offers/import/confirm`, { rows, publish });
+  confirmImport(rows: (ImportValidRow & { status: 'draft' | 'published' })[]): Observable<ConfirmResult> {
+    return this.http.post<ConfirmResult>(`${this.apiBaseUrl}/offers/import/confirm`, { rows });
   }
 
   getImportTemplate(): void {

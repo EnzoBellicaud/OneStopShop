@@ -17,7 +17,7 @@ import { StatCardComponent } from '../shared/components/stat-card.component';
 import { MiniBarChartComponent, BarChartPoint } from '../shared/components/mini-bar-chart.component';
 import { StatusChipComponent } from '../shared/components/status-chip.component';
 
-type TabId = 'overview' | 'runs' | 'sources' | 'llm' | 'errors';
+type TabId = 'overview' | 'runs' | 'sources' | 'errors';
 type WindowOption = '24h' | '7d' | '30d';
 
 @Component({
@@ -31,8 +31,7 @@ export class ScrapperAdminPageComponent implements OnInit, OnDestroy {
   readonly TABS: { id: TabId; label: string }[] = [
     { id: 'overview', label: 'Overview' },
     { id: 'runs', label: 'Runs' },
-    { id: 'sources', label: 'Sources' },
-    { id: 'llm', label: 'Extraction' },
+    { id: 'sources', label: 'Queue' },
     { id: 'errors', label: 'Errors' },
   ];
 
@@ -74,11 +73,6 @@ export class ScrapperAdminPageComponent implements OnInit, OnDestroy {
   sources: SourceHealth[] = [];
   sourceSort: 'name' | 'last_scraped' | 'pending' | 'done' = 'name';
   loadingSources = false;
-
-  // LLM
-  llmStats: LlmStats | null = null;
-  llmWindow: WindowOption = '24h';
-  loadingLlm = false;
 
   // Errors (cross-run, client-side aggregate)
   errorRuns: ScrapingRunDetail[] = [];
@@ -155,7 +149,6 @@ export class ScrapperAdminPageComponent implements OnInit, OnDestroy {
     if (tab === 'overview') this.loadOverview();
     else if (tab === 'runs') void this.loadRuns();
     else if (tab === 'sources') this.loadSources();
-    else if (tab === 'llm') this.loadLlm();
     else if (tab === 'errors') this.loadErrors();
   }
 
@@ -225,16 +218,6 @@ export class ScrapperAdminPageComponent implements OnInit, OnDestroy {
 
   get overviewConfDet(): string {
     const v = this.overviewLlm?.avg_confidence_deterministic;
-    return v != null ? v.toFixed(2) : '—';
-  }
-
-  get llmConfLlm(): string {
-    const v = this.llmStats?.avg_confidence_llm;
-    return v != null ? v.toFixed(2) : '—';
-  }
-
-  get llmConfDet(): string {
-    const v = this.llmStats?.avg_confidence_deterministic;
     return v != null ? v.toFixed(2) : '—';
   }
 
@@ -418,45 +401,7 @@ export class ScrapperAdminPageComponent implements OnInit, OnDestroy {
     this.selectTab('runs');
   }
 
-  // ── LLM ───────────────────────────────────────────────────────────────────
-
-  loadLlm(): void {
-    this.loadingLlm = true;
-    this.api
-      .getLlmStats(this.llmWindow)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (stats) => {
-          this.llmStats = stats;
-          this.loadingLlm = false;
-        },
-        error: () => {
-          this.loadingLlm = false;
-        },
-      });
-  }
-
-  changeLlmWindow(w: WindowOption): void {
-    this.llmWindow = w;
-    this.loadLlm();
-  }
-
-  get llmMethodSplit(): { method: string; count: number; pct: number; color: string }[] {
-    if (!this.llmStats) return [];
-    const colors: Record<string, string> = {
-      llm_primary: '#7c3aed',
-      llm_fallback: '#4338ca',
-      deterministic: '#6b7280',
-    };
-    const split = this.llmStats.method_split;
-    const total = Object.values(split).reduce((a, b) => a + b, 0) || 1;
-    return Object.entries(split).map(([method, count]) => ({
-      method,
-      count,
-      pct: Math.round((count / total) * 100),
-      color: colors[method] ?? '#9ca3af',
-    }));
-  }
+  // ── Helpers ───────────────────────────────────────────────────────────────
 
   friendlyMethod(method: string): string {
     const names: Record<string, string> = {
@@ -465,6 +410,14 @@ export class ScrapperAdminPageComponent implements OnInit, OnDestroy {
       deterministic: 'Rules-based',
     };
     return names[method] ?? method;
+  }
+
+  formatSourceKey(key: string): string {
+    if (key.startsWith('import__')) {
+      const suffix = key.slice(8);
+      return `Manual Import · ${suffix.length > 12 ? suffix.slice(0, 8) + '…' : suffix}`;
+    }
+    return key;
   }
 
   // ── Errors ────────────────────────────────────────────────────────────────

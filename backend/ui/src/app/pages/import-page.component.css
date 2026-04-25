@@ -161,6 +161,59 @@ header h1 {
 
 .pill-ok { background: #e7f4ea; color: #1d7347; }
 .pill-error { background: #ffe4e4; color: #9e2a2a; }
+.pill-warn { background: #fff3cd; color: #856404; }
+.pill-new { background: #e0f0fa; color: #1a4d73; }
+
+/* ── Tab bar ── */
+.tab-bar {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid #d6e4ef;
+  margin-bottom: 0.75rem;
+}
+
+.tab-btn {
+  padding: 0.45rem 1rem;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  font-family: inherit;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: #6a7e8f;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.tab-btn:hover { color: #23638f; }
+.tab-btn.active { color: #23638f; border-bottom-color: #23638f; }
+
+.tab-count {
+  background: #e0f0fa;
+  color: #1a4d73;
+  border-radius: 20px;
+  padding: 0.05rem 0.45rem;
+  font-size: 0.74rem;
+}
+
+.tab-count-warn { background: #fff3cd; color: #856404; }
+
+/* ── Status select ── */
+.status-col { width: 110px; }
+
+.status-select {
+  font-family: inherit;
+  font-size: 0.78rem;
+  padding: 0.15rem 0.3rem;
+  border: 1px solid #b6c8d8;
+  border-radius: 6px;
+  background: #fff;
+  color: #1f3041;
+  cursor: pointer;
+}
 
 /* ── Tables ── */
 .table-wrap {

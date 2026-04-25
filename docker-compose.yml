@@ -46,6 +46,18 @@ services:
       retries: 10
       start_period: 20s
 
+  admin-ui:
+    build:
+      context: ./backend
+      dockerfile: docker/ui/Dockerfile
+    container_name: oss-ui
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${UI_PORT:-4200}:80"
+
   scraper-worker:
     build:
       context: ./backend

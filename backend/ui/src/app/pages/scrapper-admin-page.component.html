@@ -238,7 +238,7 @@
   <!-- ───────────────────── SOURCES TAB ───────────────────── -->
   <div *ngIf="activeTab() === 'sources'" class="tab-content">
     <div class="tab-toolbar">
-      <span class="section-title">Source Queue Health</span>
+      <span class="section-title">Queue Health</span>
       <div class="sort-controls">
         Sort:
         <button *ngFor="let opt of SOURCE_SORTS"
@@ -252,7 +252,7 @@
     <div class="source-grid" *ngIf="!loadingSources">
       <article class="source-card" *ngFor="let s of sortedSources">
         <div class="card-top">
-          <h3>{{ s.source_key }}</h3>
+          <h3>{{ formatSourceKey(s.source_key) }}</h3>
           <span class="badge-total">{{ s.total_urls }} URLs</span>
         </div>
         <p class="muted small">Last scraped: {{ relativeTime(s.last_scraped_at) }}</p>
@@ -274,53 +274,6 @@
       </article>
       <p class="hint" *ngIf="sortedSources.length === 0">No source data yet.</p>
     </div>
-  </div>
-
-  <!-- ───────────────────── LLM TAB ───────────────────── -->
-  <div *ngIf="activeTab() === 'llm'" class="tab-content">
-    <div class="tab-toolbar">
-      <span class="section-title">Extraction Diagnostics</span>
-      <div class="window-toggle">
-        <button *ngFor="let w of WINDOWS" [class.active]="llmWindow === w" (click)="changeLlmWindow(w)">{{ w }}</button>
-      </div>
-    </div>
-
-    <p class="hint" *ngIf="loadingLlm">Loading LLM stats…</p>
-
-    <ng-container *ngIf="!loadingLlm && llmStats">
-      <div class="kpi-grid">
-        <app-stat-card
-          label="AI confidence"
-          [value]="llmConfLlm"
-          hint="How confident the AI was when extracting offers (0–1 scale)"
-        ></app-stat-card>
-        <app-stat-card
-          label="Rules confidence"
-          [value]="llmConfDet"
-          hint="How confident the rules-based extractor was (0–1 scale)"
-        ></app-stat-card>
-      </div>
-
-      <!-- Method split -->
-      <div class="method-split-bar" *ngIf="llmMethodSplit.length">
-        <span class="section-title">Method split</span>
-        <div class="method-bars">
-          <div
-            *ngFor="let m of llmMethodSplit"
-            class="method-segment"
-            [style.flex]="m.pct"
-            [title]="friendlyMethod(m.method) + ': ' + m.count + ' (' + m.pct + '%)'"
-            [attr.data-method]="m.method"
-          >{{ m.pct > 8 ? m.pct + '%' : '' }}</div>
-        </div>
-        <div class="method-legend">
-          <span *ngFor="let m of llmMethodSplit" class="legend-item">
-            <span class="legend-dot" [attr.data-method]="m.method"></span>
-            {{ friendlyMethod(m.method) }}: {{ m.count }}
-          </span>
-        </div>
-      </div>
-    </ng-container>
   </div>
 
   <!-- ───────────────────── ERRORS TAB ───────────────────── -->
