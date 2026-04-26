@@ -3,7 +3,7 @@ from time import perf_counter
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
-from django.test import TestCase
+from django.test import Client, TestCase
 
 from content.models import (
 	Domain,
@@ -597,6 +597,18 @@ class UserCrudApiTests(TestCase):
 
 		self.assertEqual(response.status_code, 400)
 		self.assertEqual(response.json()["error"], "validation_error")
+
+	def test_upsert_user_accepts_cross_origin_json_without_csrf_token(self):
+		csrf_client = Client(enforce_csrf_checks=True)
+		response = csrf_client.post(
+			"/api/users",
+			data={"email": "spa.user@example.com", "username": "spauser"},
+			content_type="application/json",
+			HTTP_ORIGIN="http://localhost:4200",
+		)
+
+		self.assertEqual(response.status_code, 201)
+		self.assertTrue(User.objects.filter(email="spa.user@example.com").exists())
 
 	def test_get_user_detail_returns_profile_and_organizations(self):
 		UserOrganization.objects.create(

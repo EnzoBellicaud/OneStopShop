@@ -9,6 +9,7 @@ from django.http import JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
 from django.urls import reverse
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods
 
 from content.models import (
@@ -2116,6 +2117,7 @@ def countries(request):
 	return JsonResponse({"count": len(data), "results": data})
 
 
+@csrf_exempt
 @require_http_methods(["POST"])
 def upsert_user(request):
 	data = _parse_json_body(request)
@@ -2177,6 +2179,7 @@ def user_detail(request, user_id: str):
 	return JsonResponse(_user_to_dict(user))
 
 
+@csrf_exempt
 @require_http_methods(["PATCH"])
 def update_user(request, user_id: str):
 	user, error = _get_user_or_error(user_id)
@@ -2211,6 +2214,7 @@ def update_user(request, user_id: str):
 	return JsonResponse(_user_to_dict(User.objects.get(id=user.id)))
 
 
+@csrf_exempt
 @require_http_methods(["DELETE"])
 def delete_user(request, user_id: str):
 	user, error = _get_user_or_error(user_id)
@@ -2223,6 +2227,7 @@ def delete_user(request, user_id: str):
 	return JsonResponse({}, status=204)
 
 
+@csrf_exempt
 @require_http_methods(["GET", "PATCH", "DELETE"])
 def user_resource(request, user_id: str):
 	if request.method == "GET":
@@ -2232,6 +2237,7 @@ def user_resource(request, user_id: str):
 	return delete_user(request, user_id)
 
 
+@csrf_exempt
 @require_http_methods(["POST"])
 def link_user_organization(request, user_id: str):
 	user, error = _get_user_or_error(user_id)
@@ -2263,6 +2269,7 @@ def link_user_organization(request, user_id: str):
 	return JsonResponse(_organization_link_to_dict(link), status=201)
 
 
+@csrf_exempt
 @require_http_methods(["DELETE"])
 def unlink_user_organization(request, user_id: str, org_id: str):
 	user, error = _get_user_or_error(user_id)
@@ -2312,6 +2319,7 @@ def dashboard(request, user_id: str):
 	)
 
 
+@csrf_exempt
 @require_http_methods(["GET", "POST"])
 def user_needs(request, user_id: str):
 	user, error = _get_user_or_error(user_id)
@@ -2369,6 +2377,7 @@ def user_needs(request, user_id: str):
 	return JsonResponse(_need_to_dict(need), status=201)
 
 
+@csrf_exempt
 @require_http_methods(["PUT", "DELETE"])
 def user_need_detail(request, user_id: str, need_id: str):
 	user, error = _get_user_or_error(user_id)
@@ -2417,6 +2426,7 @@ def user_need_detail(request, user_id: str, need_id: str):
 	return JsonResponse(_need_to_dict(need))
 
 
+@csrf_exempt
 @require_http_methods(["GET", "POST"])
 def user_favorites(request, user_id: str):
 	user, error = _get_user_or_error(user_id)
@@ -2461,6 +2471,7 @@ def user_favorites(request, user_id: str):
 	return JsonResponse(_favorite_to_dict(favorite), status=201)
 
 
+@csrf_exempt
 @require_http_methods(["DELETE"])
 def user_favorite_detail(request, user_id: str, offer_id: str):
 	user, error = _get_user_or_error(user_id)
@@ -2508,6 +2519,7 @@ def user_matching_hits(request, user_id: str):
 	)
 
 
+@csrf_exempt
 @require_http_methods(["PATCH"])
 def user_matching_hit_detail(request, user_id: str, hit_id: str):
 	user, error = _get_user_or_error(user_id)

@@ -39,7 +39,7 @@ export class DashboardPageComponent implements OnInit, OnDestroy {
 
   userDraft = this.loadUserDraft();
   selectedNeedStatus: UserNeed['status'] = 'active';
-  selectedMatchStatus = '';
+  selectedMatchStatus: MatchingHitsQueryParams['status'] | '' = '';
   selectedMatchSort: MatchingHitsQueryParams['sort'] = '-match_score';
   offerSearch = '';
 
@@ -116,7 +116,7 @@ export class DashboardPageComponent implements OnInit, OnDestroy {
     this.loadNeeds();
   }
 
-  applyMatchFilter(status: string): void {
+  applyMatchFilter(status: MatchingHitsQueryParams['status'] | ''): void {
     this.selectedMatchStatus = status;
     this.loadMatchingHits();
   }

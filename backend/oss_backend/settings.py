@@ -123,6 +123,10 @@ CORS_ALLOWED_ORIGINS = _parse_csv_env(
     "CORS_ALLOWED_ORIGINS",
     "http://localhost:4200,http://127.0.0.1:4200",
 )
+CSRF_TRUSTED_ORIGINS = _parse_csv_env(
+    "CSRF_TRUSTED_ORIGINS",
+    "http://localhost:4200,http://127.0.0.1:4200",
+)
 CORS_ALLOW_CREDENTIALS = os.getenv("CORS_ALLOW_CREDENTIALS", "false").lower() == "true"
 
 # Scraper runtime configuration
