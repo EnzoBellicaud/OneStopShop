@@ -13,6 +13,7 @@ urlpatterns = [
     path("lookups/offer-types", views.offer_types, name="offer-types"),
     path("lookups/domains", views.domains, name="domains"),
     path("lookups/organizations", views.organizations, name="organizations"),
+    path("lookups/target-profiles", views.target_profiles, name="target-profiles"),
     path("lookups/countries", views.countries, name="countries"),
     path("users", views.upsert_user, name="upsert-user"),
     path("users/<str:user_id>", views.user_resource, name="user-detail"),

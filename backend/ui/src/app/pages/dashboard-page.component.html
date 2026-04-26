@@ -1,0 +1,255 @@
+<section class="dashboard-page">
+  <header class="hero">
+    <div>
+      <p class="eyebrow">SUNRISE User Workspace</p>
+      <h1>Dashboard Studio</h1>
+      <p class="lead">
+        One page to shape needs, save favorites, and triage matching recommendations.
+      </p>
+    </div>
+
+    <form class="identity-card" (ngSubmit)="saveIdentity()">
+      <h2>Local dev identity</h2>
+      <label>
+        Email
+        <input type="email" name="userEmail" [(ngModel)]="userDraft.email" aria-label="Dashboard user email" />
+      </label>
+      <label>
+        Username
+        <input type="text" name="userName" [(ngModel)]="userDraft.username" aria-label="Dashboard user username" />
+      </label>
+      <label>
+        Bio
+        <textarea name="userBio" [(ngModel)]="userDraft.bio" rows="2" aria-label="Dashboard user bio"></textarea>
+      </label>
+      <button type="submit" [disabled]="savingUser">
+        {{ savingUser ? 'Syncing user...' : 'Sync user' }}
+      </button>
+    </form>
+  </header>
+
+  <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
+  <p *ngIf="loading" class="hint">Loading dashboard data...</p>
+
+  <ng-container *ngIf="dashboard as dashboardData">
+    <section class="summary-strip" aria-label="Dashboard summary cards">
+      <article class="summary-card">
+        <span class="label">Active needs</span>
+        <strong>{{ dashboardData.stats.active_needs_count }}</strong>
+        <p>Open asks ready for matching.</p>
+      </article>
+      <article class="summary-card warm">
+        <span class="label">Favorites</span>
+        <strong>{{ dashboardData.stats.total_favorites }}</strong>
+        <p>Saved opportunities you can revisit quickly.</p>
+      </article>
+      <article class="summary-card accent">
+        <span class="label">New matches</span>
+        <strong>{{ dashboardData.stats.new_matches_count }}</strong>
+        <p>Recommendations that still need your decision.</p>
+      </article>
+      <article class="summary-card profile">
+        <span class="label">Current user</span>
+        <strong>{{ selectedUserLabel }}</strong>
+        <p>{{ dashboardData.user.profile.bio || 'No bio yet.' }}</p>
+      </article>
+    </section>
+
+    <section class="workspace-grid">
+      <article class="panel need-panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Needs</p>
+            <h2>Needs management</h2>
+          </div>
+          <div class="inline-actions">
+            <button
+              *ngFor="let status of needStatuses"
+              type="button"
+              [class.active]="selectedNeedStatus === status"
+              (click)="applyNeedFilter(status)"
+            >
+              {{ status }}
+            </button>
+          </div>
+        </div>
+
+        <form class="need-form" (ngSubmit)="submitNeed()">
+          <div class="two-up">
+            <label>
+              Title
+              <input type="text" name="needTitle" [(ngModel)]="needForm.title" maxlength="255" />
+            </label>
+            <label>
+              Status
+              <select name="needStatus" [(ngModel)]="needForm.status">
+                <option *ngFor="let status of needStatuses" [value]="status">{{ status }}</option>
+              </select>
+            </label>
+          </div>
+
+          <label>
+            Description
+            <textarea name="needDescription" [(ngModel)]="needForm.description" rows="3"></textarea>
+          </label>
+
+          <div class="two-up">
+            <label>
+              Target profile
+              <select name="targetProfileId" [(ngModel)]="needForm.target_profile_id">
+                <option *ngFor="let profile of targetProfiles" [value]="profile.id">{{ profile.name }}</option>
+              </select>
+            </label>
+            <label>
+              Countries
+              <input
+                type="text"
+                name="needCountries"
+                [ngModel]="countryValue()"
+                (ngModelChange)="updateCountryList($event)"
+                placeholder="IT, DE, FR"
+              />
+            </label>
+          </div>
+
+          <fieldset>
+            <legend>Domains</legend>
+            <div class="chip-grid">
+              <label class="check-chip" *ngFor="let domain of domains">
+                <input
+                  type="checkbox"
+                  [checked]="needForm.domain_ids.includes(domain.id)"
+                  (change)="toggleNeedDomain(domain.id, $any($event.target).checked)"
+                />
+                <span>{{ domain.name }}</span>
+              </label>
+            </div>
+          </fieldset>
+
+          <div class="form-actions">
+            <button type="submit" [disabled]="savingNeed">
+              {{ savingNeed ? 'Saving...' : (editingNeedId ? 'Update need' : 'Create need') }}
+            </button>
+            <button *ngIf="editingNeedId" type="button" class="ghost" (click)="cancelNeedEdit()">
+              Cancel edit
+            </button>
+          </div>
+        </form>
+
+        <div class="panel-list" *ngIf="needs.length > 0; else emptyNeeds">
+          <article class="list-card" *ngFor="let need of needs; trackBy: trackNeed">
+            <div class="top-row">
+              <strong>{{ need.title }}</strong>
+              <span class="pill">{{ need.status }}</span>
+            </div>
+            <p>{{ need.description }}</p>
+            <p class="meta">
+              {{ need.countries.join(', ') || 'No countries set' }} • {{ need.matching_hits_count }} matches
+            </p>
+            <div class="tag-row">
+              <span *ngFor="let domainId of need.domain_ids">{{ domainLabel(domainId) }}</span>
+            </div>
+            <div class="inline-actions">
+              <button type="button" class="ghost" (click)="startEditNeed(need)">Edit</button>
+              <button type="button" class="danger" (click)="deleteNeed(need.id)">Delete</button>
+            </div>
+          </article>
+        </div>
+        <ng-template #emptyNeeds>
+          <p class="empty-state">No needs in this state yet. Create one to start the matching flow.</p>
+        </ng-template>
+      </article>
+
+      <article class="panel favorites-panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Favorites</p>
+            <h2>Saved opportunities</h2>
+          </div>
+        </div>
+
+        <form class="favorite-form" (ngSubmit)="addFavorite()">
+          <label>
+            Search offers
+            <input type="text" name="offerSearch" [(ngModel)]="offerSearch" placeholder="title or organization" />
+          </label>
+          <label>
+            Offer
+            <select name="favoriteOffer" [(ngModel)]="favoriteForm.offer_id">
+              <option value="">Select a published offer</option>
+              <option *ngFor="let offer of filteredOfferOptions" [value]="offer.id">
+                {{ offer.title }} • {{ offer.organization.name }}
+              </option>
+            </select>
+          </label>
+          <label>
+            Note
+            <textarea name="favoriteNote" [(ngModel)]="favoriteForm.note" rows="2"></textarea>
+          </label>
+          <button type="submit" [disabled]="savingFavorite || !favoriteForm.offer_id">
+            {{ savingFavorite ? 'Saving...' : 'Add favorite' }}
+          </button>
+        </form>
+
+        <div class="panel-list" *ngIf="favorites.length > 0; else emptyFavorites">
+          <article class="list-card" *ngFor="let favorite of favorites; trackBy: trackFavorite">
+            <div class="top-row">
+              <strong>{{ favorite.offer.title }}</strong>
+              <button type="button" class="ghost" (click)="removeFavorite(favorite.offer.id)">Remove</button>
+            </div>
+            <p class="meta">{{ favorite.offer.organization }}</p>
+            <p>{{ favorite.note || 'No note saved for this favorite yet.' }}</p>
+            <a [href]="favorite.offer.link" target="_blank" rel="noreferrer">Open offer page</a>
+          </article>
+        </div>
+        <ng-template #emptyFavorites>
+          <p class="empty-state">No favorites yet. Search the published offers list and add one.</p>
+        </ng-template>
+      </article>
+
+      <article class="panel matches-panel">
+        <div class="panel-header">
+          <div>
+            <p class="eyebrow">Matching</p>
+            <h2>Recommendation queue</h2>
+          </div>
+          <div class="filters-inline">
+            <select [ngModel]="selectedMatchStatus" (ngModelChange)="applyMatchFilter($event)" name="matchStatus">
+              <option value="">All statuses</option>
+              <option *ngFor="let status of matchingStatuses" [value]="status">{{ status }}</option>
+            </select>
+            <select [ngModel]="selectedMatchSort" (ngModelChange)="applyMatchSort($event)" name="matchSort">
+              <option value="-match_score">Best score first</option>
+              <option value="created_at">Newest first</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="panel-list" *ngIf="matchingHits.length > 0; else emptyMatches">
+          <article class="list-card match-card" *ngFor="let hit of matchingHits; trackBy: trackMatch">
+            <div class="top-row">
+              <strong>{{ hit.offer.title }}</strong>
+              <span class="score">{{ hit.match_score | number:'1.2-2' }}</span>
+            </div>
+            <p class="meta">{{ hit.need.title }} • {{ hit.status }}</p>
+            <p>{{ hit.match_reason }}</p>
+            <div class="inline-actions">
+              <button
+                *ngFor="let status of updateableMatchStatuses"
+                type="button"
+                [class.active]="hit.status === status"
+                [disabled]="updatingMatch === hit.id"
+                (click)="updateMatchStatus(hit.id, status)"
+              >
+                {{ status }}
+              </button>
+            </div>
+          </article>
+        </div>
+        <ng-template #emptyMatches>
+          <p class="empty-state">No matching hits for the current filters.</p>
+        </ng-template>
+      </article>
+    </section>
+  </ng-container>
+</section>

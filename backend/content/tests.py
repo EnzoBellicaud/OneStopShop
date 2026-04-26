@@ -130,6 +130,12 @@ class ReadApiTests(TestCase):
 		names = [row["name"] for row in payload["results"]]
 		self.assertIn("Test University", names)
 
+	def test_target_profiles_endpoint(self):
+		response = self.client.get("/api/lookups/target-profiles")
+		payload = response.json()
+		self.assertEqual(response.status_code, 200)
+		self.assertGreaterEqual(payload["count"], 2)
+
 	def test_countries_endpoint(self):
 		response = self.client.get("/api/lookups/countries")
 		payload = response.json()

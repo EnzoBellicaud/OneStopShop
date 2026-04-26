@@ -1696,6 +1696,22 @@ def _openapi_spec() -> dict:
 					},
 				}
 			},
+			"/api/lookups/target-profiles": {
+				"get": {
+					"tags": ["Lookups"],
+					"summary": "List target profiles",
+					"responses": {
+						"200": {
+							"description": "Target profile lookup entries",
+							"content": {
+								"application/json": {
+									"schema": {"$ref": "#/components/schemas/TargetProfileLookupResponse"}
+								}
+							},
+						}
+					},
+				}
+			},
 			"/api/lookups/countries": {
 				"get": {
 					"tags": ["Lookups"],
@@ -1888,6 +1904,23 @@ def _openapi_spec() -> dict:
 					},
 					"required": ["count", "results"],
 				},
+				"TargetProfileLookup": {
+					"type": "object",
+					"properties": {
+						"id": {"type": "string", "format": "uuid"},
+						"name": {"type": "string"},
+						"description": {"type": "string"},
+					},
+					"required": ["id", "name", "description"],
+				},
+				"TargetProfileLookupResponse": {
+					"type": "object",
+					"properties": {
+						"count": {"type": "integer"},
+						"results": {"type": "array", "items": {"$ref": "#/components/schemas/TargetProfileLookup"}},
+					},
+					"required": ["count", "results"],
+				},
 				"CountryLookup": {
 					"type": "object",
 					"properties": {
@@ -2059,6 +2092,14 @@ def organizations(request):
 	data = list(
 		Organization.objects.order_by("name").values("id", "name", "type", "country")
 	)
+	for row in data:
+		row["id"] = str(row["id"])
+	return JsonResponse({"count": len(data), "results": data})
+
+
+@require_GET
+def target_profiles(request):
+	data = list(TargetProfile.objects.order_by("name").values("id", "name", "description"))
 	for row in data:
 		row["id"] = str(row["id"])
 	return JsonResponse({"count": len(data), "results": data})

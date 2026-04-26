@@ -16,6 +16,12 @@ export interface OrganizationLookup {
   country: string;
 }
 
+export interface TargetProfileLookup {
+  id: string;
+  name: string;
+  description: string;
+}
+
 export interface CountryLookup {
   code: string;
 }
@@ -148,11 +154,13 @@ export interface UserUpsertRequest {
   email: string;
   username: string;
   organization_id?: string | null;
+  profile?: Partial<UserProfile>;
 }
 
 export interface UserUpdateRequest {
   email?: string;
   username?: string;
+  profile?: Partial<UserProfile>;
 }
 
 export interface UserUpsertResponse extends UserDetail {
