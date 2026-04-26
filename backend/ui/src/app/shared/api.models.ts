@@ -191,6 +191,10 @@ export interface UserNeedCreateRequest {
   countries: string[];
 }
 
+export interface UserNeedUpdateRequest extends UserNeedCreateRequest {
+  status?: 'active' | 'fulfilled' | 'archived';
+}
+
 export interface OfferPreview {
   id: string;
   title: string;
@@ -247,6 +251,7 @@ export interface MatchingHitsQueryParams {
   status?: 'new' | 'viewed' | 'interested' | 'declined';
   sort?: '-match_score' | 'created_at';
   page?: number;
+  page_size?: number;
 }
 
 export interface AdminAccountStats {

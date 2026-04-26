@@ -696,3 +696,284 @@ class UserCrudApiTests(TestCase):
 		)
 
 		self.assertEqual(response.status_code, 404)
+
+
+class UserContentApiTests(TestCase):
+	@classmethod
+	def setUpTestData(cls):
+		cls.domain_ai = Domain.objects.create(name="Applied AI")
+		cls.domain_nlp = Domain.objects.create(name="NLP")
+		cls.domain_robotics = Domain.objects.create(name="Robotics")
+		cls.target_profile = TargetProfile.objects.create(
+			name="lab",
+			description="Research lab",
+		)
+		cls.other_target_profile = TargetProfile.objects.create(
+			name="company_partner",
+			description="Company partner",
+		)
+		cls.source_type = SourceType.objects.create(name="catalogue", description="Catalogue")
+		cls.offer_type = OfferType.objects.create(name="program", description="Program")
+		cls.organization = Organization.objects.create(
+			name="Stage Three Org",
+			type=Organization.OrganizationType.UNIVERSITY,
+			country="NL",
+			website="https://stage-three.example",
+		)
+		cls.user = User.objects.create(
+			username="stage3user",
+			email="stage3@example.com",
+			password_hash="secret",
+		)
+		UserProfile.objects.create(user=cls.user, bio="Stage 3 bio")
+		cls.other_user = User.objects.create(
+			username="other-stage3",
+			email="other-stage3@example.com",
+			password_hash="secret",
+		)
+		cls.offer_one = Offer.objects.create(
+			title="AI Residency",
+			summary="Research residency",
+			link="https://stage-three.example/offers/ai-residency",
+			country="NL",
+			details={"kind": "residency"},
+			status=Offer.OfferStatus.PUBLISHED,
+			source_type=cls.source_type,
+			target_profile=cls.target_profile,
+			organization=cls.organization,
+			created_by=cls.user,
+			updated_by=cls.user,
+			offer_type=cls.offer_type,
+		)
+		cls.offer_two = Offer.objects.create(
+			title="NLP Fellowship",
+			summary="Language fellowship",
+			link="https://stage-three.example/offers/nlp-fellowship",
+			country="NL",
+			details={"kind": "fellowship"},
+			status=Offer.OfferStatus.PUBLISHED,
+			source_type=cls.source_type,
+			target_profile=cls.target_profile,
+			organization=cls.organization,
+			created_by=cls.user,
+			updated_by=cls.user,
+			offer_type=cls.offer_type,
+		)
+		cls.offer_three = Offer.objects.create(
+			title="Robotics Sandbox",
+			summary="Robotics program",
+			link="https://stage-three.example/offers/robotics-sandbox",
+			country="NL",
+			details={"kind": "sandbox"},
+			status=Offer.OfferStatus.PUBLISHED,
+			source_type=cls.source_type,
+			target_profile=cls.other_target_profile,
+			organization=cls.organization,
+			created_by=cls.user,
+			updated_by=cls.user,
+			offer_type=cls.offer_type,
+		)
+		cls.need_active = UserNeed.objects.create(
+			user=cls.user,
+			title="AI Research Funding",
+			description="Need funding",
+			target_profile=cls.target_profile,
+			status=UserNeed.NeedStatus.ACTIVE,
+			countries=["NL", "DE"],
+		)
+		cls.need_active.domains.set([cls.domain_ai, cls.domain_nlp])
+		cls.need_fulfilled = UserNeed.objects.create(
+			user=cls.user,
+			title="Robotics Mentors",
+			description="Need robotics mentors",
+			target_profile=cls.other_target_profile,
+			status=UserNeed.NeedStatus.FULFILLED,
+			countries=["NL"],
+		)
+		cls.need_fulfilled.domains.set([cls.domain_robotics])
+		cls.favorite_one = UserFavorite.objects.create(
+			user=cls.user,
+			offer=cls.offer_one,
+			note="Great fit",
+		)
+		cls.favorite_two = UserFavorite.objects.create(
+			user=cls.user,
+			offer=cls.offer_two,
+			note="Interesting",
+		)
+		cls.match_one = MatchingHit.objects.create(
+			user=cls.user,
+			need=cls.need_active,
+			offer=cls.offer_one,
+			match_score="0.9500",
+			match_reason="Strong AI alignment",
+			status=MatchingHit.MatchStatus.NEW,
+		)
+		cls.match_two = MatchingHit.objects.create(
+			user=cls.user,
+			need=cls.need_fulfilled,
+			offer=cls.offer_three,
+			match_score="0.7300",
+			match_reason="Relevant robotics support",
+			status=MatchingHit.MatchStatus.VIEWED,
+		)
+
+	def test_dashboard_returns_stats_and_recent_items(self):
+		response = self.client.get(f"/api/users/{self.user.id}/dashboard")
+		payload = response.json()
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(payload["stats"]["active_needs_count"], 1)
+		self.assertEqual(payload["stats"]["total_favorites"], 2)
+		self.assertEqual(payload["stats"]["new_matches_count"], 1)
+		self.assertEqual(len(payload["recent_favorites"]), 2)
+		self.assertEqual(len(payload["recent_matches"]), 2)
+
+	def test_list_needs_defaults_to_active_filter(self):
+		response = self.client.get(f"/api/users/{self.user.id}/needs")
+		payload = response.json()
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(payload["count"], 1)
+		self.assertEqual(payload["results"][0]["title"], "AI Research Funding")
+
+	def test_list_needs_supports_status_and_pagination(self):
+		response = self.client.get(
+			f"/api/users/{self.user.id}/needs",
+			{"status": UserNeed.NeedStatus.FULFILLED, "page": 1, "page_size": 1},
+		)
+		payload = response.json()
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(payload["count"], 1)
+		self.assertIsNone(payload["next"])
+		self.assertEqual(payload["results"][0]["status"], UserNeed.NeedStatus.FULFILLED)
+
+	def test_list_needs_rejects_invalid_status_filter(self):
+		response = self.client.get(f"/api/users/{self.user.id}/needs", {"status": "broken"})
+		self.assertEqual(response.status_code, 400)
+
+	def test_create_need_persists_domains_and_countries(self):
+		response = self.client.post(
+			f"/api/users/{self.user.id}/needs",
+			data={
+				"title": "Need new collaborators",
+				"description": "Find new collaborators",
+				"target_profile_id": str(self.target_profile.id),
+				"domain_ids": [str(self.domain_ai.id), str(self.domain_robotics.id)],
+				"countries": ["it", "de"],
+			},
+			content_type="application/json",
+		)
+		payload = response.json()
+
+		self.assertEqual(response.status_code, 201)
+		self.assertEqual(payload["countries"], ["IT", "DE"])
+		self.assertEqual(len(payload["domain_ids"]), 2)
+
+	def test_update_need_replaces_status_and_domain_selection(self):
+		response = self.client.put(
+			f"/api/users/{self.user.id}/needs/{self.need_active.id}",
+			data={
+				"title": "AI Research Funding Updated",
+				"description": "Updated description",
+				"status": UserNeed.NeedStatus.ARCHIVED,
+				"target_profile_id": str(self.other_target_profile.id),
+				"domain_ids": [str(self.domain_robotics.id)],
+				"countries": ["fr"],
+			},
+			content_type="application/json",
+		)
+		payload = response.json()
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(payload["status"], UserNeed.NeedStatus.ARCHIVED)
+		self.assertEqual(payload["countries"], ["FR"])
+		self.assertEqual(len(payload["domain_ids"]), 1)
+
+	def test_delete_need_removes_record(self):
+		response = self.client.delete(f"/api/users/{self.user.id}/needs/{self.need_fulfilled.id}")
+
+		self.assertEqual(response.status_code, 204)
+		self.assertFalse(UserNeed.objects.filter(id=self.need_fulfilled.id).exists())
+
+	def test_list_favorites_is_paginated(self):
+		response = self.client.get(
+			f"/api/users/{self.user.id}/favorites",
+			{"page": 1, "page_size": 1},
+		)
+		payload = response.json()
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(payload["count"], 2)
+		self.assertEqual(len(payload["results"]), 1)
+		self.assertIsNotNone(payload["next"])
+
+	def test_add_favorite_creates_new_favorite(self):
+		response = self.client.post(
+			f"/api/users/{self.user.id}/favorites",
+			data={"offer_id": str(self.offer_three.id), "note": "Worth saving"},
+			content_type="application/json",
+		)
+		payload = response.json()
+
+		self.assertEqual(response.status_code, 201)
+		self.assertEqual(payload["offer"]["title"], "Robotics Sandbox")
+
+	def test_add_favorite_rejects_duplicate_offer(self):
+		response = self.client.post(
+			f"/api/users/{self.user.id}/favorites",
+			data={"offer_id": str(self.offer_one.id)},
+			content_type="application/json",
+		)
+
+		self.assertEqual(response.status_code, 409)
+
+	def test_remove_favorite_deletes_existing_record(self):
+		response = self.client.delete(
+			f"/api/users/{self.user.id}/favorites/{self.offer_one.id}"
+		)
+
+		self.assertEqual(response.status_code, 204)
+		self.assertFalse(
+			UserFavorite.objects.filter(user=self.user, offer=self.offer_one).exists()
+		)
+
+	def test_list_matching_hits_filters_and_sorts(self):
+		response = self.client.get(
+			f"/api/users/{self.user.id}/matching-hits",
+			{"status": MatchingHit.MatchStatus.NEW, "sort": "-match_score", "page_size": 5},
+		)
+		payload = response.json()
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(payload["count"], 1)
+		self.assertEqual(payload["results"][0]["status"], MatchingHit.MatchStatus.NEW)
+
+	def test_list_matching_hits_rejects_invalid_sort(self):
+		response = self.client.get(
+			f"/api/users/{self.user.id}/matching-hits",
+			{"sort": "wrong"},
+		)
+		self.assertEqual(response.status_code, 400)
+
+	def test_patch_matching_hit_updates_status(self):
+		response = self.client.patch(
+			f"/api/users/{self.user.id}/matching-hits/{self.match_one.id}",
+			data={"status": MatchingHit.MatchStatus.INTERESTED},
+			content_type="application/json",
+		)
+		payload = response.json()
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(payload["status"], MatchingHit.MatchStatus.INTERESTED)
+		self.match_one.refresh_from_db()
+		self.assertIsNotNone(self.match_one.viewed_at)
+
+	def test_patch_matching_hit_rejects_invalid_status(self):
+		response = self.client.patch(
+			f"/api/users/{self.user.id}/matching-hits/{self.match_one.id}",
+			data={"status": MatchingHit.MatchStatus.NEW},
+			content_type="application/json",
+		)
+		self.assertEqual(response.status_code, 400)

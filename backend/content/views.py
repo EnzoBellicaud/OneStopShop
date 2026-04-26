@@ -1,21 +1,27 @@
 import json
 from math import ceil
+from urllib.parse import urlencode
 from uuid import UUID
 
 from django.db import IntegrityError
 from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import render
+from django.utils import timezone
 from django.urls import reverse
 from django.views.decorators.http import require_GET, require_http_methods
 
 from content.models import (
 	Domain,
+	MatchingHit,
 	Offer,
 	OfferType,
 	Organization,
 	ScrapingRun,
+	TargetProfile,
 	User,
+	UserFavorite,
+	UserNeed,
 	UserOrganization,
 	UserProfile,
 	UserRole,
@@ -124,6 +130,15 @@ def _organization_link_to_dict(link: UserOrganization) -> dict:
 	}
 
 
+def _offer_preview_to_dict(offer: Offer) -> dict:
+	return {
+		"id": str(offer.id),
+		"title": offer.title,
+		"organization": offer.organization.name,
+		"link": offer.link,
+	}
+
+
 def _user_to_dict(user: User) -> dict:
 	profile = _get_or_create_profile(user)
 	organization_links = (
@@ -156,6 +171,122 @@ def _apply_profile_updates(profile: UserProfile, profile_data: dict) -> None:
 	if "notification_enabled" in profile_data:
 		profile.notification_enabled = bool(profile_data["notification_enabled"])
 	profile.save()
+
+
+def _build_page_url(request, page: int, page_size: int) -> str:
+	params = request.GET.copy()
+	params["page"] = page
+	params["page_size"] = page_size
+	return request.build_absolute_uri(f"{request.path}?{urlencode(sorted(params.lists()), doseq=True)}")
+
+
+def _paginate_queryset(request, queryset, *, default_page_size: int = 10, max_page_size: int = 100) -> tuple[list, dict]:
+	page_size = _parse_positive_int(request.GET.get("page_size"), default=default_page_size, max_value=max_page_size)
+	page = _parse_positive_int(request.GET.get("page"), default=1, max_value=1000000)
+	total_count = queryset.count()
+	offset = (page - 1) * page_size
+	results = list(queryset[offset:offset + page_size])
+	next_url = None
+	previous_url = None
+	if offset + page_size < total_count:
+		next_url = _build_page_url(request, page + 1, page_size)
+	if page > 1 and total_count:
+		previous_url = _build_page_url(request, page - 1, page_size)
+	return results, {
+		"count": total_count,
+		"next": next_url,
+		"previous": previous_url,
+	}
+
+
+def _need_to_dict(need: UserNeed) -> dict:
+	return {
+		"id": str(need.id),
+		"title": need.title,
+		"description": need.description,
+		"status": need.status,
+		"target_profile_id": str(need.target_profile_id),
+		"domain_ids": [str(domain.id) for domain in need.domains.all().order_by("name")],
+		"countries": need.countries,
+		"matching_hits_count": need.matching_hits.count(),
+		"created_at": need.created_at.isoformat(),
+		"updated_at": need.updated_at.isoformat(),
+	}
+
+
+def _favorite_to_dict(favorite: UserFavorite) -> dict:
+	return {
+		"id": str(favorite.id),
+		"offer": _offer_preview_to_dict(favorite.offer),
+		"note": favorite.note or None,
+		"created_at": favorite.created_at.isoformat(),
+	}
+
+
+def _matching_hit_to_dict(hit: MatchingHit) -> dict:
+	return {
+		"id": str(hit.id),
+		"need": {
+			"id": str(hit.need.id),
+			"title": hit.need.title,
+		},
+		"offer": _offer_preview_to_dict(hit.offer),
+		"match_score": float(hit.match_score),
+		"match_reason": hit.match_reason,
+		"status": hit.status,
+		"created_at": hit.created_at.isoformat(),
+		"updated_at": hit.updated_at.isoformat(),
+	}
+
+
+def _normalize_countries(value) -> list[str]:
+	if not isinstance(value, list):
+		return []
+	return [str(country).strip().upper() for country in value if str(country).strip()]
+
+
+def _validate_domain_ids(domain_ids) -> tuple[list[Domain] | None, JsonResponse | None]:
+	if not isinstance(domain_ids, list):
+		return None, _error_response("domain_ids must be a list of UUIDs.", status=400, error="validation_error")
+
+	parsed_ids = []
+	for raw_id in domain_ids:
+		parsed = _parse_uuid_or_none(raw_id)
+		if parsed is None:
+			return None, _error_response("domain_ids must contain valid UUIDs.", status=400, error="validation_error")
+		parsed_ids.append(parsed)
+
+	domains = list(Domain.objects.filter(id__in=parsed_ids).order_by("name"))
+	if len(domains) != len(set(parsed_ids)):
+		return None, _error_response("One or more domains were not found.", status=404, error="not_found")
+	return domains, None
+
+
+def _get_target_profile_or_error(target_profile_id: str | None) -> tuple[TargetProfile | None, JsonResponse | None]:
+	parsed_id = _parse_uuid_or_none(target_profile_id)
+	if parsed_id is None:
+		return None, _error_response("target_profile_id must be a valid UUID.", status=400, error="validation_error")
+
+	target_profile = TargetProfile.objects.filter(id=parsed_id).first()
+	if target_profile is None:
+		return None, _error_response("Target profile not found.", status=404, error="not_found")
+	return target_profile, None
+
+
+def _get_user_need_or_error(user: User, need_id: str) -> tuple[UserNeed | None, JsonResponse | None]:
+	parsed_need_id = _parse_uuid_or_none(need_id)
+	if parsed_need_id is None:
+		return None, _error_response("Invalid need id.", status=400, error="validation_error")
+
+	need = (
+		UserNeed.objects.select_related("target_profile")
+		.prefetch_related("domains")
+		.filter(id=parsed_need_id, user=user)
+		.first()
+	)
+	if need is None:
+		return None, _error_response("Need not found.", status=404, error="not_found")
+	return need, None
 
 
 def _build_stage_zero_paths() -> dict:
@@ -469,6 +600,63 @@ def _build_stage_zero_paths() -> dict:
 				},
 			},
 		},
+		"/api/users/{user_id}/needs/{need_id}": {
+			"put": {
+				"tags": ["Needs"],
+				"summary": "Update a need",
+				"parameters": [
+					{
+						"name": "user_id",
+						"in": "path",
+						"required": True,
+						"schema": {"type": "string", "format": "uuid"},
+					},
+					{
+						"name": "need_id",
+						"in": "path",
+						"required": True,
+						"schema": {"type": "string", "format": "uuid"},
+					},
+				],
+				"requestBody": {
+					"required": True,
+					"content": {
+						"application/json": {
+							"schema": {"$ref": "#/components/schemas/UserNeedUpdateRequest"}
+						}
+					},
+				},
+				"responses": {
+					"200": {
+						"description": "Need updated",
+						"content": {
+							"application/json": {
+								"schema": {"$ref": "#/components/schemas/UserNeed"}
+							}
+						},
+					}
+				},
+			},
+			"delete": {
+				"tags": ["Needs"],
+				"summary": "Delete a need",
+				"parameters": [
+					{
+						"name": "user_id",
+						"in": "path",
+						"required": True,
+						"schema": {"type": "string", "format": "uuid"},
+					},
+					{
+						"name": "need_id",
+						"in": "path",
+						"required": True,
+						"schema": {"type": "string", "format": "uuid"},
+					},
+				],
+				"responses": {"204": {"description": "Need deleted"}},
+			},
+		},
 		"/api/users/{user_id}/favorites": {
 			"get": {
 				"tags": ["Favorites"],
@@ -525,6 +713,27 @@ def _build_stage_zero_paths() -> dict:
 				},
 			},
 		},
+		"/api/users/{user_id}/favorites/{offer_id}": {
+			"delete": {
+				"tags": ["Favorites"],
+				"summary": "Remove a favorite",
+				"parameters": [
+					{
+						"name": "user_id",
+						"in": "path",
+						"required": True,
+						"schema": {"type": "string", "format": "uuid"},
+					},
+					{
+						"name": "offer_id",
+						"in": "path",
+						"required": True,
+						"schema": {"type": "string", "format": "uuid"},
+					},
+				],
+				"responses": {"204": {"description": "Favorite removed"}},
+			}
+		},
 		"/api/users/{user_id}/matching-hits": {
 			"get": {
 				"tags": ["Matching"],
@@ -547,6 +756,7 @@ def _build_stage_zero_paths() -> dict:
 						"schema": {"type": "string", "enum": ["-match_score", "created_at"]},
 					},
 					{"name": "page", "in": "query", "schema": {"type": "integer", "minimum": 1}},
+					{"name": "page_size", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 100}},
 				],
 				"responses": {
 					"200": {
@@ -1010,6 +1220,18 @@ def _build_stage_zero_schemas() -> dict:
 			"properties": {
 				"title": {"type": "string"},
 				"description": {"type": "string"},
+				"target_profile_id": {"type": "string", "format": "uuid"},
+				"domain_ids": {"type": "array", "items": {"type": "string", "format": "uuid"}},
+				"countries": {"type": "array", "items": {"type": "string"}},
+			},
+			"required": ["title", "description", "target_profile_id", "domain_ids", "countries"],
+		},
+		"UserNeedUpdateRequest": {
+			"type": "object",
+			"properties": {
+				"title": {"type": "string"},
+				"description": {"type": "string"},
+				"status": {"type": "string", "enum": ["active", "fulfilled", "archived"]},
 				"target_profile_id": {"type": "string", "format": "uuid"},
 				"domain_ids": {"type": "array", "items": {"type": "string", "format": "uuid"}},
 				"countries": {"type": "array", "items": {"type": "string"}},
@@ -2016,6 +2238,270 @@ def unlink_user_organization(request, user_id: str, org_id: str):
 
 	links.delete()
 	return JsonResponse({}, status=204)
+
+
+@require_GET
+def dashboard(request, user_id: str):
+	user, error = _get_user_or_error(user_id)
+	if error:
+		return error
+
+	recent_favorites = list(
+		UserFavorite.objects.select_related("offer", "offer__organization")
+		.filter(user=user)
+		.order_by("-created_at")[:5]
+	)
+	recent_matches = list(
+		MatchingHit.objects.select_related("need", "offer", "offer__organization")
+		.filter(user=user)
+		.order_by("-created_at")[:5]
+	)
+
+	return JsonResponse(
+		{
+			"user": _user_to_dict(user),
+			"stats": {
+				"active_needs_count": UserNeed.objects.filter(user=user, status=UserNeed.NeedStatus.ACTIVE).count(),
+				"total_favorites": UserFavorite.objects.filter(user=user).count(),
+				"new_matches_count": MatchingHit.objects.filter(user=user, status=MatchingHit.MatchStatus.NEW).count(),
+			},
+			"recent_favorites": [_favorite_to_dict(favorite) for favorite in recent_favorites],
+			"recent_matches": [_matching_hit_to_dict(hit) for hit in recent_matches],
+		}
+	)
+
+
+@require_http_methods(["GET", "POST"])
+def user_needs(request, user_id: str):
+	user, error = _get_user_or_error(user_id)
+	if error:
+		return error
+
+	if request.method == "GET":
+		status_value = request.GET.get("status", UserNeed.NeedStatus.ACTIVE)
+		valid_statuses = {choice for choice, _ in UserNeed.NeedStatus.choices}
+		if status_value not in valid_statuses:
+			return _error_response("Invalid need status filter.", status=400, error="validation_error")
+
+		queryset = (
+			UserNeed.objects.select_related("target_profile")
+			.prefetch_related("domains")
+			.filter(user=user, status=status_value)
+			.order_by("-created_at")
+		)
+		rows, pagination = _paginate_queryset(request, queryset)
+		return JsonResponse(
+			{
+				**pagination,
+				"results": [_need_to_dict(need) for need in rows],
+			}
+		)
+
+	data = _parse_json_body(request)
+	if data is None:
+		return _error_response("Request body must be valid JSON.", status=400, error="validation_error")
+
+	title = (data.get("title") or "").strip()
+	description = (data.get("description") or "").strip()
+	if not title or not description:
+		return _error_response("Title and description are required.", status=400, error="validation_error")
+
+	target_profile, target_profile_error = _get_target_profile_or_error(data.get("target_profile_id"))
+	if target_profile_error:
+		return target_profile_error
+
+	domains, domains_error = _validate_domain_ids(data.get("domain_ids", []))
+	if domains_error:
+		return domains_error
+
+	need = UserNeed.objects.create(
+		user=user,
+		title=title,
+		description=description,
+		target_profile=target_profile,
+		countries=_normalize_countries(data.get("countries", [])),
+	)
+	if domains:
+		need.domains.set(domains)
+
+	need = UserNeed.objects.select_related("target_profile").prefetch_related("domains").get(id=need.id)
+	return JsonResponse(_need_to_dict(need), status=201)
+
+
+@require_http_methods(["PUT", "DELETE"])
+def user_need_detail(request, user_id: str, need_id: str):
+	user, error = _get_user_or_error(user_id)
+	if error:
+		return error
+
+	need, need_error = _get_user_need_or_error(user, need_id)
+	if need_error:
+		return need_error
+
+	if request.method == "DELETE":
+		need.delete()
+		return JsonResponse({}, status=204)
+
+	data = _parse_json_body(request)
+	if data is None:
+		return _error_response("Request body must be valid JSON.", status=400, error="validation_error")
+
+	title = (data.get("title") or "").strip()
+	description = (data.get("description") or "").strip()
+	status_value = data.get("status", need.status)
+	if not title or not description:
+		return _error_response("Title and description are required.", status=400, error="validation_error")
+
+	valid_statuses = {choice for choice, _ in UserNeed.NeedStatus.choices}
+	if status_value not in valid_statuses:
+		return _error_response("Invalid need status.", status=400, error="validation_error")
+
+	target_profile, target_profile_error = _get_target_profile_or_error(data.get("target_profile_id"))
+	if target_profile_error:
+		return target_profile_error
+
+	domains, domains_error = _validate_domain_ids(data.get("domain_ids", []))
+	if domains_error:
+		return domains_error
+
+	need.title = title
+	need.description = description
+	need.status = status_value
+	need.target_profile = target_profile
+	need.countries = _normalize_countries(data.get("countries", []))
+	need.save()
+	need.domains.set(domains)
+
+	need = UserNeed.objects.select_related("target_profile").prefetch_related("domains").get(id=need.id)
+	return JsonResponse(_need_to_dict(need))
+
+
+@require_http_methods(["GET", "POST"])
+def user_favorites(request, user_id: str):
+	user, error = _get_user_or_error(user_id)
+	if error:
+		return error
+
+	if request.method == "GET":
+		queryset = (
+			UserFavorite.objects.select_related("offer", "offer__organization")
+			.filter(user=user)
+			.order_by("-created_at")
+		)
+		rows, pagination = _paginate_queryset(request, queryset)
+		return JsonResponse(
+			{
+				**pagination,
+				"results": [_favorite_to_dict(favorite) for favorite in rows],
+			}
+		)
+
+	data = _parse_json_body(request)
+	if data is None:
+		return _error_response("Request body must be valid JSON.", status=400, error="validation_error")
+
+	offer_id = _parse_uuid_or_none(data.get("offer_id"))
+	if offer_id is None:
+		return _error_response("offer_id is required and must be a valid UUID.", status=400, error="validation_error")
+
+	offer = Offer.objects.select_related("organization").filter(id=offer_id).first()
+	if offer is None:
+		return _error_response("Offer not found.", status=404, error="not_found")
+
+	try:
+		favorite = UserFavorite.objects.create(
+			user=user,
+			offer=offer,
+			note=(data.get("note") or "").strip(),
+		)
+	except IntegrityError:
+		return _error_response("Offer is already in favorites.", status=409, error="conflict")
+
+	return JsonResponse(_favorite_to_dict(favorite), status=201)
+
+
+@require_http_methods(["DELETE"])
+def user_favorite_detail(request, user_id: str, offer_id: str):
+	user, error = _get_user_or_error(user_id)
+	if error:
+		return error
+
+	parsed_offer_id = _parse_uuid_or_none(offer_id)
+	if parsed_offer_id is None:
+		return _error_response("Invalid offer id.", status=400, error="validation_error")
+
+	favorite = UserFavorite.objects.filter(user=user, offer_id=parsed_offer_id).first()
+	if favorite is None:
+		return _error_response("Favorite not found.", status=404, error="not_found")
+
+	favorite.delete()
+	return JsonResponse({}, status=204)
+
+
+@require_GET
+def user_matching_hits(request, user_id: str):
+	user, error = _get_user_or_error(user_id)
+	if error:
+		return error
+
+	queryset = MatchingHit.objects.select_related("need", "offer", "offer__organization").filter(user=user)
+	status_value = request.GET.get("status")
+	if status_value:
+		valid_statuses = {choice for choice, _ in MatchingHit.MatchStatus.choices}
+		if status_value not in valid_statuses:
+			return _error_response("Invalid matching status filter.", status=400, error="validation_error")
+		queryset = queryset.filter(status=status_value)
+
+	sort_value = request.GET.get("sort", "-match_score")
+	if sort_value not in {"-match_score", "created_at"}:
+		return _error_response("Invalid sort value.", status=400, error="validation_error")
+	ordering = sort_value if sort_value == "created_at" else "-match_score"
+	queryset = queryset.order_by(ordering, "-created_at")
+
+	rows, pagination = _paginate_queryset(request, queryset)
+	return JsonResponse(
+		{
+			**pagination,
+			"results": [_matching_hit_to_dict(hit) for hit in rows],
+		}
+	)
+
+
+@require_http_methods(["PATCH"])
+def user_matching_hit_detail(request, user_id: str, hit_id: str):
+	user, error = _get_user_or_error(user_id)
+	if error:
+		return error
+
+	parsed_hit_id = _parse_uuid_or_none(hit_id)
+	if parsed_hit_id is None:
+		return _error_response("Invalid hit id.", status=400, error="validation_error")
+
+	hit = (
+		MatchingHit.objects.select_related("need", "offer", "offer__organization")
+		.filter(id=parsed_hit_id, user=user)
+		.first()
+	)
+	if hit is None:
+		return _error_response("Matching hit not found.", status=404, error="not_found")
+
+	data = _parse_json_body(request)
+	if data is None:
+		return _error_response("Request body must be valid JSON.", status=400, error="validation_error")
+
+	status_value = data.get("status")
+	if status_value not in {
+		MatchingHit.MatchStatus.VIEWED,
+		MatchingHit.MatchStatus.INTERESTED,
+		MatchingHit.MatchStatus.DECLINED,
+	}:
+		return _error_response("Invalid matching hit status.", status=400, error="validation_error")
+
+	hit.status = status_value
+	if hit.viewed_at is None:
+		hit.viewed_at = timezone.now()
+	hit.save()
+	return JsonResponse(_matching_hit_to_dict(hit))
 
 
 @require_GET

@@ -18,6 +18,13 @@ urlpatterns = [
     path("users/<str:user_id>", views.user_resource, name="user-detail"),
     path("users/<str:user_id>/organizations", views.link_user_organization, name="link-user-organization"),
     path("users/<str:user_id>/organizations/<str:org_id>", views.unlink_user_organization, name="unlink-user-organization"),
+    path("users/<str:user_id>/dashboard", views.dashboard, name="user-dashboard"),
+    path("users/<str:user_id>/needs", views.user_needs, name="user-needs"),
+    path("users/<str:user_id>/needs/<str:need_id>", views.user_need_detail, name="user-need-detail"),
+    path("users/<str:user_id>/favorites", views.user_favorites, name="user-favorites"),
+    path("users/<str:user_id>/favorites/<str:offer_id>", views.user_favorite_detail, name="user-favorite-detail"),
+    path("users/<str:user_id>/matching-hits", views.user_matching_hits, name="user-matching-hits"),
+    path("users/<str:user_id>/matching-hits/<str:hit_id>", views.user_matching_hit_detail, name="user-matching-hit-detail"),
     path("offers", views.offers, name="offers"),
     path("offers/<str:offer_id>", views.offer_detail, name="offer-detail"),
 ]
