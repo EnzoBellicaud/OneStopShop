@@ -24,8 +24,8 @@ Implement a crawler-first ingestion flow where:
 2. Services up: oss-api, oss-postgres (healthy), oss-scraper-worker.
 
 ### Validation already done
-1. content.test_scraper_service: 6 tests passed.
-2. content app suite: 26 tests passed.
+1. content.test_scraper_service: 16 tests passed.
+2. content app suite: 34 tests passed (20 API + 7 import + 7 analytics).
 
 ### Files already modified
 1. [README.md](README.md)
@@ -36,6 +36,10 @@ Implement a crawler-first ingestion flow where:
 6. [backend/content/scrapers/source_registry.py](backend/content/scrapers/source_registry.py)
 7. [backend/content/scrapers/types.py](backend/content/scrapers/types.py)
 8. [backend/content/test_scraper_service.py](backend/content/test_scraper_service.py)
+9. [backend/content/views/](backend/content/views/) — views.py split into package (health, lookups, offers, scraping, imports, _schema, _utils)
+10. [backend/content/tests.py](backend/content/tests.py) — added ImportEndpointTests (7) + ScrapingAnalyticsTests (7)
+11. [backend/ui/src/app/pages/scrapper-admin-page.component.ts](backend/ui/src/app/pages/scrapper-admin-page.component.ts) — removed Extraction tab, renamed Sources→Queue, fixed source_key display
+12. [backend/ui/src/app/pages/scrapper-admin-page.component.html](backend/ui/src/app/pages/scrapper-admin-page.component.html) — removed LLM tab panel
 
 ## What Is Implemented So Far
 1. Crawl mode flag added to one-shot command.
@@ -133,7 +137,7 @@ Goal: Keep counters useful and backward compatible.
 
 Tasks:
 1. Confirm run log/counters are coherent in [backend/content/scrapers/service.py](backend/content/scrapers/service.py).
-2. Ensure scraping run API responses remain compatible in [backend/content/views.py](backend/content/views.py).
+2. Ensure scraping run API responses remain compatible in [backend/content/views/scraping.py](backend/content/views/scraping.py).
 3. Add/adjust API tests in [backend/content/tests.py](backend/content/tests.py).
 
 Definition of done:

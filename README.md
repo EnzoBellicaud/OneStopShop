@@ -39,24 +39,29 @@ docker compose up -d --build --wait
 
 ## API Endpoints
 
-All endpoints are read-only (`GET`):
-
 **Lookups**
-- `/api/lookups/offer-types` — OfferType reference data
-- `/api/lookups/domains` — Domain reference data
+- `GET /api/lookups/offer-types` — OfferType reference data
+- `GET /api/lookups/domains` — Domain reference data
+- `GET /api/lookups/organizations` — Organization reference data
+- `GET /api/lookups/countries` — Countries used by offers
 
 **Offers**
-- `/api/offers` — offer list (`q`, `status`, `offer_type`, `organization`, `target_profile`, `domain`, `country`, `page`, `page_size`, `limit`)
-- `/api/offers/{offer_id}` — offer detail
+- `GET /api/offers` — offer list (`q`, `status`, `offer_type`, `organization`, `target_profile`, `domain`, `country`, `page`, `page_size`, `limit`)
+- `GET /api/offers/{offer_id}` — offer detail
+
+**Import**
+- `GET /api/offers/import/template` — download `.xlsx` template with dropdown validation
+- `POST /api/offers/import/preview` — parse + validate CSV/Excel, no DB writes (multipart `file` field)
+- `POST /api/offers/import/confirm` — write confirmed rows to DB (JSON body `{"rows": [...]}`)
 
 **Scraping runs**
-- `/api/scraping/runs` — recent run summaries (`limit`)
-- `/api/scraping/runs/{run_id}` — run detail with full log
+- `GET /api/scraping/runs` — recent run summaries (`limit`)
+- `GET /api/scraping/runs/{run_id}` — run detail with full log
 
 **Dashboard / telemetry**
-- `/api/scraping/overview?window=24h|7d|30d` — KPI counts + timeline buckets
-- `/api/scraping/sources/health` — per-source URL queue stats from `CrawlUrl` table
-- `/api/scraping/llm/stats?window=24h|7d|30d` — extraction method split + confidence averages
+- `GET /api/scraping/overview?window=24h|7d|30d` — KPI counts + timeline buckets
+- `GET /api/scraping/sources/health` — per-source URL queue stats from `CrawlUrl` table
+- `GET /api/scraping/llm/stats?window=24h|7d|30d` — extraction method split + confidence averages
 
 ## Scraper Architecture
 
@@ -115,10 +120,9 @@ At `http://localhost:4200/admin/scrapper` — live telemetry, auto-refreshes eve
 
 | Tab | What it shows |
 |-----|--------------|
-| Overview | KPI cards (runs, offers created/updated, URLs skipped, errors), bar charts for run activity and errors over 24h/7d/30d |
+| Overview | KPI cards (runs, offers created/updated, URLs skipped, errors), bar charts for run activity and errors over 24h/7d/30d, AI vs rules method split |
 | Runs | Browsable list of scraping batches with URL-level results table. Rows: green (ok), amber (skipped), red (error) |
-| Sources | Per-source CrawlUrl queue health: total URLs, % done, pending/error/archived counts |
-| Extraction | AI vs rules-based method split and confidence scores |
+| Queue | Per-source CrawlUrl queue health: total URLs, % done, pending/error/archived counts |
 | Errors | Real HTTP/network failures across last 50 runs (skipped URLs excluded) |
 
 ## Environment Variables
@@ -215,6 +219,31 @@ curl "http://localhost:8000/api/scraping/runs?limit=5"
 curl "http://localhost:8000/api/scraping/overview?window=24h"
 curl "http://localhost:8000/api/scraping/sources/health"
 curl "http://localhost:8000/api/offers?limit=5"
+```
+
+## Backend Structure
+
+```
+backend/
+├── oss_backend/          Django project config (settings, urls, wsgi, asgi)
+└── content/              Single Django app — all business logic
+    ├── views/            API view package
+    │   ├── __init__.py   Re-exports all view functions (urls.py imports from here)
+    │   ├── health.py     health, api_docs, openapi_schema
+    │   ├── lookups.py    offer_types, domains, organizations, countries
+    │   ├── offers.py     offers, offer_detail
+    │   ├── scraping.py   scraping_runs, scraping_run_detail, scraping_overview,
+    │   │                 scraping_sources_health, scraping_llm_stats
+    │   ├── imports.py    import_template, import_preview, import_confirm
+    │   ├── _schema.py    OpenAPI spec dict (internal)
+    │   └── _utils.py     _WINDOW_DELTAS, _parse_positive_int (internal)
+    ├── scrapers/         Crawler + scraper service (APScheduler jobs)
+    ├── ingestion/        CSV/Excel import service
+    ├── management/       Django management commands (run_scrape_once, seed_lookups)
+    ├── models.py         Offer, Organization, CrawlUrl, ScrapingRun, lookups
+    ├── urls.py           URL routing (no changes needed when adding views)
+    ├── tests.py          API integration tests
+    └── test_scraper_service.py  Scraper unit tests
 ```
 
 ## Data Model Highlights
