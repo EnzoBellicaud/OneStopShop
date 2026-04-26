@@ -164,7 +164,7 @@ def import_preview(request):
 
     try:
         result = ImportService().preview(f, f.name)
-    except (ValueError, ImportError, UnicodeDecodeError):
+    except (ValueError, UnicodeDecodeError):
         logger.warning("Import preview: bad file format", exc_info=True)
         return JsonResponse({"error": "Failed to parse file. Check format and required columns."}, status=400)
     except Exception:
@@ -198,6 +198,11 @@ def import_confirm(request):
         for field in _REQUIRED_DATA_FIELDS:
             if not entry["data"].get(field):
                 return JsonResponse({"error": f"Row {i}: 'data.{field}' is required."}, status=400)
+        status = entry.get("status")
+        if status not in ("draft", "published"):
+            return JsonResponse(
+                {"error": f"Row {i}: 'status' must be 'draft' or 'published', got {status!r}."}, status=400
+            )
 
     try:
         result = ImportService().confirm(valid_rows)

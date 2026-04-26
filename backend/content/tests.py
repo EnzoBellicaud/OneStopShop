@@ -391,6 +391,18 @@ class ImportEndpointTests(TestCase):
 		self.assertEqual(response.status_code, 400)
 		self.assertEqual(Offer.objects.count(), offer_count_before)
 
+	def test_import_confirm_invalid_status(self):
+		row = {"data": self._valid_row(url="https://example.edu/bad-status"), "status": "publsihed"}
+		offer_count_before = Offer.objects.count()
+		response = self.client.post(
+			"/api/offers/import/confirm",
+			data=json.dumps({"rows": [row]}),
+			content_type="application/json",
+		)
+		self.assertEqual(response.status_code, 400)
+		self.assertIn("status", response.json()["error"])
+		self.assertEqual(Offer.objects.count(), offer_count_before)
+
 
 class ScrapingAnalyticsTests(TestCase):
 	@classmethod
