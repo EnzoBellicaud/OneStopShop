@@ -1,4 +1,5 @@
 import uuid
+from time import perf_counter
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
@@ -94,12 +95,20 @@ class ReadApiTests(TestCase):
 		self.assertEqual(response.status_code, 200)
 		self.assertContains(response, "SwaggerUIBundle")
 
+	def test_redoc_endpoint(self):
+		response = self.client.get("/api/redoc")
+		self.assertEqual(response.status_code, 200)
+		self.assertContains(response, "Redoc.init")
+
 	def test_openapi_schema_endpoint(self):
 		response = self.client.get("/api/openapi.json")
 		payload = response.json()
 		self.assertEqual(response.status_code, 200)
 		self.assertEqual(payload["openapi"], "3.0.3")
 		self.assertIn("/api/offers", payload["paths"])
+		self.assertIn("/api/users/{user_id}/needs/{need_id}", payload["paths"])
+		self.assertIn("/api/users/{user_id}/favorites/{offer_id}", payload["paths"])
+		self.assertIn("/api/users/{user_id}/matching-hits/{hit_id}", payload["paths"])
 
 	def test_offer_types_endpoint(self):
 		response = self.client.get("/api/lookups/offer-types")
@@ -977,3 +986,373 @@ class UserContentApiTests(TestCase):
 			content_type="application/json",
 		)
 		self.assertEqual(response.status_code, 400)
+
+
+class UserContentEdgeCaseTests(TestCase):
+	@classmethod
+	def setUpTestData(cls):
+		cls.domain = Domain.objects.create(name="Edge AI")
+		cls.target_profile = TargetProfile.objects.create(
+			name="edge_profile",
+			description="Edge profile",
+		)
+		cls.source_type = SourceType.objects.create(name="edge-source", description="Edge source")
+		cls.offer_type = OfferType.objects.create(name="edge-offer-type", description="Edge type")
+		cls.organization = Organization.objects.create(
+			name="Edge Org",
+			type=Organization.OrganizationType.COMPANY,
+			country="ES",
+			website="https://edge.example",
+		)
+		cls.user = User.objects.create(
+			username="edge-user",
+			email="edge@example.com",
+			password_hash="secret",
+		)
+		cls.other_user = User.objects.create(
+			username="edge-other-user",
+			email="edge-other@example.com",
+			password_hash="secret",
+		)
+		cls.offer = Offer.objects.create(
+			title="Edge Opportunity",
+			summary="Edge case offer",
+			link="https://edge.example/offers/edge",
+			country="ES",
+			details={"edge": True},
+			status=Offer.OfferStatus.PUBLISHED,
+			source_type=cls.source_type,
+			target_profile=cls.target_profile,
+			organization=cls.organization,
+			created_by=cls.user,
+			updated_by=cls.user,
+			offer_type=cls.offer_type,
+		)
+		cls.need = UserNeed.objects.create(
+			user=cls.user,
+			title="Existing need",
+			description="Existing need description",
+			target_profile=cls.target_profile,
+		)
+		cls.need.domains.set([cls.domain])
+		cls.favorite = UserFavorite.objects.create(user=cls.user, offer=cls.offer)
+		cls.match = MatchingHit.objects.create(
+			user=cls.user,
+			need=cls.need,
+			offer=cls.offer,
+			match_score="0.6600",
+			match_reason="Edge reason",
+			status=MatchingHit.MatchStatus.NEW,
+		)
+
+	def test_dashboard_handles_empty_lists(self):
+		response = self.client.get(f"/api/users/{self.other_user.id}/dashboard")
+		payload = response.json()
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(payload["stats"]["active_needs_count"], 0)
+		self.assertEqual(payload["recent_favorites"], [])
+		self.assertEqual(payload["recent_matches"], [])
+
+	def test_needs_returns_empty_list_for_user_without_needs(self):
+		response = self.client.get(f"/api/users/{self.other_user.id}/needs")
+		payload = response.json()
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(payload["count"], 0)
+		self.assertEqual(payload["results"], [])
+
+	def test_create_need_rejects_invalid_domain_uuid(self):
+		response = self.client.post(
+			f"/api/users/{self.user.id}/needs",
+			data={
+				"title": "Bad need",
+				"description": "Bad domain",
+				"target_profile_id": str(self.target_profile.id),
+				"domain_ids": ["not-a-uuid"],
+				"countries": ["ES"],
+			},
+			content_type="application/json",
+		)
+
+		self.assertEqual(response.status_code, 400)
+		self.assertEqual(response.json()["error"], "validation_error")
+
+	def test_create_need_rejects_missing_target_profile(self):
+		response = self.client.post(
+			f"/api/users/{self.user.id}/needs",
+			data={
+				"title": "Bad need",
+				"description": "Missing target profile",
+				"target_profile_id": str(uuid.uuid4()),
+				"domain_ids": [str(self.domain.id)],
+				"countries": ["ES"],
+			},
+			content_type="application/json",
+		)
+
+		self.assertEqual(response.status_code, 404)
+		self.assertEqual(response.json()["error"], "not_found")
+
+	def test_update_need_returns_not_found_for_other_users_need(self):
+		response = self.client.put(
+			f"/api/users/{self.other_user.id}/needs/{self.need.id}",
+			data={
+				"title": "Unauthorized",
+				"description": "Should not be visible",
+				"status": UserNeed.NeedStatus.ACTIVE,
+				"target_profile_id": str(self.target_profile.id),
+				"domain_ids": [str(self.domain.id)],
+				"countries": ["ES"],
+			},
+			content_type="application/json",
+		)
+
+		self.assertEqual(response.status_code, 404)
+
+	def test_delete_need_rejects_invalid_need_id(self):
+		response = self.client.delete(f"/api/users/{self.user.id}/needs/not-a-uuid")
+		self.assertEqual(response.status_code, 400)
+
+	def test_list_favorites_returns_empty_list_for_user_without_favorites(self):
+		response = self.client.get(f"/api/users/{self.other_user.id}/favorites")
+		payload = response.json()
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(payload["count"], 0)
+		self.assertEqual(payload["results"], [])
+
+	def test_add_favorite_rejects_missing_offer(self):
+		response = self.client.post(
+			f"/api/users/{self.user.id}/favorites",
+			data={"offer_id": str(uuid.uuid4())},
+			content_type="application/json",
+		)
+
+		self.assertEqual(response.status_code, 404)
+		self.assertEqual(response.json()["error"], "not_found")
+
+	def test_remove_favorite_returns_not_found_when_missing(self):
+		response = self.client.delete(
+			f"/api/users/{self.other_user.id}/favorites/{self.offer.id}"
+		)
+		self.assertEqual(response.status_code, 404)
+
+	def test_matching_hits_returns_empty_list_for_user_without_hits(self):
+		response = self.client.get(f"/api/users/{self.other_user.id}/matching-hits")
+		payload = response.json()
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(payload["count"], 0)
+		self.assertEqual(payload["results"], [])
+
+	def test_matching_hits_reject_invalid_status_filter(self):
+		response = self.client.get(
+			f"/api/users/{self.user.id}/matching-hits",
+			{"status": "invalid"},
+		)
+		self.assertEqual(response.status_code, 400)
+
+	def test_patch_matching_hit_returns_not_found_for_other_user(self):
+		response = self.client.patch(
+			f"/api/users/{self.other_user.id}/matching-hits/{self.match.id}",
+			data={"status": MatchingHit.MatchStatus.VIEWED},
+			content_type="application/json",
+		)
+		self.assertEqual(response.status_code, 404)
+
+	def test_patch_matching_hit_rejects_invalid_hit_id(self):
+		response = self.client.patch(
+			f"/api/users/{self.user.id}/matching-hits/not-a-uuid",
+			data={"status": MatchingHit.MatchStatus.VIEWED},
+			content_type="application/json",
+		)
+		self.assertEqual(response.status_code, 400)
+
+
+class UserIntegrationTests(TestCase):
+	@classmethod
+	def setUpTestData(cls):
+		cls.domain = Domain.objects.create(name="Integration AI")
+		cls.target_profile = TargetProfile.objects.create(
+			name="integration_target",
+			description="Integration target",
+		)
+		cls.source_type = SourceType.objects.create(name="integration-source", description="Integration source")
+		cls.offer_type = OfferType.objects.create(name="integration-offer", description="Integration type")
+		cls.organization = Organization.objects.create(
+			name="Integration Org",
+			type=Organization.OrganizationType.UNIVERSITY,
+			country="BE",
+			website="https://integration.example",
+		)
+		cls.role = UserRole.objects.create(name="integration-member", description="Integration role")
+		cls.user = User.objects.create(
+			username="integration-user",
+			email="integration@example.com",
+			password_hash="secret",
+		)
+		cls.offer = Offer.objects.create(
+			title="Integration Grant",
+			summary="Integration offer",
+			link="https://integration.example/offers/grant",
+			country="BE",
+			details={"integration": True},
+			status=Offer.OfferStatus.PUBLISHED,
+			source_type=cls.source_type,
+			target_profile=cls.target_profile,
+			organization=cls.organization,
+			created_by=cls.user,
+			updated_by=cls.user,
+			offer_type=cls.offer_type,
+		)
+
+	def test_user_journey_create_need_then_match_then_favorite(self):
+		create_response = self.client.post(
+			f"/api/users/{self.user.id}/needs",
+			data={
+				"title": "Integration need",
+				"description": "Integration description",
+				"target_profile_id": str(self.target_profile.id),
+				"domain_ids": [str(self.domain.id)],
+				"countries": ["be"],
+			},
+			content_type="application/json",
+		)
+		self.assertEqual(create_response.status_code, 201)
+		need_id = create_response.json()["id"]
+		need = UserNeed.objects.get(id=need_id)
+
+		match = MatchingHit.objects.create(
+			user=self.user,
+			need=need,
+			offer=self.offer,
+			match_score="0.8900",
+			match_reason="Integration alignment",
+		)
+
+		favorite_response = self.client.post(
+			f"/api/users/{self.user.id}/favorites",
+			data={"offer_id": str(self.offer.id), "note": "save this"},
+			content_type="application/json",
+		)
+		self.assertEqual(favorite_response.status_code, 201)
+
+		dashboard_response = self.client.get(f"/api/users/{self.user.id}/dashboard")
+		payload = dashboard_response.json()
+
+		self.assertEqual(payload["stats"]["active_needs_count"], 1)
+		self.assertEqual(payload["stats"]["total_favorites"], 1)
+		self.assertEqual(payload["stats"]["new_matches_count"], 1)
+		self.assertEqual(payload["recent_matches"][0]["id"], str(match.id))
+
+	def test_model_delete_user_cascades_dashboard_entities(self):
+		UserProfile.objects.create(user=self.user, bio="Cascade profile")
+		UserOrganization.objects.create(user=self.user, organization=self.organization, role=self.role)
+		need = UserNeed.objects.create(
+			user=self.user,
+			title="Cascade need",
+			description="Cascade description",
+			target_profile=self.target_profile,
+		)
+		need.domains.set([self.domain])
+		favorite = UserFavorite.objects.create(user=self.user, offer=self.offer)
+		hit = MatchingHit.objects.create(
+			user=self.user,
+			need=need,
+			offer=self.offer,
+			match_score="0.7700",
+			match_reason="Cascade match",
+		)
+
+		self.user.delete()
+
+		self.assertFalse(UserProfile.objects.filter(user_id=self.user.id).exists())
+		self.assertFalse(UserOrganization.objects.filter(user_id=self.user.id).exists())
+		self.assertFalse(UserNeed.objects.filter(id=need.id).exists())
+		self.assertFalse(UserNeedDomain.objects.filter(user_need_id=need.id).exists())
+		self.assertFalse(UserFavorite.objects.filter(id=favorite.id).exists())
+		self.assertFalse(MatchingHit.objects.filter(id=hit.id).exists())
+
+
+class UserContentPerformanceTests(TestCase):
+	@classmethod
+	def setUpTestData(cls):
+		cls.domain = Domain.objects.create(name="Performance AI")
+		cls.target_profile = TargetProfile.objects.create(
+			name="performance_target",
+			description="Performance target",
+		)
+		cls.source_type = SourceType.objects.create(name="performance-source", description="Performance source")
+		cls.offer_type = OfferType.objects.create(name="performance-offer", description="Performance type")
+		cls.organization = Organization.objects.create(
+			name="Performance Org",
+			type=Organization.OrganizationType.COMPANY,
+			country="PT",
+			website="https://performance.example",
+		)
+		cls.user = User.objects.create(
+			username="performance-user",
+			email="performance@example.com",
+			password_hash="secret",
+		)
+		offer = Offer.objects.create(
+			title="Performance Offer",
+			summary="Performance summary",
+			link="https://performance.example/offers/main",
+			country="PT",
+			details={"performance": True},
+			status=Offer.OfferStatus.PUBLISHED,
+			source_type=cls.source_type,
+			target_profile=cls.target_profile,
+			organization=cls.organization,
+			created_by=cls.user,
+			updated_by=cls.user,
+			offer_type=cls.offer_type,
+		)
+		for index in range(120):
+			need = UserNeed.objects.create(
+				user=cls.user,
+				title=f"Performance Need {index}",
+				description="Bulk generated need",
+				target_profile=cls.target_profile,
+				status=UserNeed.NeedStatus.ACTIVE if index % 2 == 0 else UserNeed.NeedStatus.FULFILLED,
+			)
+			need.domains.set([cls.domain])
+			if index < 20:
+				MatchingHit.objects.create(
+					user=cls.user,
+					need=need,
+					offer=offer,
+					match_score=f"0.{8000 + index:04d}",
+					match_reason="Bulk match",
+					status=MatchingHit.MatchStatus.NEW if index % 2 == 0 else MatchingHit.MatchStatus.VIEWED,
+				)
+
+	def test_large_needs_query_returns_paginated_results_quickly(self):
+		start = perf_counter()
+		response = self.client.get(
+			f"/api/users/{self.user.id}/needs",
+			{"status": UserNeed.NeedStatus.ACTIVE, "page": 2, "page_size": 25},
+		)
+		duration = perf_counter() - start
+		payload = response.json()
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(payload["count"], 60)
+		self.assertEqual(len(payload["results"]), 25)
+		self.assertLess(duration, 0.5)
+
+	def test_large_matching_query_returns_paginated_results_quickly(self):
+		start = perf_counter()
+		response = self.client.get(
+			f"/api/users/{self.user.id}/matching-hits",
+			{"page": 1, "page_size": 10, "sort": "-match_score"},
+		)
+		duration = perf_counter() - start
+		payload = response.json()
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(payload["count"], 20)
+		self.assertEqual(len(payload["results"]), 10)
+		self.assertLess(duration, 0.5)
