@@ -56,7 +56,7 @@
       padding: 10px;
     }
 
-    .mermaid { margin: 0; min-width: 760px; }
+    .mermaid { margin: 0; min-width: 700px; }
     .mermaid svg { height: auto; }
 
     .legend {
@@ -72,7 +72,7 @@
 
     .legend-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
       gap: 6px 20px;
       margin-top: 8px;
     }
@@ -117,9 +117,9 @@
 <body>
   <main class="page">
 
-    <!-- Header card -->
+    <!-- Header -->
     <section class="card">
-      <h1>OneStopShop — Scraper & Import Architecture</h1>
+      <h1>OneStopShop — Scraper &amp; Import Architecture</h1>
       <p>Two decoupled APScheduler jobs share a <code>CrawlUrl</code> queue table. The Crawler discovers URLs; the Scraper processes them. Manual imports write directly via the API.</p>
       <p class="meta">Reflects logic in <code>backend/content/scrapers/service.py</code>, <code>source_registry.py</code>, and <code>content/ingestion/importer.py</code></p>
     </section>
@@ -128,38 +128,37 @@
     <section class="card">
       <span class="job-label job-crawler">Job 1 — Crawler · every 360 min</span>
       <h2>URL Discovery → CrawlUrl Queue</h2>
-      <p>Runs for each configured source. Populates the queue; never fetches page content.</p>
+      <p>Runs for each configured source. Populates the queue; never fetches or parses page content.</p>
 
       <div class="chart-wrap">
         <pre class="mermaid">
 flowchart TD
-  A(["Crawler job triggered"]) --> B["Load enabled sources from source_registry"]
+  A(["Crawler triggered"]) --> B["Load enabled sources"]
   B --> C{"Any sources?"}
-  C -- "No" --> Z1(["Done — nothing to do"])
-  C -- "Yes" --> D["For each source"]
+  C -- No --> Z1(["Done"])
+  C -- Yes --> D["For each source"]
 
   D --> E{"crawl_enabled?"}
 
-  E -- "Yes (BFS mode)" --> F["Fetch seed URL HTML"]
-  F --> G["Extract depth-1 links\n(same-domain, filtered by\ninclude/exclude patterns)"]
-  G --> H["For each discovered link:\nget_or_create CrawlUrl\nstatus=pending\n(archived not resurrected)"]
+  E -- "Yes - BFS mode" --> F["Fetch seed URL HTML"]
+  F --> G["Extract depth-1 links filtered by include/exclude patterns"]
+  G --> H["get_or_create CrawlUrl per link — archived not resurrected"]
 
-  E -- "No (single URL)" --> I["get_or_create CrawlUrl\nfor the one known URL"]
+  E -- "No - single URL" --> I["get_or_create CrawlUrl for known URL"]
 
   H --> J{"More sources?"}
   I --> J
-  J -- "Yes" --> D
-  J -- "No" --> Z2(["Crawler cycle done\nQueue updated"])
+  J -- Yes --> D
+  J -- No --> Z2(["Crawler done — queue updated"])
 
-  classDef start   fill:#dbeafe,stroke:#2563eb,stroke-width:1.5px,color:#1e3a8a;
-  classDef process fill:#e8f0ff,stroke:#2563eb,stroke-width:1px,color:#1e3a8a;
-  classDef decision fill:#fff7db,stroke:#b45309,stroke-width:1px,color:#7c2d12;
-  classDef end     fill:#d1fae5,stroke:#059669,stroke-width:1.5px,color:#064e3b;
+  classDef startend fill:#dbeafe,stroke:#2563eb,stroke-width:1.5px,color:#1e3a8a
+  classDef process  fill:#e8f0ff,stroke:#2563eb,stroke-width:1px,color:#1e3a8a
+  classDef decision fill:#fff7db,stroke:#b45309,stroke-width:1px,color:#7c2d12
+  classDef done     fill:#d1fae5,stroke:#059669,stroke-width:1.5px,color:#064e3b
 
-  class A start;
-  class B,D,F,G,H,I process;
-  class C,E,J decision;
-  class Z1,Z2 end;
+  class A,Z1,Z2 startend
+  class B,D,F,G,H,I process
+  class C,E,J decision
         </pre>
       </div>
     </section>
@@ -168,68 +167,64 @@ flowchart TD
     <section class="card">
       <span class="job-label job-scraper">Job 2 — Scraper · every 5 min</span>
       <h2>URL Processing → Offer Upsert</h2>
-      <p>Claims a batch of pending/due <code>CrawlUrl</code> rows and processes each one. Creates a <code>ScrapingRun</code> record with full structured log.</p>
+      <p>Claims a batch of pending/due <code>CrawlUrl</code> rows and processes each one. Creates a <code>ScrapingRun</code> record with a full structured log.</p>
 
       <div class="chart-wrap">
         <pre class="mermaid">
 flowchart TD
-  A(["Scraper job triggered"]) --> B["Claim up to BATCH_SIZE\npending/due CrawlUrls\n(status = processing)"]
+  A(["Scraper triggered"]) --> B["Claim up to BATCH_SIZE pending/due CrawlUrls"]
   B --> C{"URLs claimed?"}
-  C -- "No" --> Z1(["Done — queue empty or all future-scheduled"])
-  C -- "Yes" --> D["Create ScrapingRun (RUNNING)"]
-
+  C -- No --> Z1(["Done — queue empty"])
+  C -- Yes --> D["Create ScrapingRun — status RUNNING"]
   D --> E["For each URL"]
 
-  E --> F["Fetch HTML\n(timeout + UA header)"]
-  F --> G{"Fetch OK?"}
+  E --> F["Fetch HTML"]
+  F --> G{"HTTP result?"}
 
-  G -- "No (network / 5xx)" --> ERR1["Increment consecutive_errors"]
-  ERR1 --> ERR2{"errors ≥ MAX?"}
-  ERR2 -- "Yes" --> ERR3["status = archived\nArchive/delete linked offer"]
-  ERR2 -- "No"  --> ERR4["status = error\nBackoff: 1h → 6h → 24h"]
-  ERR3 --> NEXT
-  ERR4 --> NEXT
+  G -- "404 / 410" --> P1["status = archived"]
+  P1 --> P2["Archive or delete linked offer"]
+  P2 --> LOG
 
-  G -- "404 / 410" --> GONE["status = archived\nArchive/delete linked offer"]
-  GONE --> NEXT
+  G -- "5xx / timeout" --> Q1["Increment consecutive_errors"]
+  Q1 --> Q2{"errors >= MAX?"}
+  Q2 -- Yes --> Q3["status = archived — archive offer"]
+  Q2 -- No  --> Q4["status = error — backoff 1h / 6h / 24h"]
+  Q3 --> LOG
+  Q4 --> LOG
 
-  G -- "2xx" --> H["Deterministic extraction\n(BeautifulSoup / JSON-LD / meta)"]
-
+  G -- "2xx" --> H["Run deterministic extraction"]
   H --> I{"crawl_enabled source?"}
 
-  I -- "Yes" --> J["AI relevance check + extraction\n(Ollama model pool)"]
-  J --> K{"Relevant offer page?\nconfidence ≥ threshold?"}
-  K -- "No" --> NEG["Decision: NEGLECT\nLog reason code\nstatus = done (skipped)"]
-  K -- "Yes" --> L["Use LLM result if confidence\n≥ deterministic, else keep det."]
-  NEG --> NEXT
+  I -- Yes --> J["AI relevance check and extraction via Ollama"]
+  J --> K{"Relevant offer? Confidence >= threshold?"}
+  K -- No  --> K1["Decision: NEGLECT — log reason code"]
+  K1 --> K2["status = done — skipped"]
+  K2 --> LOG
+  K -- Yes --> L["Pick best payload: LLM if confidence >= deterministic"]
+  L --> M["Upsert Offer — link CrawlUrl.offer"]
+  M --> N["status = done — next_check_at = now + 7 days"]
+  N --> LOG
 
-  I -- "No (direct URL)" --> M["AI is primary extractor\nDeterministic is fallback"]
-  M --> L
+  I -- No --> R["AI is primary — deterministic is fallback"]
+  R --> L
 
-  L --> N["Upsert Offer (get_or_create + update)\nLink CrawlUrl.offer\nstatus = done\nnext_check_at = now + 7 days"]
-  N --> NEXT
+  LOG["Append url_processed or url_neglected to ScrapingRun log"] --> MORE{"More URLs?"}
+  MORE -- Yes --> E
+  MORE -- No --> FIN["Update ScrapingRun counters and status"]
+  FIN --> STALE["Flag stale candidates — successful sources only"]
+  STALE --> Z2(["ScrapingRun complete"])
 
-  NEXT["Log url_processed / url_neglected entry\nto ScrapingRun.log"] --> MORE{"More URLs\nin batch?"}
-  MORE -- "Yes" --> E
-  MORE -- "No" --> FINALIZE["Update ScrapingRun counters\n(created / updated / unchanged /\nneglected / errors)\nStatus = success / failed"]
+  classDef startend fill:#d1fae5,stroke:#059669,stroke-width:1.5px,color:#064e3b
+  classDef process  fill:#e8f0ff,stroke:#2563eb,stroke-width:1px,color:#1e3a8a
+  classDef decision fill:#fff7db,stroke:#b45309,stroke-width:1px,color:#7c2d12
+  classDef fail     fill:#fee2e2,stroke:#b91c1c,stroke-width:1px,color:#7f1d1d
+  classDef skip     fill:#fef9c3,stroke:#ca8a04,stroke-width:1px,color:#78350f
 
-  FINALIZE --> STALE["Flag stale candidates\n(successful sources only)"]
-  STALE --> CLEANUP["Cleanup broken links\n(skip URLs fetched OK this cycle)"]
-  CLEANUP --> Z2(["ScrapingRun complete\nStats returned"])
-
-  classDef start    fill:#d1fae5,stroke:#059669,stroke-width:1.5px,color:#064e3b;
-  classDef process  fill:#e8f0ff,stroke:#2563eb,stroke-width:1px,color:#1e3a8a;
-  classDef decision fill:#fff7db,stroke:#b45309,stroke-width:1px,color:#7c2d12;
-  classDef fail     fill:#fee2e2,stroke:#b91c1c,stroke-width:1px,color:#7f1d1d;
-  classDef skip     fill:#fef9c3,stroke:#ca8a04,stroke-width:1px,color:#78350f;
-  classDef end      fill:#d1fae5,stroke:#059669,stroke-width:1.5px,color:#064e3b;
-
-  class A start;
-  class B,D,E,F,H,J,L,M,N,NEXT,FINALIZE,STALE,CLEANUP process;
-  class C,G,I,K,MORE,ERR2 decision;
-  class ERR1,ERR3,ERR4,GONE fail;
-  class NEG skip;
-  class Z1,Z2 end;
+  class A,Z1,Z2 startend
+  class B,D,E,F,H,J,L,M,N,R,LOG,FIN,STALE process
+  class C,G,I,K,MORE,Q2 decision
+  class P1,P2,Q1,Q3,Q4 fail
+  class K1,K2 skip
         </pre>
       </div>
     </section>
@@ -238,29 +233,29 @@ flowchart TD
     <section class="card">
       <span class="job-label job-api">API — Manual Import</span>
       <h2>CSV / Excel → Offer + CrawlUrl</h2>
-      <p>Operator uploads a file to preview, reviews validation output, then confirms. No scraper job involved.</p>
+      <p>Operator uploads a file, reviews validation output, then confirms. No scraper job involved.</p>
 
       <div class="chart-wrap">
         <pre class="mermaid">
 flowchart LR
-  A(["Operator"]) --> B["GET /api/offers/import/template\nDownload .xlsx with dropdowns"]
-  A --> C["POST /api/offers/import/preview\nUpload CSV or Excel"]
-  C --> D["Parse + validate rows\n(required fields, URL format,\nlookup values, duplicate warnings)"]
-  D --> E["Return PreviewResult\n{valid: [...], invalid: [...]}"]
-  E --> F{"Operator reviews\nand confirms"}
-  F -- "Sends valid rows" --> G["POST /api/offers/import/confirm\n{rows: [...], status: draft|published}"]
-  G --> H["For each row:\nget_or_create Offer\nLink CrawlUrl (source_key = import__<org_id>)\nstatus = pending"]
-  H --> I(["ConfirmResult\n{drafts: N, published: N}"])
+  A(["Operator"]) --> B["GET /api/offers/import/template — download .xlsx"]
+  A --> C["POST /api/offers/import/preview — upload CSV or Excel"]
+  C --> D["Parse and validate rows — required fields, URL format, lookup values"]
+  D --> E["Return PreviewResult — valid list and invalid list with errors"]
+  E --> F{"Review and confirm"}
+  F -- "POST confirm with rows" --> G["POST /api/offers/import/confirm"]
+  G --> H["For each row: get_or_create Offer — status draft or published"]
+  H --> I["Create CrawlUrl — source_key = import__ plus org_id — status pending"]
+  I --> J(["ConfirmResult — drafts and published counts"])
 
-  classDef start    fill:#ede9fe,stroke:#7c3aed,stroke-width:1.5px,color:#4c1d95;
-  classDef process  fill:#e8f0ff,stroke:#2563eb,stroke-width:1px,color:#1e3a8a;
-  classDef decision fill:#fff7db,stroke:#b45309,stroke-width:1px,color:#7c2d12;
-  classDef end      fill:#d1fae5,stroke:#059669,stroke-width:1.5px,color:#064e3b;
+  classDef startend fill:#ede9fe,stroke:#7c3aed,stroke-width:1.5px,color:#4c1d95
+  classDef process  fill:#e8f0ff,stroke:#2563eb,stroke-width:1px,color:#1e3a8a
+  classDef decision fill:#fff7db,stroke:#b45309,stroke-width:1px,color:#7c2d12
+  classDef done     fill:#d1fae5,stroke:#059669,stroke-width:1.5px,color:#064e3b
 
-  class A start;
-  class B,C,D,E,G,H process;
-  class F decision;
-  class I end;
+  class A,J startend
+  class B,C,D,E,G,H,I process
+  class F decision
         </pre>
       </div>
     </section>
@@ -271,28 +266,28 @@ flowchart LR
       <div class="chart-wrap">
         <pre class="mermaid">
 stateDiagram-v2
-  [*] --> pending : Crawler discovers URL\nor import confirms row
+  [*] --> pending : Crawler discovers URL or import confirms row
 
   pending --> processing : Scraper claims batch
 
-  processing --> done      : 2xx — offer upserted or page skipped\nnext_check_at = now + 7 days
-  processing --> error     : 5xx / timeout (consecutive_errors &lt; MAX)\nbackoff: 1h → 6h → 24h
-  processing --> archived  : 404 / 410 or consecutive_errors ≥ MAX\nlinked offer archived / deleted
+  processing --> done     : 2xx — offer upserted or page skipped — next check in 7 days
+  processing --> error    : 5xx or timeout — consecutive errors below MAX — backoff applied
+  processing --> archived : 404 or 410 or consecutive errors reached MAX — offer archived
 
-  error --> pending : backoff expires → re-queued
+  error --> pending : Backoff expires — re-queued for retry
 
-  done --> pending : revisit window expires (7 days)
+  done --> pending : Revisit window expires after 7 days
         </pre>
       </div>
 
       <div class="legend">
-        <strong>Decision codes logged per URL:</strong>
+        <strong>Decision codes logged per URL in ScrapingRun.log:</strong>
         <div class="legend-grid">
-          <div class="legend-item"><div class="dot" style="background:#86efac"></div> <span><code>mapped</code> — offer upserted</span></div>
-          <div class="legend-item"><div class="dot" style="background:#fde68a"></div> <span><code>neglected / non_relevant_page</code> — crawl page rejected</span></div>
-          <div class="legend-item"><div class="dot" style="background:#fde68a"></div> <span><code>neglected / missing_core_fields</code> — extraction incomplete</span></div>
-          <div class="legend-item"><div class="dot" style="background:#fca5a5"></div> <span><code>failed</code> — HTTP or network error</span></div>
-          <div class="legend-item"><div class="dot" style="background:#d1d5db"></div> <span><code>archived</code> — permanent 404/410 or repeated errors</span></div>
+          <div class="legend-item"><div class="dot" style="background:#86efac"></div><span><code>mapped</code> — offer upserted successfully</span></div>
+          <div class="legend-item"><div class="dot" style="background:#fde68a"></div><span><code>neglected / non_relevant_page</code> — crawl page rejected by AI</span></div>
+          <div class="legend-item"><div class="dot" style="background:#fde68a"></div><span><code>neglected / missing_core_fields</code> — extraction returned incomplete data</span></div>
+          <div class="legend-item"><div class="dot" style="background:#fca5a5"></div><span><code>failed</code> — HTTP or network error</span></div>
+          <div class="legend-item"><div class="dot" style="background:#d1d5db"></div><span><code>archived</code> — permanent 404/410 or repeated errors exceeded limit</span></div>
         </div>
       </div>
     </section>
@@ -315,7 +310,7 @@ stateDiagram-v2
         nodeSpacing: 30,
         rankSpacing: 40,
         useMaxWidth: true,
-        htmlLabels: true
+        htmlLabels: false
       }
     });
   </script>
