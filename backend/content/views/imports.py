@@ -1,3 +1,4 @@
+import logging
 import json
 
 from django.http import HttpResponse, JsonResponse
@@ -5,6 +6,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods
 
 from content.models import Domain, OfferType, Organization
+
+logger = logging.getLogger(__name__)
 
 
 @require_GET
@@ -162,7 +165,8 @@ def import_preview(request):
     try:
         result = ImportService().preview(f, f.name)
     except Exception as exc:
-        return JsonResponse({"error": f"Failed to parse file: {exc}"}, status=400)
+        logger.exception("Import preview failed")
+        return JsonResponse({"error": "Failed to parse file. Check format and required columns."}, status=400)
 
     return JsonResponse(result.to_dict())
 
@@ -182,9 +186,18 @@ def import_confirm(request):
     if not isinstance(valid_rows, list):
         return JsonResponse({"error": "'rows' must be a list."}, status=400)
 
+    for i, entry in enumerate(valid_rows):
+        if not isinstance(entry, dict):
+            return JsonResponse({"error": f"Row {i}: expected object, got {type(entry).__name__}."}, status=400)
+        if not isinstance(entry.get("data"), dict):
+            return JsonResponse({"error": f"Row {i}: missing or invalid 'data' field."}, status=400)
+        if not entry["data"].get("url"):
+            return JsonResponse({"error": f"Row {i}: 'data.url' is required."}, status=400)
+
     try:
         result = ImportService().confirm(valid_rows)
-    except Exception as exc:
-        return JsonResponse({"error": f"Import failed: {exc}"}, status=500)
+    except Exception:
+        logger.exception("Import confirm failed")
+        return JsonResponse({"error": "Import failed. Please try again or contact support."}, status=500)
 
     return JsonResponse(result.to_dict())

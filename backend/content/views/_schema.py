@@ -4,7 +4,7 @@ def _openapi_spec() -> dict:
         "info": {
             "title": "SUNRISE OSS API",
             "version": "1.0.0",
-            "description": "Read-only API for offers, lookup tables, and scraping run telemetry.",
+            "description": "API for offers, lookup tables, scraping run telemetry, and offer import operations.",
         },
         "servers": [{"url": "/"}],
         "paths": {
@@ -427,12 +427,13 @@ def _openapi_spec() -> dict:
                         "source_key": {"type": "string"},
                         "total_urls": {"type": "integer"},
                         "pending": {"type": "integer"},
+                        "processing": {"type": "integer"},
                         "done": {"type": "integer"},
                         "error": {"type": "integer"},
                         "archived": {"type": "integer"},
                         "last_scraped_at": {"type": "string", "format": "date-time", "nullable": True},
                     },
-                    "required": ["source_key", "total_urls", "pending", "done", "error", "archived", "last_scraped_at"],
+                    "required": ["source_key", "total_urls", "pending", "processing", "done", "error", "archived", "last_scraped_at"],
                 },
                 "SourcesHealthResponse": {
                     "type": "object",

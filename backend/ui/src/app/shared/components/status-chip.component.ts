@@ -1,4 +1,5 @@
 import { Component, Input } from '@angular/core';
+import { NgClass } from '@angular/common';
 
 const STATUS_MAP: Record<string, string> = {
   success: 'chip--success',
@@ -17,7 +18,8 @@ const METHOD_MAP: Record<string, string> = {
 @Component({
   selector: 'app-status-chip',
   standalone: true,
-  template: `<span class="chip" [class]="chipClass">{{ label }}</span>`,
+  imports: [NgClass],
+  template: `<span class="chip" [ngClass]="chipClass">{{ label }}</span>`,
   styles: [`
     .chip {
       display: inline-block;

@@ -6,6 +6,7 @@ import re
 from dataclasses import dataclass, field
 
 from django.conf import settings
+from django.db import transaction
 from django.utils import timezone
 
 from content.models import (
@@ -64,7 +65,8 @@ class ImportService:
         valid_offer_types = set(OfferType.objects.values_list("name", flat=True))
         valid_organizations = {n.lower(): n for n in Organization.objects.values_list("name", flat=True)}
         valid_domains = set(Domain.objects.values_list("name", flat=True))
-        existing_urls = set(Offer.objects.values_list("link", flat=True))
+        file_urls = {row.get("url", "").strip() for row in rows if row.get("url", "").strip()}
+        existing_urls = set(Offer.objects.filter(link__in=file_urls).values_list("link", flat=True))
 
         valid: list[dict] = []
         invalid: list[dict] = []
@@ -87,16 +89,17 @@ class ImportService:
         source_type = SourceType.objects.get(name="manual")
         drafts = published = 0
 
-        for entry in valid_rows:
-            row = entry["data"]
-            row_status = entry.get("status", "draft")
-            status = Offer.OfferStatus.PUBLISHED if row_status == "published" else Offer.OfferStatus.DRAFT
-            offer = self._create_offer(row, status, source_type, ingestion_user)
-            self._enqueue_url(offer, row["url"])
-            if row_status == "published":
-                published += 1
-            else:
-                drafts += 1
+        with transaction.atomic():
+            for entry in valid_rows:
+                row = entry["data"]
+                row_status = entry.get("status", "draft")
+                status = Offer.OfferStatus.PUBLISHED if row_status == "published" else Offer.OfferStatus.DRAFT
+                offer = self._create_offer(row, status, source_type, ingestion_user)
+                self._enqueue_url(offer, row["url"])
+                if row_status == "published":
+                    published += 1
+                else:
+                    drafts += 1
 
         return ConfirmResult(drafts=drafts, published=published)
 
@@ -131,7 +134,11 @@ class ImportService:
         return result
 
     def _normalise_row(self, raw: dict) -> dict:
-        return {k.strip().lower(): (v.strip() if isinstance(v, str) else v or "") for k, v in raw.items()}
+        return {
+            k.strip().lower(): (v.strip() if isinstance(v, str) else v or "")
+            for k, v in raw.items()
+            if k is not None
+        }
 
     def _validate(
         self,

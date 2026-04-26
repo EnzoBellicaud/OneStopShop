@@ -313,10 +313,20 @@ export class ScrapperAdminPageComponent implements OnInit, OnDestroy {
     let results = toUrlResults(this.selectedRunEntries);
     if (this.runUrlFilter === 'failures') results = results.filter((r) => r.failed);
     if (this.runUrlFilter === 'skipped') results = results.filter((r) => r.neglected);
+    const NUMERIC_COLS: Array<keyof UrlResult> = ['http_status', 'confidence', 'duration_ms'];
     return [...results].sort((a, b) => {
-      const av = String(a[this.runSortCol] ?? '');
-      const bv = String(b[this.runSortCol] ?? '');
-      return this.runSortAsc ? av.localeCompare(bv) : bv.localeCompare(av);
+      const col = this.runSortCol;
+      let cmp: number;
+      if (NUMERIC_COLS.includes(col)) {
+        const an = a[col] as number | null ?? -Infinity;
+        const bn = b[col] as number | null ?? -Infinity;
+        cmp = an - bn;
+      } else {
+        const av = String(a[col] ?? '');
+        const bv = String(b[col] ?? '');
+        cmp = av.localeCompare(bv);
+      }
+      return this.runSortAsc ? cmp : -cmp;
     });
   }
 
