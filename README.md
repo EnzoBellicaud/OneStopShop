@@ -2,298 +2,269 @@
 
 The SUNRISE One Stop Shop application.
 
-## Database Bootstrap (PostgreSQL + Django migrations)
-
-This branch bootstraps the data layer for Task 1/2/3 with:
-
-- Dockerized PostgreSQL
-- Dockerized API service (Django)
-- Dedicated `content` schema
-- Django ORM models + migrations
-- Deterministic seed commands
-
-### What is included
-
-- Core Task 1 entities:
-	- `offer`, `offer_type`, `organization`, `contact`, `domain`, `oss_user`, `user_organization`, `user_role`, `source_type`, `target_profile`
-- Task 2 decisions:
-	- D-01: `contact.contact_approved` (default `false`)
-	- D-02: `offer_contact` junction table
-- Lookup/reference seeding from Task 2 (`OSS_Mapping_Seed.json`)
-- Task 3 offer seeding from sample data (`OSS_Sample_Offers.json`)
-	- Inserts only real + illustrative records
-	- Skips fictional offers
-
 ## Quick Start
 
-### 1) Install dependencies
-
-```powershell
-"d:/Masters/UNIBZ/Semester 2/GDSD - Sweden/.venv/Scripts/python.exe" -m pip install -r backend/requirements.txt
-```
-
-### 2) Start PostgreSQL
-
-```powershell
-docker compose up -d postgres
-```
-
-### 2b) Start PostgreSQL + API layer together
-
-```powershell
+```bash
 docker compose up -d --build
 ```
 
+This starts three services: `postgres`, `api`, `scraper-worker`.
+
+The API container runs on startup:
+1. `python manage.py migrate`
+2. `python manage.py seed_lookups`
+3. `python manage.py runserver 0.0.0.0:8000`
+
+The scraper worker runs on startup:
+1. `python manage.py seed_lookups`
+2. `python manage.py run_scraper_worker`
+
 To rebuild from a clean state:
 
-```powershell
+```bash
 docker compose down -v
 docker compose up -d --build --wait
 ```
 
-The API container runs:
-
-1. `python manage.py migrate`
-2. `python manage.py seed_lookups`
-3. `python manage.py seed_offers`
-4. `python manage.py runserver 0.0.0.0:8000`
-
-### 3) Configure environment
-
-Create a local `.env` from `backend/.env.example` and adjust values if needed.
-
-Default values:
-
-- `POSTGRES_DB=oss_db`
-- `POSTGRES_USER=oss_user`
-- `POSTGRES_PASSWORD=oss_password`
-- `POSTGRES_HOST=localhost`
-- `POSTGRES_PORT=5432`
-- `POSTGRES_SCHEMA=content`
-- `DJANGO_ALLOWED_HOSTS=127.0.0.1,localhost,testserver`
-- `CORS_ALLOWED_ORIGINS=http://localhost:4200,http://127.0.0.1:4200`
-- `CORS_ALLOW_CREDENTIALS=false`
-- `API_PORT=8000`
-
-For local Python runs, use `POSTGRES_HOST=localhost`.
-For compose API container runs, `POSTGRES_HOST` is automatically set to `postgres`.
-
-### 3b) Verify running services
-
-```powershell
-docker compose ps
-docker compose logs --tail 100 api
-```
-
-### 4) Run migrations
-
-```powershell
-"d:/Masters/UNIBZ/Semester 2/GDSD - Sweden/.venv/Scripts/python.exe" backend/manage.py migrate
-```
-
-### 5) Seed lookup data and offers
-
-```powershell
-"d:/Masters/UNIBZ/Semester 2/GDSD - Sweden/.venv/Scripts/python.exe" backend/manage.py seed_lookups
-"d:/Masters/UNIBZ/Semester 2/GDSD - Sweden/.venv/Scripts/python.exe" backend/manage.py seed_offers
-```
-
 ## Local URLs
 
-When compose is running, use:
+| URL | Description |
+|-----|-------------|
+| `http://localhost:8000/api` | Swagger UI |
+| `http://localhost:8000/api/docs` | Swagger UI (alias) |
+| `http://localhost:8000/api/openapi.json` | OpenAPI 3 schema |
+| `http://localhost:8000/api/health` | Health check |
+| `http://localhost:4200/offers` | Offer explorer UI |
+| `http://localhost:4200/admin/scrapper` | Scraper dashboard |
 
-- API base: `http://localhost:8000/api`
-- API Swagger UI: `http://localhost:8000/api` or `http://localhost:8000/api/docs`
-- OpenAPI schema JSON: `http://localhost:8000/api/openapi.json`
-- Health check: `http://localhost:8000/api/health`
+## API Endpoints
 
-## Current API Endpoints
+**Lookups**
+- `GET /api/lookups/offer-types` — OfferType reference data
+- `GET /api/lookups/domains` — Domain reference data
+- `GET /api/lookups/organizations` — Organization reference data
+- `GET /api/lookups/countries` — Countries used by offers
 
-All endpoints are read-only (`GET`):
+**Offers**
+- `GET /api/offers` — offer list (`q`, `status`, `offer_type`, `organization`, `target_profile`, `domain`, `country`, `page`, `page_size`, `limit`)
+- `GET /api/offers/{offer_id}` — offer detail
 
-- `/api` - Swagger UI
-- `/api/docs` - same Swagger UI page
-- `/api/openapi.json` - OpenAPI 3 schema
-- `/api/health` - service health
-- `/api/lookups/offer-types` - OfferType reference data
-- `/api/lookups/domains` - Domain reference data
-- `/api/scraping/runs` - recent scraping run summaries
-	- optional query param: `limit`
-- `/api/scraping/runs/{run_id}` - scraping run detail by UUID
-- `/api/offers` - offer list
-	- optional query params: `q`, `status`, `offer_type`, `organization`, `target_profile`, `domain`, `country`, `page`, `page_size`, `limit`
-	- response metadata: `count`, `page`, `page_size`, `total_pages`, `limit`, `results`
-- `/api/offers/{offer_id}` - offer detail by UUID
+**Import**
+- `GET /api/offers/import/template` — download `.xlsx` template with dropdown validation
+- `POST /api/offers/import/preview` — parse + validate CSV/Excel, no DB writes (multipart `file` field)
+- `POST /api/offers/import/confirm` — write confirmed rows to DB (JSON body `{"rows": [...]}`)
 
-## Angular Demo UI
+**Scraping runs**
+- `GET /api/scraping/runs` — recent run summaries (`limit`)
+- `GET /api/scraping/runs/{run_id}` — run detail with full log
 
-An Angular frontend is included in `backend/ui/` with two routes:
+**Dashboard / telemetry**
+- `GET /api/scraping/overview?window=24h|7d|30d` — KPI counts + timeline buckets
+- `GET /api/scraping/sources/health` — per-source URL queue stats from `CrawlUrl` table
+- `GET /api/scraping/llm/stats?window=24h|7d|30d` — extraction method split + confidence averages
 
-- `http://localhost:4200/offers` - offer explorer with search, filters, cards, and classic pagination
-- `http://localhost:4200/admin/scrapper` - read-only scraper run tracking page
+## Scraper Architecture
 
-Start the UI:
+The scraper runs as two decoupled APScheduler jobs inside the `scraper-worker` container:
 
-```powershell
-cd backend/ui
-npm install
-npm start
+### Job 1 — Crawler (every 360 min)
+
+Discovers URLs for each configured source and writes them into the `CrawlUrl` queue table.
+
+- Crawl-enabled sources: BFS depth-1 link discovery filtered by include/exclude patterns
+- Non-crawl sources: single known URL
+- Uses `get_or_create` — existing URLs keep their schedule, archived URLs are not resurrected
+
+### Job 2 — Scraper (every 5 min)
+
+Claims up to `SCRAPER_BATCH_SIZE` (default 10) pending/due URLs from the queue and processes them.
+
+For each URL:
+
+1. Fetch HTML (timeout: `SCRAPER_TIMEOUT_SECONDS`)
+2. Run deterministic extraction (BeautifulSoup / JSON-LD / meta / heuristics)
+3. For crawl sources: AI relevance check + extraction via Ollama. LLM result wins if confidence ≥ deterministic
+4. For non-crawl sources: AI is primary extractor; deterministic is fallback only
+5. If content is extractable: upsert offer into DB, link `CrawlUrl.offer`
+6. If page is generic or deemed irrelevant: mark URL as **skipped** (not an error)
+7. Update `CrawlUrl` status and schedule next check
+
+**Outcome mapping:**
+
+| HTTP result | Consecutive errors | Outcome |
+|-------------|-------------------|---------|
+| 2xx | — | `done`, next check in 7 days |
+| Generic/irrelevant page | — | `done` (skipped), not an error |
+| 404 / 410 | — | `archived`; linked offer archived/deleted |
+| 5xx / timeout | < 3 | `error`, backoff: 1h → 6h → 24h |
+| 5xx / timeout | ≥ 3 | `archived`; linked offer archived |
+
+### URL Status Lifecycle
+
+```
+pending → processing → done      (scraped, revisit in 7 days)
+                     → archived  (permanent 404/410 or repeated errors)
+                     → error     (transient failure, retry with backoff)
 ```
 
-Build the UI:
+### What Counts as an Error vs Skipped
 
-```powershell
-cd backend/ui
-npm run build
-```
+- **Error**: HTTP failure (4xx/5xx) or network exception — visible in Errors tab of dashboard
+- **Skipped**: Page fetched OK but content rejected (generic homepage title, AI flagged as non-offer) — amber in Runs tab, not an error
 
-The UI expects backend API at `http://localhost:8000/api`.
-If origin calls are blocked, confirm `CORS_ALLOWED_ORIGINS` in `.env` includes `http://localhost:4200`.
+## Scraper Dashboard
 
-### Quick smoke test (PowerShell)
+At `http://localhost:4200/admin/scrapper` — live telemetry, auto-refreshes every 30s.
 
-```powershell
-Invoke-RestMethod -Uri "http://localhost:8000/api/health"
-Invoke-RestMethod -Uri "http://localhost:8000/api/scraping/runs"
-Invoke-RestMethod -Uri "http://localhost:8000/api/lookups/offer-types"
-Invoke-RestMethod -Uri "http://localhost:8000/api/lookups/domains"
-Invoke-RestMethod -Uri "http://localhost:8000/api/offers?limit=5"
-```
+**Tabs:**
 
-## Scraper Worker (Background Job)
+| Tab | What it shows |
+|-----|--------------|
+| Overview | KPI cards (runs, offers created/updated, URLs skipped, errors), bar charts for run activity and errors over 24h/7d/30d, AI vs rules method split |
+| Runs | Browsable list of scraping batches with URL-level results table. Rows: green (ok), amber (skipped), red (error) |
+| Queue | Per-source CrawlUrl queue health: total URLs, % done, pending/error/archived counts |
+| Errors | Real HTTP/network failures across last 50 runs (skipped URLs excluded) |
 
-The compose stack includes a dedicated `scraper-worker` service that runs the university scraper on a schedule.
+## Environment Variables
 
-Worker startup sequence:
+Copy `backend/.env.example` to `backend/.env` and adjust as needed.
 
-1. `python manage.py migrate`
-2. `python manage.py seed_lookups`
-3. `python manage.py run_scraper_worker`
+### Database
 
-Runtime behavior:
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `POSTGRES_DB` | `oss_db` | |
+| `POSTGRES_USER` | `oss_user` | |
+| `POSTGRES_PASSWORD` | `oss_password` | |
+| `POSTGRES_HOST` | `localhost` (local) / `postgres` (compose) | |
+| `POSTGRES_PORT` | `5432` | |
+| `POSTGRES_SCHEMA` | `content` | |
 
-- deterministic extraction first (BeautifulSoup/JSON-LD/text heuristics)
-- optional Ollama fallback (`qwen3-coder:480b-cloud`) when confidence is low
-- freshness policy: mark stale candidates in `details.scraping`, never auto-archive
-- source fetch failures (for example HTTP 404/410) are stored as failed runs in `scraping_run` with structured error metadata, and do not automatically mark offers stale in that same failed cycle
+### API
 
-### Run It
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DJANGO_ALLOWED_HOSTS` | `127.0.0.1,localhost,testserver` | |
+| `CORS_ALLOWED_ORIGINS` | `http://localhost:4200,http://127.0.0.1:4200` | |
+| `API_PORT` | `8000` | |
 
-Start full stack (DB + API + worker):
+### Scraper
 
-```powershell
-docker compose up -d --build
-docker compose ps
-```
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CRAWLER_INTERVAL_MINUTES` | `360` | How often the crawler job runs (URL discovery) |
+| `SCRAPER_INTERVAL_MINUTES` | `5` | How often the scraper job runs (URL processing) |
+| `SCRAPER_BATCH_SIZE` | `10` | URLs processed per scraper job tick |
+| `SCRAPER_REVISIT_DAYS` | `7` | Days before a successfully scraped URL is re-queued |
+| `SCRAPER_MAX_CONSECUTIVE_ERRORS` | `3` | Errors before a URL is archived |
+| `SCRAPER_TIMEOUT_SECONDS` | `30` | HTTP request timeout per URL |
+| `SCRAPER_RUN_ON_START` | `true` | Run both jobs immediately at worker startup |
+| `SCRAPER_USER_AGENT` | `SUNRISE-OSS-Scraper/1.0` | |
+| `INGESTION_BOT_USERNAME` | `ingestion_bot` | DB user for offer upserts |
 
-Watch scraper worker logs:
+### Ollama (AI extraction)
 
-```powershell
-docker compose logs -f scraper-worker
-```
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OLLAMA_BASE_URL` | `http://host.docker.internal:11434` | Use `host.docker.internal` on Windows/Mac Docker Desktop |
+| `OLLAMA_MODEL` | `qwen3-coder:480b-cloud` | Primary model |
+| `OLLAMA_TIMEOUT_SECONDS` | `45` | |
+| `OLLAMA_REQUEST_DELAY_SECONDS` | `2` | Delay between Ollama calls |
+| `OLLAMA_COOLDOWN_MAX_WAIT_SECONDS` | `65` | Max wait when all models are in cooldown |
 
-Run one manual scrape cycle:
+If Ollama is not running, AI extraction silently skips and the scraper continues with deterministic extraction only.
 
-```powershell
+## Manual Operations
+
+### Run a single scrape batch now
+
+```bash
 docker compose exec api python manage.py run_scrape_once
 ```
 
-Run only one source:
+### Run only one source
 
-```powershell
+```bash
 docker compose exec api python manage.py run_scrape_once --source-key unibz_master_software_engineering
 ```
 
-Dry-run (no DB writes):
+### Dry-run (no DB writes)
 
-```powershell
+```bash
 docker compose exec api python manage.py run_scrape_once --dry-run
 ```
 
-### See Scraper Results
+### Watch live logs
 
-Recent run summaries:
-
-```powershell
-Invoke-RestMethod -Uri "http://localhost:8000/api/scraping/runs?limit=20" | ConvertTo-Json -Depth 6
+```bash
+docker compose logs -f scraper-worker
+docker compose logs -f api
 ```
 
-Latest run detail with error payload and counters:
+### Inspect queue state
 
-```powershell
-$id = (Invoke-RestMethod -Uri "http://localhost:8000/api/scraping/runs?limit=1").results[0].id
-Invoke-RestMethod -Uri ("http://localhost:8000/api/scraping/runs/" + $id) | ConvertTo-Json -Depth 8
+```bash
+docker compose exec api python manage.py shell -c "
+from content.models import CrawlUrl
+from django.db.models import Count
+print(CrawlUrl.objects.values('status').annotate(n=Count('id')))
+"
 ```
 
-### Configure The Scraper
+### Smoke test endpoints
 
-Set values in `.env` (copy from `.env.example`).
-
-Required startup behavior setting:
-
-- Set `SCRAPER_RUN_ON_START=true` in `.env` to run one scrape cycle immediately when the worker starts.
-
-Defaults:
-
-- `SCRAPER_TIMEOUT_SECONDS=30` (HTTP request timeout per source page)
-- `SCRAPER_INTERVAL_MINUTES=360` (scheduler interval)
-- `SCRAPER_RUN_ON_START=true` (run one scrape cycle immediately at worker startup)
-- `SCRAPER_LLM_FALLBACK_THRESHOLD=0.60` (use Ollama fallback when deterministic confidence is below threshold)
-- `SCRAPER_USER_AGENT=SUNRISE-OSS-Scraper/1.0`
-- `INGESTION_BOT_USERNAME=ingestion_bot`
-- `OLLAMA_BASE_URL=http://host.docker.internal:11434`
-- `OLLAMA_MODEL=qwen3-coder:480b-cloud`
-- `OLLAMA_TIMEOUT_SECONDS=45`
-
-Source URLs and metadata are configured in `backend/content/scrapers/source_registry.py`.
-
-### How Often It Runs
-
-- By default, the worker runs every `360` minutes (every 6 hours).
-- If `SCRAPER_RUN_ON_START=true`, one run happens immediately at startup, then recurring runs follow the interval.
-- Scheduler cadence is controlled by `SCRAPER_INTERVAL_MINUTES`.
-
-### What The Scraper Actually Does
-
-For each configured source page, it:
-
-1. Fetches HTML with timeout and user-agent.
-2. Extracts offer title/summary/details deterministically (H1/title/meta/JSON-LD/paragraph fallback).
-3. Optionally calls Ollama fallback for low-confidence extraction.
-4. Upserts into `offer` using natural identity `(link, organization, offer_type)`.
-5. Updates `offer_domain` relations based on source mapping.
-6. Writes telemetry in `scraping_run` (`success`/`failed`, counters, logs, error metadata).
-7. Applies freshness policy as non-destructive stale candidate flags in `offer.details.scraping`.
-
-Important failure semantics:
-
-- `404`/`410` are recorded as `failed` runs in `scraping_run`.
-- Failures are visible via `/api/scraping/runs` and `/api/scraping/runs/{run_id}`.
-- For `404`/`410`, scraper offers tied to the invalid source are deleted and counted in `offers_deleted`.
-- Failed fetches in a cycle do not trigger stale-marking side effects for that failed source in the same cycle.
-
-### Troubleshooting Commands
-
-```powershell
-docker compose logs --tail 200 scraper-worker
-docker compose logs --tail 100 api
-docker compose exec api python manage.py run_scrape_once --source-key unibz_erasmus_mobility --disable-llm-fallback
+```bash
+curl http://localhost:8000/api/health
+curl "http://localhost:8000/api/scraping/runs?limit=5"
+curl "http://localhost:8000/api/scraping/overview?window=24h"
+curl "http://localhost:8000/api/scraping/sources/health"
+curl "http://localhost:8000/api/offers?limit=5"
 ```
 
-Stop services:
+## Backend Structure
 
-```powershell
-docker compose down
+```
+backend/
+├── oss_backend/          Django project config (settings, urls, wsgi, asgi)
+└── content/              Single Django app — all business logic
+    ├── views/            API view package
+    │   ├── __init__.py   Re-exports all view functions (urls.py imports from here)
+    │   ├── health.py     health, api_docs, openapi_schema
+    │   ├── lookups.py    offer_types, domains, organizations, countries
+    │   ├── offers.py     offers, offer_detail
+    │   ├── scraping.py   scraping_runs, scraping_run_detail, scraping_overview,
+    │   │                 scraping_sources_health, scraping_llm_stats
+    │   ├── imports.py    import_template, import_preview, import_confirm
+    │   ├── _schema.py    OpenAPI spec dict (internal)
+    │   └── _utils.py     _WINDOW_DELTAS, _parse_positive_int (internal)
+    ├── scrapers/         Crawler + scraper service (APScheduler jobs)
+    ├── ingestion/        CSV/Excel import service
+    ├── management/       Django management commands (run_scrape_once, seed_lookups)
+    ├── models.py         Offer, Organization, CrawlUrl, ScrapingRun, lookups
+    ├── urls.py           URL routing (no changes needed when adding views)
+    ├── tests.py          API integration tests
+    └── test_scraper_service.py  Scraper unit tests
 ```
 
-## Seed Sources
+## Data Model Highlights
 
-- `backend/seed_data/task2/OSS_Mapping_Seed.json`
-- `backend/seed_data/task3/OSS_Sample_Offers.json`
+- `Offer` — scraped offer records with organization, type, domains, country
+- `ScrapingRun` — one record per scraper batch; holds counters and structured JSON log
+- `CrawlUrl` — per-URL queue record (status, next check time, consecutive errors, linked offer)
 
-The offer seeder excludes fictional Task 3 records by design:
+Migrations: `0001` – `0005` (including `CrawlUrl` table added in `0005`)
 
-- `{offer_006}`
-- `{offer_015}`
-- `{offer_016}`
-- `{offer_017}`
+## Source Configuration
+
+Sources are defined in `backend/content/scrapers/source_registry.py`.
+
+Each source specifies:
+- URL, organization, offer type, country
+- `crawl_enabled` — whether BFS discovery runs or a single known URL is used
+- `crawl_match_patterns` / `crawl_exclude_patterns` — URL filters for crawl mode
+- `llm_fallback_enabled` — whether Ollama is used for this source
+
+## Seed Data
+
+- `backend/seed_data/task2/OSS_Mapping_Seed.json` — lookups (offer types, domains, organizations)
+- `backend/seed_data/task3/OSS_Sample_Offers.json` — illustrative offer records (excludes fictional Task 3 placeholders)

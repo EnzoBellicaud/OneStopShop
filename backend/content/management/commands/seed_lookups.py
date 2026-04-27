@@ -71,6 +71,48 @@ class Command(BaseCommand):
                 "country": "SE",
                 "website": "https://www.mdu.se/en/malardalen-university",
             },
+            {
+                "token": "tu_ilmenau",
+                "name": "TU Ilmenau",
+                "country": "DE",
+                "website": "https://www.tu-ilmenau.de/",
+            },
+            {
+                "token": "uitm",
+                "name": "University of Information Technology and Management (UITM)",
+                "country": "PL",
+                "website": "https://www.uitm.edu.eu/",
+            },
+            {
+                "token": "utc",
+                "name": "Université de Technologie de Compiègne (UTC)",
+                "country": "FR",
+                "website": "https://www.utc.fr/",
+            },
+            {
+                "token": "euc",
+                "name": "European University Cyprus (EUC)",
+                "country": "CY",
+                "website": "https://www.euc.ac.cy/",
+            },
+            {
+                "token": "univpm",
+                "name": "Università Politecnica delle Marche (UNIVPM)",
+                "country": "IT",
+                "website": "https://www.univpm.it/",
+            },
+            {
+                "token": "unmo",
+                "name": "University of Mostar (UNMO)",
+                "country": "BA",
+                "website": "https://www.unmo.ba/",
+            },
+            {
+                "token": "ipvc",
+                "name": "Instituto Politécnico de Viana do Castelo (IPVC)",
+                "country": "PT",
+                "website": "https://www.ipvc.pt/",
+            },
         ]
 
         organization_map = {}
@@ -123,5 +165,30 @@ class Command(BaseCommand):
                     organization=organization_map[row["org_token"]],
                     role=admin_role,
                 )
+
+        # Remove deprecated types. Safe: scraper no longer assigns these;
+        # Offer FK is PROTECT so deletion will surface any orphaned offers
+        # that need manual reclassification rather than silently losing data.
+        removed_types = OfferType.objects.filter(
+            name__in=["mobility", "expertise", "event"]
+        )
+        for ot in removed_types:
+            orphans = ot.offer_set.count()
+            if orphans:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"Skipping removal of offer_type '{ot.name}' — {orphans} offer(s) still reference it. Reclassify first."
+                    )
+                )
+            else:
+                ot.delete()
+                self.stdout.write(f"  Removed deprecated offer_type: {ot.name}")
+
+        removed_domains = Domain.objects.filter(
+            name__in=["Multilingualism", "Industry_collaboration"]
+        )
+        for dom in removed_domains:
+            dom.delete()
+            self.stdout.write(f"  Removed deprecated domain: {dom.name}")
 
         self.stdout.write(self.style.SUCCESS("Lookup and foundational seed completed."))

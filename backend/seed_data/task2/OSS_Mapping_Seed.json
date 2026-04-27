@@ -1,14 +1,14 @@
 {
   "_meta": {
-    "description": "Seed data for the SUNRISE OSS lookup tables: OfferType, Domain, TargetProfile, SourceType, UserRole, and Contact.role reference values. v2.0, March 2026.",
+    "description": "Seed data for the SUNRISE OSS lookup tables: OfferType, Domain, TargetProfile, SourceType, UserRole, and Contact.role reference values. v2.1, April 2026.",
     "instructions": "Load each top-level array into the corresponding table. Replace UUID placeholder strings with actual UUIDs before loading. The worked_example illustrates a complete Offer record using Task 1 field names.",
     "universities": {
       "{unibz}": "Free University of Bozen-Bolzano (UNIBZ), Italy",
       "{mdu}":   "Malardalen University (MDU), Sweden"
     },
     "coverage": {
-      "offer_types": 15,
-      "domains": 14,
+      "offer_types": 12,
+      "domains": 12,
       "target_profiles": 3,
       "source_types": 2,
       "organization_types": 3,
@@ -19,9 +19,9 @@
 
   "offer_types": [
     {
-      "id": "{ot_internship}",
-      "name": "internship",
-      "description": "Work experience placement at an external organization. Primary output is practical industry experience. May be embedded within a degree programme or stand-alone."
+      "id": "{ot_training}",
+      "name": "training",
+      "description": "Structured learning programme with a defined curriculum. Covers degree programmes (Bachelor, Master, Executive Master, PhD) and short professional development courses. Includes exchange/Erasmus semesters where the format field distinguishes the modality. Use this type whenever ECTS credits are awarded or the offering leads to a formal qualification."
     },
     {
       "id": "{ot_thesis}",
@@ -29,54 +29,9 @@
       "description": "Supervised research project resulting in a written dissertation or thesis document. Includes licentiate theses, PhD dissertations, and research abroad programmes where the primary output is a research document."
     },
     {
-      "id": "{ot_challenge}",
-      "name": "challenge",
-      "description": "Open problem-solving competition posed by a university or company partner. Teams or individuals submit solutions within a defined timeframe. Typically includes a prize or recognition component."
-    },
-    {
-      "id": "{ot_hackathon}",
-      "name": "hackathon",
-      "description": "Intensive time-limited collaborative event where participants build a prototype or solution, usually over 24-48 hours. May be co-organised with industry partners."
-    },
-    {
-      "id": "{ot_event}",
-      "name": "event",
-      "description": "One-way attendance offering: conference, exhibition, book presentation, guided tour, or dissemination event. Audience consumes content rather than producing or practicing. Has a specific date range."
-    },
-    {
-      "id": "{ot_mobility}",
-      "name": "mobility",
-      "description": "Study, research, or work period at a partner institution in another country. Includes Erasmus programmes, study abroad, traineeship abroad, and joint degree components requiring physical relocation."
-    },
-    {
-      "id": "{ot_expertise}",
-      "name": "expertise",
-      "description": "Access to a named expert, professor, or researcher for collaboration, consultation, or joint project. The offering surfaces a person's skills and availability rather than a structured programme."
-    },
-    {
-      "id": "{ot_lab}",
-      "name": "lab",
-      "description": "Access to a physical or virtual laboratory, research facility, or specialised equipment. Includes teaching labs, competence centre facilities, and EduSpaces-type facility clusters."
-    },
-    {
-      "id": "{ot_service}",
-      "name": "service",
-      "description": "Professional support service provided by a university unit to companies or individuals. Includes business advisory, patent licensing, IP management, legal support, and TTO services."
-    },
-    {
-      "id": "{ot_co_creation}",
-      "name": "co_creation",
-      "description": "Collaborative project where a university and an external partner jointly define and develop a solution, product, or research output. Includes spin-off support and innovation co-design activities."
-    },
-    {
-      "id": "{ot_training}",
-      "name": "training",
-      "description": "Structured learning programme with a defined curriculum. Covers degree programmes (Bachelor, Master, Executive Master, PhD) and short professional development courses. Use this type whenever ECTS credits are awarded or the offering leads to a formal qualification."
-    },
-    {
-      "id": "{ot_testbed}",
-      "name": "testbed",
-      "description": "Access to a controlled environment for testing, validating, or demonstrating technologies, products, or processes. Distinct from lab in that the primary purpose is industrial or product validation rather than research or teaching."
+      "id": "{ot_internship}",
+      "name": "internship",
+      "description": "Work experience placement at an external organization. Primary output is practical industry experience. May be embedded within a degree programme or stand-alone."
     },
     {
       "id": "{ot_research_group}",
@@ -89,6 +44,36 @@
       "description": "Funding opportunity or partnership offer where a university or partner organisation provides financial support, joint grant participation, or doctoral programme funding (e.g. DIN). Includes calls for research funding."
     },
     {
+      "id": "{ot_co_creation}",
+      "name": "co_creation",
+      "description": "Collaborative project where a university and an external partner jointly define and develop a solution, product, or research output. Includes spin-off support and innovation co-design activities."
+    },
+    {
+      "id": "{ot_service}",
+      "name": "service",
+      "description": "Professional support service provided by a university unit to companies or individuals. Includes business advisory, patent licensing, IP management, legal support, and TTO services."
+    },
+    {
+      "id": "{ot_hackathon}",
+      "name": "hackathon",
+      "description": "Intensive time-limited collaborative event where participants build a prototype or solution, usually over 24-48 hours. May be co-organised with industry partners. Primary student engagement tool."
+    },
+    {
+      "id": "{ot_challenge}",
+      "name": "challenge",
+      "description": "Open problem-solving competition posed by a university or company partner. Teams or individuals submit solutions within a defined timeframe. Typically includes a prize or recognition component. Primary student engagement tool."
+    },
+    {
+      "id": "{ot_lab}",
+      "name": "lab",
+      "description": "Access to a physical or virtual laboratory, research facility, or specialised equipment. Includes teaching labs, competence centre facilities, and EduSpaces-type facility clusters. High-value infrastructure access for regional companies."
+    },
+    {
+      "id": "{ot_testbed}",
+      "name": "testbed",
+      "description": "Access to a controlled environment for testing, validating, or demonstrating technologies, products, or processes. Distinct from lab in that the primary purpose is industrial or product validation rather than research or teaching. High-value infrastructure access for regional companies."
+    },
+    {
       "id": "{ot_project_opportunity}",
       "name": "project_opportunity",
       "description": "An open invitation to collaborate on a defined research or innovation project. The university or company has a project underway or planned and is seeking a partner, researcher, or student to join."
@@ -96,20 +81,18 @@
   ],
 
   "domains": [
-    { "id": "{dom_ai}",             "name": "AI" },
-    { "id": "{dom_robotics}",       "name": "Robotics" },
-    { "id": "{dom_cyber}",          "name": "Cybersecurity" },
-    { "id": "{dom_digital}",        "name": "Digitalisation" },
-    { "id": "{dom_sustain}",        "name": "Sustainability" },
-    { "id": "{dom_social}",         "name": "Social_transformation" },
-    { "id": "{dom_regional}",       "name": "Regional_development" },
-    { "id": "{dom_tt}",             "name": "Technology_transfer" },
-    { "id": "{dom_innov}",          "name": "Innovation_and_entrepreneurship" },
-    { "id": "{dom_steam}",          "name": "STEAM_education" },
-    { "id": "{dom_multilingual}",   "name": "Multilingualism" },
-    { "id": "{dom_mobility}",       "name": "Mobility" },
-    { "id": "{dom_industry}",       "name": "Industry_collaboration" },
-    { "id": "{dom_cocreation}",     "name": "Co_creation_and_testbeds" }
+    { "id": "{dom_ai}",          "name": "AI" },
+    { "id": "{dom_robotics}",    "name": "Robotics" },
+    { "id": "{dom_cyber}",       "name": "Cybersecurity" },
+    { "id": "{dom_digital}",     "name": "Digitalisation" },
+    { "id": "{dom_sustain}",     "name": "Sustainability" },
+    { "id": "{dom_tt}",          "name": "Technology_transfer" },
+    { "id": "{dom_social}",      "name": "Social_transformation" },
+    { "id": "{dom_regional}",    "name": "Regional_development" },
+    { "id": "{dom_steam}",       "name": "STEAM_education" },
+    { "id": "{dom_innov}",       "name": "Innovation_and_entrepreneurship" },
+    { "id": "{dom_mobility}",    "name": "Mobility" },
+    { "id": "{dom_cocreation}",  "name": "Co_creation_and_testbeds" }
   ],
 
   "target_profiles": [
@@ -171,7 +154,7 @@
       "domain_ids": [
         "{dom_ai}",
         "{dom_digital}",
-        "{dom_industry}"
+        "{dom_steam}"
       ],
       "details": {
         "ects": 120,
@@ -188,23 +171,6 @@
         "location": "NOI Techpark Bozen-Bolzano, Bruno-Buozzi-Str. 1, 39100 Bozen-Bolzano, Italy",
         "language": "en"
       }
-    },
-    "contact": {
-      "_comment": "Contact record — Task 1 fields only: id, contact_name, email, phone, role. Two fields below are prefixed '_pending_' because they require Data Model Team decisions before they can be used in production. See OSS_Ontology_Mapping_Rules.md Section 4 for full details.",
-      "_decision_D01": "ADD contact_approved boolean NOT NULL DEFAULT false to Contact table (GDPR gating, NFR-07). Without this column, ingestion cannot safely gate public display of personal contact details.",
-      "_decision_D02": "DEFINE Offer-Contact relationship cardinality. Recommended: OfferContact junction table (offer_id, contact_id). Current Task 1 schema has no FK between Contact and Offer.",
-      "id": "{contact_janes}",
-      "contact_name": "Prof. Andrea Janes",
-      "email": null,
-      "phone": null,
-      "role": "programme_director",
-      "_pending_contact_approved": false,
-      "_pending_offer_id": "{offer_mse_unibz}"
-    },
-    "administrative_contact": {
-      "_comment": "Secretariat email — no named individual. Resolve to Organization record rather than creating a Contact.",
-      "email": "engineering@unibz.it",
-      "resolves_to": "Organization: UNIBZ Faculty of Engineering Secretariat (administrative contact)"
     }
   }
 }
