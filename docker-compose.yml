@@ -44,6 +44,24 @@ services:
       POSTGRES_SCHEMA: ${POSTGRES_SCHEMA:-content}
     ports:
       - "${API_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  admin-ui:
+    build:
+      context: ./backend
+      dockerfile: docker/ui/Dockerfile
+    container_name: oss-ui
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${UI_PORT:-4200}:80"
 
   scraper-worker:
     build:
@@ -52,7 +70,7 @@ services:
     container_name: oss-scraper-worker
     restart: unless-stopped
     depends_on:
-      postgres:
+      api:
         condition: service_healthy
     environment:
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-dev-only-secret-change-me}
@@ -66,7 +84,11 @@ services:
       POSTGRES_PORT: 5432
       POSTGRES_SCHEMA: ${POSTGRES_SCHEMA:-content}
       SCRAPER_TIMEOUT_SECONDS: ${SCRAPER_TIMEOUT_SECONDS:-30}
-      SCRAPER_INTERVAL_MINUTES: ${SCRAPER_INTERVAL_MINUTES:-360}
+      CRAWLER_INTERVAL_MINUTES: ${CRAWLER_INTERVAL_MINUTES:-360}
+      SCRAPER_INTERVAL_MINUTES: ${SCRAPER_INTERVAL_MINUTES:-5}
+      SCRAPER_BATCH_SIZE: ${SCRAPER_BATCH_SIZE:-10}
+      SCRAPER_REVISIT_DAYS: ${SCRAPER_REVISIT_DAYS:-7}
+      SCRAPER_MAX_CONSECUTIVE_ERRORS: ${SCRAPER_MAX_CONSECUTIVE_ERRORS:-3}
       SCRAPER_RUN_ON_START: ${SCRAPER_RUN_ON_START:-true}
       SCRAPER_LLM_FALLBACK_THRESHOLD: ${SCRAPER_LLM_FALLBACK_THRESHOLD:-0.60}
       SCRAPER_USER_AGENT: ${SCRAPER_USER_AGENT:-SUNRISE-OSS-Scraper/1.0}
@@ -74,6 +96,8 @@ services:
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3-coder:480b-cloud}
       OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS:-45}
+      OLLAMA_REQUEST_DELAY_SECONDS: ${OLLAMA_REQUEST_DELAY_SECONDS:-2}
+      OLLAMA_COOLDOWN_MAX_WAIT_SECONDS: ${OLLAMA_COOLDOWN_MAX_WAIT_SECONDS:-65}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     command: ["sh", "/app/docker/api/worker_entrypoint.sh"]

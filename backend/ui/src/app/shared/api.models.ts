@@ -63,14 +63,12 @@ export interface ScrapingRunSummary {
   id: string;
   source_key: string;
   status: string;
-  job: string | null;
   offers_processed: number;
   offers_created: number;
   offers_updated: number;
   offers_unchanged: number;
-  offers_flagged_stale: number;
+  urls_neglected: number;
   errors_count: number;
-  llm_calls_count: number;
   started_at: string | null;
   completed_at: string | null;
   created_at: string;
@@ -82,7 +80,6 @@ export interface ScrapingRunListResponse {
 }
 
 export interface ScrapingRunDetail extends ScrapingRunSummary {
-  offers_deleted: number;
   log: Array<Record<string, unknown>>;
   updated_at: string;
 }
@@ -399,5 +396,64 @@ export interface AdminMatchingStats {
 export interface AdminContentStatsResponse {
   needs: AdminNeedsStats;
   favorites: AdminFavoritesStats;
-  matching: AdminMatchingStats;
+  matching: AdminMatchingStats;}
+export interface TimelineBucket {
+  bucket: string;
+  runs: number;
+  errors: number;
+}
+
+export interface ScrapingOverview {
+  window: string;
+  runs_total: number;
+  runs_success: number;
+  offers_processed: number;
+  offers_created: number;
+  offers_updated: number;
+  urls_neglected_total: number;
+  errors_total: number;
+  runs_timeline: TimelineBucket[];
+}
+
+export interface SourceHealth {
+  source_key: string;
+  total_urls: number;
+  pending: number;
+  done: number;
+  error: number;
+  archived: number;
+  last_scraped_at: string | null;
+}
+
+export interface SourcesHealthResponse {
+  results: SourceHealth[];
+}
+
+export interface LlmStats {
+  window: string;
+  method_split: Record<string, number>;
+  avg_confidence_llm: number | null;
+  avg_confidence_deterministic: number | null;
+}
+
+export interface ImportValidRow {
+  row: number;
+  data: Record<string, string>;
+  warnings: string[];
+}
+
+export interface ImportInvalidRow {
+  row: number;
+  data: Record<string, string>;
+  errors: string[];
+}
+
+export interface PreviewResult {
+  valid: ImportValidRow[];
+  invalid: ImportInvalidRow[];
+}
+
+export interface ConfirmResult {
+  drafts: number;
+  published: number;
 }

@@ -3,6 +3,7 @@ import uuid
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models import Q
+from django.utils import timezone
 
 
 class TimeStampedModel(models.Model):
@@ -278,6 +279,7 @@ class ScrapingRun(TimeStampedModel):
 	offers_unchanged = models.PositiveIntegerField(default=0)
 	offers_flagged_stale = models.PositiveIntegerField(default=0)
 	offers_deleted = models.PositiveIntegerField(default=0)
+	urls_neglected = models.PositiveIntegerField(default=0)
 	llm_calls_count = models.PositiveIntegerField(default=0)
 	errors_count = models.PositiveIntegerField(default=0)
 	log = models.JSONField(default=list)
@@ -413,4 +415,36 @@ class MatchingHit(TimeStampedModel):
 		indexes = [
 			models.Index(fields=["user", "status"], name="idx_matching_hit_status"),
 			models.Index(fields=["user", "-match_score"], name="idx_matching_hit_score"),
+		]
+class CrawlUrl(TimeStampedModel):
+	class UrlStatus(models.TextChoices):
+		PENDING    = "pending",    "Pending"
+		PROCESSING = "processing", "Processing"
+		DONE       = "done",       "Done"
+		ERROR      = "error",      "Error"
+		ARCHIVED   = "archived",   "Archived"
+
+	id                 = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+	source_key         = models.CharField(max_length=120)
+	url                = models.URLField(max_length=2048)
+	status             = models.CharField(max_length=20, choices=UrlStatus.choices, default=UrlStatus.PENDING)
+	offer              = models.ForeignKey(
+		"Offer",
+		null=True,
+		blank=True,
+		on_delete=models.SET_NULL,
+		related_name="crawl_urls",
+	)
+	next_check_at      = models.DateTimeField(default=timezone.now)
+	last_scraped_at    = models.DateTimeField(null=True, blank=True)
+	consecutive_errors = models.PositiveIntegerField(default=0)
+	last_error         = models.TextField(blank=True)
+	last_http_status   = models.PositiveIntegerField(null=True, blank=True)
+
+	class Meta:
+		db_table = "crawl_url"
+		unique_together = [("source_key", "url")]
+		indexes = [
+			models.Index(fields=["status", "next_check_at"], name="idx_crawlurl_status_next_check"),
+			models.Index(fields=["source_key"], name="idx_crawlurl_source"),
 		]

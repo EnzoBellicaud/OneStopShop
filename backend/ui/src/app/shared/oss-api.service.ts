@@ -3,8 +3,11 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import {
   DashboardResponse,
+  ConfirmResult,
   CountryLookup,
   DomainLookup,
+  ImportValidRow,
+  LlmStats,
   LookupResponse,
   MatchingHit,
   MatchingHitsQueryParams,
@@ -12,6 +15,8 @@ import {
   OfferQueryParams,
   OrganizationLookup,
   OfferTypeLookup,
+  PreviewResult,
+  ScrapingOverview,
   ScrapingRunDetail,
   ScrapingRunListResponse,
   TargetProfileLookup,
@@ -25,13 +30,15 @@ import {
   UserNeedUpdateRequest,
   UserUpsertRequest,
   UserUpsertResponse,
+  SourcesHealthResponse,
 } from './api.models';
+import { environment } from '../../environments/environment';
 
 @Injectable({
   providedIn: 'root',
 })
 export class OssApiService {
-  private readonly apiBaseUrl = 'http://localhost:8000/api';
+  private readonly apiBaseUrl = environment.apiBaseUrl;
 
   constructor(private readonly http: HttpClient) {}
 
@@ -132,6 +139,36 @@ export class OssApiService {
 
   updateMatchingHit(userId: string, hitId: string, status: MatchingHit['status']): Observable<MatchingHit> {
     return this.http.patch<MatchingHit>(`${this.apiBaseUrl}/users/${userId}/matching-hits/${hitId}`, { status });
+  }
+
+  getScrapingOverview(window: '24h' | '7d' | '30d' = '24h'): Observable<ScrapingOverview> {
+    return this.http.get<ScrapingOverview>(`${this.apiBaseUrl}/scraping/overview`, {
+      params: this.buildParams({ window }),
+    });
+  }
+
+  getSourcesHealth(): Observable<SourcesHealthResponse> {
+    return this.http.get<SourcesHealthResponse>(`${this.apiBaseUrl}/scraping/sources/health`);
+  }
+
+  getLlmStats(window: '24h' | '7d' | '30d' = '24h'): Observable<LlmStats> {
+    return this.http.get<LlmStats>(`${this.apiBaseUrl}/scraping/llm/stats`, {
+      params: this.buildParams({ window }),
+    });
+  }
+
+  previewImport(file: File): Observable<PreviewResult> {
+    const form = new FormData();
+    form.append('file', file);
+    return this.http.post<PreviewResult>(`${this.apiBaseUrl}/offers/import/preview`, form);
+  }
+
+  confirmImport(rows: (ImportValidRow & { status: 'draft' | 'published' })[]): Observable<ConfirmResult> {
+    return this.http.post<ConfirmResult>(`${this.apiBaseUrl}/offers/import/confirm`, { rows });
+  }
+
+  getImportTemplate(): void {
+    window.open(`${this.apiBaseUrl}/offers/import/template`, '_blank');
   }
 
   private buildParams(
