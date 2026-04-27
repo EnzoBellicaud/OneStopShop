@@ -40,10 +40,10 @@ PATCH  /api/users/{user_id}/matching-hits/{hit_id}
 
 ## Implementation
 
-- Routes are declared in [backend/content/urls.py]
-- View logic is implemented with Django function-based JSON endpoints in [backend/content/views.py]
-- Data is backed by the dashboard models introduced in [backend/content/migrations/0004_user_dashboard_models.py]
+- Routes are declared in `backend/content/urls.py`
+- View logic is implemented with Django function-based JSON endpoints in `backend/content/views.py`
+- Data is backed by the dashboard models introduced in `backend/content/migrations/0004_user_dashboard_models.py`
 - Requests use path-based user scoping: every user resource is nested under `/api/users/{user_id}`.
 - Input is validated with small helpers for JSON parsing, UUID parsing, domain validation, country normalization, and paginated responses.
 - Responses are built with explicit serializer-style helper functions such as `_user_to_dict`, `_need_to_dict`, `_favorite_to_dict`, and `_matching_hit_to_dict`.
-- Frontend support for `http://localhost:4200` was completed by adding trusted CSRF origins in [backend/oss_backend/settings.py] and exempting the JSON write endpoints used by the Angular dashboard.
+- Frontend support for `http://localhost:4200` was completed by adding trusted CSRF origins in `backend/oss_backend/settings.py` and exempting the JSON write endpoints used by the Angular dashboard.
