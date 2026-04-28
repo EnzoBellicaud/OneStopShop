@@ -1,7 +1,9 @@
 <script setup>
-import OneStopShop from './OneStopShop.vue';
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
 </script>
 
 <template>
-  <OneStopShop />
+  <RouterView />
 </template>

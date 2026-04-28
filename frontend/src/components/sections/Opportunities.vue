@@ -70,7 +70,7 @@
 
 <script setup>
 import { ref, computed } from 'vue';
-import { rawOpportunities, applyFilters } from './opportunities.js';
+import { rawOpportunities, applyFilters } from './Opportunities.js';
 
 // Состояние
 const searchQuery = ref('');
