@@ -1,4 +1,6 @@
 import { Routes } from '@angular/router';
+import { DashboardPageComponent } from './pages/dashboard-page.component';
+import { ImportPageComponent } from './pages/import-page.component';
 import { OffersPageComponent } from './pages/offers-page.component';
 import { ScrapperAdminPageComponent } from './pages/scrapper-admin-page.component';
 
@@ -6,7 +8,11 @@ export const routes: Routes = [
 	{
 		path: '',
 		pathMatch: 'full',
-		redirectTo: 'offers',
+		redirectTo: 'dashboard',
+	},
+	{
+		path: 'dashboard',
+		component: DashboardPageComponent,
 	},
 	{
 		path: 'offers',
@@ -20,6 +26,10 @@ export const routes: Routes = [
 		path: 'admin/scraper',
 		pathMatch: 'full',
 		redirectTo: 'admin/scrapper',
+	},
+	{
+		path: 'admin/import',
+		component: ImportPageComponent,
 	},
 	{
 		path: '**',

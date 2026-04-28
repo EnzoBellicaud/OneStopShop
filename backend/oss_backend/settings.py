@@ -123,6 +123,10 @@ CORS_ALLOWED_ORIGINS = _parse_csv_env(
     "CORS_ALLOWED_ORIGINS",
     "http://localhost:4200,http://127.0.0.1:4200",
 )
+CSRF_TRUSTED_ORIGINS = _parse_csv_env(
+    "CSRF_TRUSTED_ORIGINS",
+    "http://localhost:4200,http://127.0.0.1:4200",
+)
 CORS_ALLOW_CREDENTIALS = os.getenv("CORS_ALLOW_CREDENTIALS", "false").lower() == "true"
 
 # Scraper runtime configuration
@@ -134,3 +138,32 @@ SCRAPER_LLM_FALLBACK_THRESHOLD = float(os.getenv("SCRAPER_LLM_FALLBACK_THRESHOLD
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3-coder:480b-cloud")
 OLLAMA_TIMEOUT_SECONDS = int(os.getenv("OLLAMA_TIMEOUT_SECONDS", "45"))
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "simple": {
+            "format": "[{asctime}] {levelname} {name}: {message}",
+            "style": "{",
+            "datefmt": "%H:%M:%S",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "simple",
+        },
+    },
+    "loggers": {
+        "content": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "WARNING",
+    },
+}

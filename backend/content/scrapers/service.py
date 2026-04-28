@@ -1,10 +1,14 @@
 import logging
 import os
+import time
 from datetime import timedelta
 from copy import deepcopy
+from dataclasses import replace
 
 import requests
-from django.db import transaction
+import urllib3
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 from django.db.models import Q
 from django.utils import timezone
 
@@ -20,7 +24,7 @@ from content.models import (
     TargetProfile,
     User,
 )
-from content.scrapers.extractors import extract_deterministic
+from content.scrapers.extractors import extract_links_from_html, extract_deterministic, is_generic_page
 from content.scrapers.ollama_client import OllamaClient
 from content.scrapers.source_registry import get_sources
 from content.scrapers.types import ExtractedPayload, SourceDefinition
@@ -29,11 +33,22 @@ from content.seeding import uuid_from_token
 LOGGER = logging.getLogger(__name__)
 
 
+def _ts() -> str:
+    return timezone.now().isoformat().replace("+00:00", "Z")
+
+
 class ScrapeService:
-    def __init__(self, source_keys: list[str] | None = None, dry_run: bool = False, use_llm_fallback: bool = True):
+    def __init__(
+        self,
+        source_keys: list[str] | None = None,
+        dry_run: bool = False,
+        use_llm_fallback: bool = True,
+        crawl: bool = False,
+    ):
         self.source_keys = source_keys
         self.dry_run = dry_run
         self.use_llm_fallback = use_llm_fallback
+        self.crawl = crawl
         self.request_timeout_seconds = int(os.getenv("SCRAPER_TIMEOUT_SECONDS", "30"))
         self.user_agent = os.getenv(
             "SCRAPER_USER_AGENT",
@@ -55,6 +70,11 @@ class ScrapeService:
                 "offers_deleted": 0,
                 "errors": 0,
                 "llm_calls": 0,
+                "urls_neglected": 0,
+                "links_discovered": 0,
+                "links_skipped": 0,
+                "links_mapped": 0,
+                "model_switches": 0,
             }
 
         source_type = SourceType.objects.get(name="scraping")
@@ -70,6 +90,11 @@ class ScrapeService:
             "offers_deleted": 0,
             "errors": 0,
             "llm_calls": 0,
+            "urls_neglected": 0,
+            "links_discovered": 0,
+            "links_skipped": 0,
+            "links_mapped": 0,
+            "model_switches": 0,
         }
         seen_keys: set[tuple[str, str, str]] = set()
         successful_source_keys: set[str] = set()
@@ -77,6 +102,7 @@ class ScrapeService:
 
         for source in sources:
             stats["sources"] += 1
+            LOGGER.info("[%s] Starting scrape — %s", source.key, source.url)
             job = self._sync_job(source)
             run = ScrapingRun.objects.create(
                 job=job,
@@ -88,22 +114,52 @@ class ScrapeService:
             try:
                 result = self._process_source(source, source_type, ingestion_user)
                 run.status = ScrapingRun.RunStatus.SUCCESS
-                run.offers_processed = 1
-                run.offers_created = int(result["action"] == "created")
-                run.offers_updated = int(result["action"] == "updated")
-                run.offers_unchanged = int(result["action"] == "unchanged")
-                run.offers_deleted = 0
-                run.llm_calls_count = int(result["llm_used"])
-                run.log = [result["log"]]
+                run.offers_processed = result["offers_processed"]
+                run.offers_created = result["offers_created"]
+                run.offers_updated = result["offers_updated"]
+                run.offers_unchanged = result["offers_unchanged"]
+                run.llm_calls_count = result["llm_calls"]
+                run.urls_neglected = result["urls_neglected"]
+                run.log = result["logs"]
 
-                stats["offers_processed"] += 1
+                stats["offers_processed"] += run.offers_processed
                 stats["offers_created"] += run.offers_created
                 stats["offers_updated"] += run.offers_updated
                 stats["offers_unchanged"] += run.offers_unchanged
                 stats["llm_calls"] += run.llm_calls_count
-                seen_keys.add(result["natural_key"])
-                successful_source_keys.add(source.key)
-                successful_source_urls.add(source.url)
+                stats["urls_neglected"] += run.urls_neglected
+                stats["links_discovered"] += result["links_discovered"]
+                stats["links_skipped"] += result["links_skipped"]
+                stats["links_mapped"] += result["links_mapped"]
+                stats["model_switches"] += result["model_switches"]
+                seen_keys.update(result["seen_keys"])
+                successful_source_urls.update(result["skip_links"])
+
+                LOGGER.info(
+                    "[%s] Done — discovered=%d skipped=%d neglected=%d mapped=%d created=%d updated=%d unchanged=%d llm_calls=%d errors=%d",
+                    source.key,
+                    result["links_discovered"],
+                    result["links_skipped"],
+                    result["urls_neglected"],
+                    result["links_mapped"],
+                    result["offers_created"],
+                    result["offers_updated"],
+                    result["offers_unchanged"],
+                    result["llm_calls"],
+                    result["page_errors"],
+                )
+
+                page_errors = result["page_errors"]
+                if page_errors > 0:
+                    stats["errors"] += page_errors
+                    run.errors_count = page_errors
+                    LOGGER.warning(
+                        "Crawl run for %s had %d page fetch failures; skipping stale-marking for this source.",
+                        source.key,
+                        page_errors,
+                    )
+                else:
+                    successful_source_keys.add(source.key)
             except Exception as exc:  # pragma: no cover - runtime network behavior
                 run.status = ScrapingRun.RunStatus.FAILED
                 run.errors_count = 1
@@ -118,11 +174,14 @@ class ScrapeService:
                         if deleted_count > 0:
                             run.log.append(
                                 {
-                                    "action": "deleted_invalid_source_offers",
-                                    "source": source.key,
+                                    "ts": _ts(),
+                                    "event": "url_failed",
+                                    "level": "warn",
+                                    "source_key": source.key,
                                     "url": source.url,
                                     "http_status": status_code,
-                                    "offers_deleted": deleted_count,
+                                    "action": "deleted_invalid_source_offers",
+                                    "message": f"Deleted {deleted_count} invalid offers (HTTP {status_code})",
                                 }
                             )
                         LOGGER.warning(
@@ -192,40 +251,260 @@ class ScrapeService:
         return without_scheme.split("/", 1)[0]
 
     def _process_source(self, source: SourceDefinition, source_type: SourceType, ingestion_user: User) -> dict:
-        html = self._fetch_html(source)
-        extracted = extract_deterministic(html, source)
+        use_crawl = self.crawl or source.crawl_enabled
 
-        llm_used = False
-        if self.use_llm_fallback and source.llm_fallback_enabled:
-            if extracted.confidence < self.llm_threshold or not extracted.summary or not extracted.title:
-                llm_payload = self.ollama_client.extract_fallback(html, source, extracted)
-                if llm_payload is not None and llm_payload.confidence >= extracted.confidence:
-                    extracted = llm_payload
-                    llm_used = True
+        if use_crawl:
+            try:
+                page_urls, links_skipped = self._discover_urls_bfs(source)
+            except requests.RequestException as exc:
+                raise requests.RequestException(
+                    f"Seed URL crawl failed for {source.key}: {exc}"
+                ) from exc
+        else:
+            page_urls = [source.url]
+            links_skipped = 0
 
-        action, natural_key = self._upsert_offer(source, source_type, ingestion_user, extracted)
+        LOGGER.info("[%s] mode=%s urls=%d", source.key, "crawl" if use_crawl else "direct", len(page_urls))
+
+        offers_processed = 0
+        offers_created = 0
+        offers_updated = 0
+        offers_unchanged = 0
+        llm_calls = 0
+        urls_neglected = 0
+        model_switches = 0
+        links_mapped = 0
+        page_errors = 0
+        logs: list[dict] = []
+        seen_keys: set[tuple[str, str, str]] = set()
+        seen_canonical_urls: set[str] = set()
+        skip_links: set[str] = set(page_urls if use_crawl else [source.url])
+
+        for page_url in page_urls:
+            try:
+                html, canonical_url = self._fetch_html_url(page_url)
+            except requests.RequestException as exc:
+                if not use_crawl:
+                    raise
+                page_errors += 1
+                LOGGER.warning("[%s] Fetch error — %s: %s", source.key, page_url, exc)
+                logs.append(
+                    {
+                        "ts": _ts(),
+                        "event": "url_failed",
+                        "level": "warn",
+                        "source_key": source.key,
+                        "url": page_url,
+                        "reason": "fetch_error",
+                        "message": str(exc),
+                    }
+                )
+                continue
+
+            if use_crawl and canonical_url in seen_canonical_urls:
+                LOGGER.debug("[%s] SKIP %s — redirects to already-seen %s", source.key, page_url, canonical_url)
+                continue
+            if use_crawl:
+                seen_canonical_urls.add(canonical_url)
+
+            effective_url = canonical_url if use_crawl else page_url
+            page_source = replace(source, url=effective_url)
+
+            extracted = extract_deterministic(html, page_source)
+
+            if use_crawl and is_generic_page(extracted.title):
+                urls_neglected += 1
+                LOGGER.info("[%s] NEGLECT %s — generic_page_title (%r)", source.key, page_url, extracted.title)
+                logs.append(
+                    {
+                        "ts": _ts(),
+                        "event": "url_failed",
+                        "level": "info",
+                        "source_key": source.key,
+                        "url": page_url,
+                        "reason": "generic_page_title",
+                        "message": f"Generic title: {extracted.title!r}",
+                    }
+                )
+                continue
+
+            if use_crawl:
+                # Crawl mode: LLM is the primary relevance + extraction judge.
+                if self.use_llm_fallback and source.llm_fallback_enabled:
+                    LOGGER.debug("[%s] LLM assessing — %s", source.key, page_url)
+                    is_relevant, llm_payload, reason = self.ollama_client.assess_and_extract(
+                        html, page_source, extracted
+                    )
+                    logs.extend(self.ollama_client.flush_cooldown_events())
+                    model_switches += self.ollama_client.last_switch_count
+                    if llm_payload is not None:
+                        llm_calls += 1
+                    if not is_relevant:
+                        urls_neglected += 1
+                        LOGGER.info("[%s] NEGLECT %s — %s", source.key, page_url, reason or "non_relevant_page")
+                        logs.append(
+                            {
+                                "ts": _ts(),
+                                "event": "url_failed",
+                                "level": "info",
+                                "source_key": source.key,
+                                "url": page_url,
+                                "reason": reason or "non_relevant_page",
+                            }
+                        )
+                        continue
+                    if llm_payload is not None and llm_payload.confidence >= extracted.confidence:
+                        extracted = llm_payload
+                else:
+                    # LLM disabled: degraded placeholder gate.
+                    if (
+                        extracted.title == source.name
+                        and extracted.summary.startswith("Auto-extracted from")
+                    ):
+                        urls_neglected += 1
+                        logs.append(
+                            {
+                                "ts": _ts(),
+                                "event": "url_failed",
+                                "level": "info",
+                                "source_key": source.key,
+                                "url": page_url,
+                                "reason": "non_relevant_page",
+                            }
+                        )
+                        continue
+            else:
+                # Non-crawl: LLM as quality fallback only.
+                if self.use_llm_fallback and source.llm_fallback_enabled:
+                    if extracted.confidence < self.llm_threshold or not extracted.summary or not extracted.title:
+                        llm_payload = self.ollama_client.extract_fallback(html, page_source, extracted)
+                        logs.extend(self.ollama_client.flush_cooldown_events())
+                        if llm_payload is not None:
+                            llm_calls += 1
+                            model_switches += self.ollama_client.last_switch_count
+                            LOGGER.info(
+                                "[%s] LLM fallback — conf_before=%.2f conf_after=%.2f adopted=%s",
+                                source.key, extracted.confidence, llm_payload.confidence,
+                                llm_payload.confidence >= extracted.confidence,
+                            )
+                            if llm_payload.confidence >= extracted.confidence:
+                                extracted = llm_payload
+
+            if not extracted.title and not extracted.summary:
+                logs.append(
+                    {
+                        "ts": _ts(),
+                        "event": "url_failed",
+                        "level": "warn",
+                        "source_key": source.key,
+                        "url": page_url,
+                        "reason": "missing_core_fields",
+                    }
+                )
+                continue
+
+            action, natural_key = self._upsert_offer(page_source, source_type, ingestion_user, extracted)
+            LOGGER.info("[%s] MAP %s — %s (conf=%.2f method=%s)", source.key, action.upper(), page_url, extracted.confidence, extracted.method)
+            offers_processed += 1
+            links_mapped += 1
+            offers_created += int(action == "created")
+            offers_updated += int(action == "updated")
+            offers_unchanged += int(action == "unchanged")
+            seen_keys.add(natural_key)
+            logs.append(
+                {
+                    "ts": _ts(),
+                    "event": "url_processed",
+                    "level": "info",
+                    "source_key": source.key,
+                    "url": page_url,
+                    "method": extracted.method,
+                    "confidence": extracted.confidence,
+                    "action": action,
+                }
+            )
 
         return {
-            "action": action,
-            "llm_used": llm_used,
-            "natural_key": natural_key,
-            "log": {
-                "source": source.key,
-                "url": source.url,
-                "method": extracted.method,
-                "confidence": extracted.confidence,
-                "action": action,
-            },
+            "offers_processed": offers_processed,
+            "offers_created": offers_created,
+            "offers_updated": offers_updated,
+            "offers_unchanged": offers_unchanged,
+            "llm_calls": llm_calls,
+            "urls_neglected": urls_neglected,
+            "links_discovered": len(page_urls),
+            "links_skipped": links_skipped,
+            "links_mapped": links_mapped,
+            "model_switches": model_switches,
+            "page_errors": page_errors,
+            "seen_keys": seen_keys,
+            "skip_links": skip_links | seen_canonical_urls,
+            "logs": logs,
         }
 
-    def _fetch_html(self, source: SourceDefinition) -> str:
+    def _discover_urls_bfs(self, source: SourceDefinition) -> tuple[list[str], int]:
+        """BFS crawl up to source.crawl_depth levels from seed URL.
+
+        Returns (discovered_urls, total_skipped).
+        Raises requests.RequestException if the seed fetch fails.
+        """
+        seed_html, seed_canonical = self._fetch_html_url(source.url)
+
+        frontier: list[str] = [seed_canonical]
+        visited: set[str] = {seed_canonical}
+        discovered: list[str] = []
+        total_skipped = 0
+
+        for _ in range(source.crawl_depth):
+            if len(discovered) >= source.crawl_max_pages:
+                break
+            next_frontier: list[str] = []
+            for frontier_url in frontier:
+                remaining = source.crawl_max_pages - len(discovered)
+                if remaining <= 0:
+                    break
+                try:
+                    if frontier_url == seed_canonical:
+                        html = seed_html
+                    else:
+                        html, _ = self._fetch_html_url(frontier_url)
+                except requests.RequestException as exc:
+                    LOGGER.warning("[%s] BFS fetch error — %s: %s", source.key, frontier_url, exc)
+                    total_skipped += 1
+                    continue
+
+                links, skipped = extract_links_from_html(
+                    html=html,
+                    seed_url=frontier_url,
+                    include_patterns=source.crawl_match_patterns,
+                    exclude_patterns=source.crawl_exclude_patterns,
+                    max_links=remaining,
+                )
+                total_skipped += skipped
+                for link in links:
+                    if link not in visited and len(discovered) < source.crawl_max_pages:
+                        visited.add(link)
+                        discovered.append(link)
+                        next_frontier.append(link)
+
+            frontier = next_frontier
+            if not frontier:
+                break
+
+        LOGGER.info(
+            "[%s] BFS discovery done — depth=%d discovered=%d skipped=%d",
+            source.key, source.crawl_depth, len(discovered), total_skipped,
+        )
+        return discovered, total_skipped
+
+    def _fetch_html_url(self, url: str) -> tuple[str, str]:
         response = requests.get(
-            source.url,
+            url,
             headers={"User-Agent": self.user_agent, "Accept-Language": "en-US,en;q=0.9"},
             timeout=self.request_timeout_seconds,
+            verify=False,
         )
         response.raise_for_status()
-        return response.text
+        return response.text, response.url
 
     def _upsert_offer(
         self,
@@ -360,32 +639,45 @@ class ScrapeService:
             Offer.objects.filter(source_type=source_type)
             .exclude(link__isnull=True)
             .exclude(link="")
-            .only("id", "link")
+            .only("id", "link", "details")
         )
 
         for offer in offers.iterator():
             if offer.link in skip_links:
                 continue
             status_code = self._fetch_status_code(offer.link)
-            if status_code not in {404, 410}:
-                continue
+            if status_code is None:
+                time.sleep(2)
+                status_code = self._fetch_status_code(offer.link)
 
-            deleted_count += 1
-            if self.dry_run:
-                continue
+            if status_code in {404, 410}:
+                deleted_count += 1
+                if not self.dry_run:
+                    offer.delete()
+                    LOGGER.debug("DELETED offer link=%s status=%s", offer.link, status_code)
+            elif status_code is None or status_code >= 500:
+                if not self.dry_run:
+                    details = offer.details or {}
+                    scraping = details.get("scraping", {})
+                    if not scraping.get("stale_candidate"):
+                        scraping["stale_candidate"] = True
+                        scraping["stale_marked_at"] = timezone.now().isoformat()
+                        scraping["stale_reason"] = "url_fetch_error"
+                        details["scraping"] = scraping
+                        offer.details = details
+                        offer.save(update_fields=["details", "updated_at"])
+                        LOGGER.debug("STALE_FLAGGED offer link=%s status=%s", offer.link, status_code)
 
-            offer.delete()
-
+        LOGGER.info("Link cleanup done — deleted=%d", deleted_count)
         return deleted_count
 
     def _fetch_status_code(self, url: str) -> int | None:
+        headers = {"User-Agent": self.user_agent, "Accept-Language": "en-US,en;q=0.9"}
+        kwargs = {"headers": headers, "timeout": self.request_timeout_seconds, "allow_redirects": True, "verify": False}
         try:
-            response = requests.get(
-                url,
-                headers={"User-Agent": self.user_agent, "Accept-Language": "en-US,en;q=0.9"},
-                timeout=self.request_timeout_seconds,
-                allow_redirects=True,
-            )
+            response = requests.head(url, **kwargs)
+            if response.status_code == 405:
+                response = requests.get(url, **kwargs)
             return response.status_code
         except requests.RequestException:
             return None
@@ -399,14 +691,16 @@ class ScrapeService:
     ) -> int:
         source_keys = {source.key for source in sources}
         stale_count = 0
-        for offer in Offer.objects.filter(source_type__name="scraping"):
+        LOGGER.info("Flagging stale candidates — sources=%d", len(source_keys))
+        for offer in Offer.objects.filter(
+            source_type__name="scraping",
+            details__scraping__source_key__in=list(source_keys),
+        ):
             details = offer.details or {}
             scraping = details.get("scraping")
             if not isinstance(scraping, dict):
                 continue
             source_key = scraping.get("source_key")
-            if source_key not in source_keys:
-                continue
             if source_key not in successful_source_keys:
                 continue
 
@@ -418,6 +712,7 @@ class ScrapeService:
                 continue
 
             stale_count += 1
+            LOGGER.debug("STALE %s — missing from latest fetch (source=%s)", offer.link, source_key)
             if self.dry_run:
                 continue
 
@@ -429,6 +724,7 @@ class ScrapeService:
             offer.updated_by = ingestion_user
             offer.save(update_fields=["details", "updated_by", "updated_at"])
 
+        LOGGER.info("Stale flagging done — marked=%d", stale_count)
         return stale_count
 
     @staticmethod
@@ -446,22 +742,30 @@ class ScrapeService:
 
     @staticmethod
     def _build_error_log(source: SourceDefinition, exc: Exception) -> dict:
-        error_entry = {
-            "error": str(exc),
-            "source": source.key,
+        entry = {
+            "ts": timezone.now().isoformat().replace("+00:00", "Z"),
+            "event": "url_failed",
+            "level": "error",
+            "source_key": source.key,
             "url": source.url,
+            "message": str(exc),
             "error_type": exc.__class__.__name__,
         }
         if isinstance(exc, requests.exceptions.HTTPError) and exc.response is not None:
-            error_entry["http_status"] = exc.response.status_code
-        return error_entry
+            entry["http_status"] = exc.response.status_code
+        return entry
 
 
-@transaction.atomic
-def run_scrape(source_keys: list[str] | None = None, dry_run: bool = False, use_llm_fallback: bool = True) -> dict:
+def run_scrape(
+    source_keys: list[str] | None = None,
+    dry_run: bool = False,
+    use_llm_fallback: bool = True,
+    crawl: bool = False,
+) -> dict:
     service = ScrapeService(
         source_keys=source_keys,
         dry_run=dry_run,
         use_llm_fallback=use_llm_fallback,
+        crawl=crawl,
     )
     return service.run()
