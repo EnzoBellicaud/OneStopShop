@@ -289,7 +289,7 @@ nav {
   font-weight: 500;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--ink-faint);
+  color: black;
   margin-bottom: 6px;
 }
 .section-title {
@@ -553,7 +553,7 @@ nav {
 .step-num {
   font-family: 'DM Serif Display', serif;
   font-size: 40px;
-  color: var(--border);
+  color: var(--ink-soft);
   line-height: 1;
   margin-bottom: 1rem;
 }
@@ -717,19 +717,26 @@ footer {
 }
 
 .sharedbg {
-  background: linear-gradient(130deg, #ffad27 0%, #df4a6c 100%);   /* <------------ This is background for HERO and SELECT combined */
+  width: 100%;
+  height: 100%;
+  background-image: 
+    radial-gradient(rgba(255, 255, 255, 0.13) 2px, transparent 2px),
+    linear-gradient(130deg, #ffad27 0%, #df4a6c 100%);
+  background-size: 30px 30px, auto;
+  background-position: -5px -5px, 0 0;
+  background-repeat: repeat, no-repeat;
 }
 
 
 /* ProfileSelection */
 
 .selection-screen {
-  /* 100% = SELECTION + HOW IT WORKS | 100vh = ONLY SELECTION */
-  min-height: 100%;   
+  min-height: 100%; /* <------------ 100% = SELECTION + HOW IT WORKS | 100vh = ONLY SELECTION */   
   display: flex;
   align-items: center;
   /* background-color: #f9f9f9; */
   padding: 40px 20px; 
+  padding-top: 100px;
 }
 
 .container {
@@ -813,4 +820,19 @@ p {
 
 .profile-card:hover .select-btn {
   background: var(--accent-mid);
+}
+
+/* ANIMATION FOR LANDING */
+.slide-enter-from {
+  transform: translateY(200px);
+  opacity: 0;
+}
+
+.slide-enter-active {
+  transition: all 0.9s ease;
+}
+
+.slide-enter-to {
+  transform: translateY(0);
+  opacity: 1;
 }
