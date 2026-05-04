@@ -1,5 +1,5 @@
-import { createRouter, createWebHistory } from 'vue-router'
-// import HomeView from '../App.vue'
+import { createRouter, createWebHistory } from 'vue-router'  // IF IT DOESN'T WORK COPY THIS TO TERMINAL "npm install vue-router"
+
 import HomeView from '../Home.vue'
 import Landing from '../Landing.vue'
 
@@ -18,7 +18,7 @@ const routes = [
 ]
 
 const router = createRouter({
-  history: createWebHistory(), // Używa standardowego paska adresu przeglądarki
+  history: createWebHistory(), 
   routes
 })
 

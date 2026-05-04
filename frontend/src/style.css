@@ -9,11 +9,8 @@
   --white: #ffffff;
   --border: #e4e4e0;
   --accent: #1a3a2a;
-  /* #1a3a2a */
   --accent-light: #f3dada;
-  /* #e8f0eb */
   --accent-mid: #9b2020;
-  /* #2d6b4a */
   --tag-thesis: #eef3ff;
   --tag-thesis-text: #2b4bab;
   --tag-intern: #fef3e8;
@@ -177,7 +174,6 @@ nav {
 }
 .btn-ghost {
   padding: 12px 24px;
-  /* border: 1px solid var(--border); */
   border-radius: var(--r);
   font-size: 14px;
   color: var(--ink-soft);
@@ -199,7 +195,6 @@ nav {
   width: 48px; height: 48px;
   background: var(--white);
   border-radius: 10px;
-  /* border: 1px solid var(--border); */
   display: flex; align-items: center; justify-content: center;
 }
 .img-icon svg { width: 22px; height: 22px; stroke: var(--ink-faint); fill: none; stroke-width: 1.5; }
@@ -212,8 +207,6 @@ nav {
 
 /* ── UNIVERSITIES BAR ── */
 .uni-bar {
-  /* border-top: 1px solid var(--border); */
-  /* border-bottom: 1px solid var(--border); */
   background: var(--white);
   padding: 1.25rem 3rem;
 }
@@ -462,10 +455,7 @@ nav {
 
 /* ── ABOUT ── */
 .about {
-  /* background: var(--white); */
   background: var(--blank);
-  /* border-top: 1px solid var(--border); */
-  /* border-bottom: 1px solid var(--border); */
   padding: 6rem 3rem;
 }
 .about-inner {
@@ -477,7 +467,7 @@ nav {
   align-items: center;
 }
 .about-img {
-  background: var(--surface);
+  background: var(--peach);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
   height: 360px;
@@ -731,7 +721,7 @@ footer {
 /* ProfileSelection */
 
 .selection-screen {
-  min-height: 100%; /* <------------ 100% = SELECTION + HOW IT WORKS | 100vh = ONLY SELECTION */   
+  min-height: 100%; 
   display: flex;
   align-items: center;
   /* background-color: #f9f9f9; */
