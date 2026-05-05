@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ page_title }}</title>
+  {% if docs_variant == "swagger" %}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css">
+  {% endif %}
+  <style>
+    body {
+      margin: 0;
+      background: #f8fafc;
+    }
+
+    #redoc-container {
+      min-height: 100vh;
+    }
+  </style>
+</head>
+<body>
+  {% if docs_variant == "swagger" %}
+  <div id="swagger-ui"></div>
+  <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+  <script>
+    window.ui = SwaggerUIBundle({
+      url: "{{ schema_url }}",
+      dom_id: "#swagger-ui",
+      deepLinking: true,
+      presets: [
+        SwaggerUIBundle.presets.apis,
+        SwaggerUIBundle.SwaggerUIStandalonePreset
+      ],
+      layout: "BaseLayout"
+    });
+  </script>
+  {% else %}
+  <div id="redoc-container"></div>
+  <script src="https://cdn.jsdelivr.net/npm/redoc@2.1.3/bundles/redoc.standalone.js"></script>
+  <script>
+    Redoc.init("{{ schema_url }}", {
+      scrollYOffset: 0,
+      hideDownloadButton: false
+    }, document.getElementById("redoc-container"));
+  </script>
+  {% endif %}
+</body>
+</html>
