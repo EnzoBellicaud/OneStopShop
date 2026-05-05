@@ -826,3 +826,33 @@ p {
   transform: translateY(0);
   opacity: 1;
 }
+
+/* TEMPORARY FOR PROFILES*/
+
+.profiles {
+  position: fixed;
+  display: flex;
+  inset: 0;
+  background: linear-gradient(130deg, #ffad27 0%, #df4a6c 100%); 
+  align-items: center;
+  justify-content: center;
+}
+
+
+/* TRANSITION WHEN MOVING TO ANOTHER PAGE */
+.fade-enter-active,
+.fade-leave-active {
+  transition: all 0.35s ease;
+  /* position: absolute; */
+  /* width: 100%; */
+}
+
+.fade-enter-from {
+  opacity: 0;
+  transform: translateY(30px);
+}
+
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(-30px);
+}
