@@ -1,7 +1,17 @@
+
+<script setup>
+    import { computed } from 'vue';
+    import { useRoute } from 'vue-router'
+
+    const route = useRoute()
+
+    const isLanding = computed(() => route.name === 'landing')
+</script>
+
 <template>
-    <section class="about" id="about">
+    <section :class="['about', { 'about-landing': isLanding }]" id="about">
         <div class="about-inner">
-            <div class="about-img">
+            <div :class="['about-img', { 'about-img-landing': isLanding }]">
             <div class="img-icon">
                 <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
             </div>
