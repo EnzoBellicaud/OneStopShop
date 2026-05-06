@@ -860,7 +860,6 @@ p {
 }
 
 /* TEMPORARY FOR PROFILES*/
-
 .profiles {
   position: fixed;
   display: flex;
@@ -868,21 +867,4 @@ p {
   background: linear-gradient(130deg, #ffad27 0%, #df4a6c 100%); 
   align-items: center;
   justify-content: center;
-}
-
-
-/* TRANSITION WHEN MOVING TO ANOTHER PAGE */
-.fade-enter-active,
-.fade-leave-active {
-  transition: all 0.35s ease;
-}
-
-.fade-enter-from {
-  opacity: 0;
-  transform: translateY(30px);
-}
-
-.fade-leave-to {
-  opacity: 0;
-  transform: translateY(-30px);
 }
