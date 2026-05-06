@@ -1,8 +1,11 @@
+<script setup>
+import RoleContent from './RoleContent.vue'
+const items = ['life long learning (LLL)', 'experts', 'trainings', 'testbeds', 'labs']
+</script>
+
 <template>
-    <div class="profiles">
-        <div>
-            <h2>EXTERNAL USER PAGE</h2>
-            <p>Sorry, I'm under construction</p>
-        </div>
-    </div>
+  <RoleContent 
+    search-placeholder="Search labs, trainings..." 
+    :shortcuts="items" 
+  />
 </template>

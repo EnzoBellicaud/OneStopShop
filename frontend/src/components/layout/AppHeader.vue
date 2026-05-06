@@ -1,6 +1,6 @@
 <template>
     <nav :style="cssVars">
-        <a class="nav-logo" href="#">Uni<span>Portal</span></a>
+        <router-link class="nav-logo" to="/">Uni<span>Portal</span></router-link>
         <ul class="nav-links">
             <li><a href="#Opportunities">Opportunities</a></li>
             <li><a href="#about">About</a></li>
@@ -9,6 +9,8 @@
         </ul>
         <div class="nav-right">
             <a class="btn-nav" href="#opportunities">Log in / Register</a>
+            <router-link to="/home" class="btn-nav">Browse opportunities</router-link>
+            <router-link to="/user_profile" class="btn-nav">Profile</router-link>
         </div>
     </nav>
 </template>

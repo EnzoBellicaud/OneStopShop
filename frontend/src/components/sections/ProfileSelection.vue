@@ -11,21 +11,21 @@
           <div class="icon">🎓</div>
           <h3>Student</h3>
           <p>Access courses, grades, and campus services effortlessly.</p>
-          <router-link to="/home" class="select-btn">Continue as Student</router-link>
+          <router-link to="/student" class="select-btn">Continue as Student</router-link>
         </div>
 
         <div class="profile-card" @click="navigateTo('staff')">
           <div class="icon">💼</div>
           <h3>Academic Staff</h3>
           <p>Manage teaching materials, research, and administrative tasks.</p>
-          <router-link to="/home" class="select-btn">Continue as Staff</router-link>
+          <router-link to="/staff" class="select-btn">Continue as Staff</router-link>
         </div>
 
         <div class="profile-card" @click="navigateTo('external')">
           <div class="icon">🌐</div>
           <h3>External User</h3>
           <p>Discover public events, partnerships, and general information.</p>
-          <router-link to="/home" class="select-btn">Explore Portal</router-link>
+          <router-link to="/external_user" class="select-btn">Explore Portal</router-link>
         </div>
       </div>
     </div>
@@ -40,4 +40,3 @@ const navigateTo = (role) => {
   emit('select-role', role);
 };
 </script>
-

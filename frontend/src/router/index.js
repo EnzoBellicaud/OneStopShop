@@ -5,6 +5,8 @@ import Landing from '../Landing.vue'
 import Student from '../components/sections/Student.vue'
 import Staff from '../components/sections/Staff.vue'
 import External from '../components/sections/External.vue'
+import UserProfile from '../components/sections/UserProfile.vue'
+import ProfileSelection from '../components/sections/ProfileSelection.vue'
 
 const routes = [
   {
@@ -31,6 +33,16 @@ const routes = [
     path: '/external_user',
     name: 'externaluser',
     component: External
+  },
+  {
+    path: '/user_profile',
+    name: 'UserProfile',
+    component: UserProfile
+  },
+  {
+    path: '/profile_selection',
+    name: 'ProfileSelection',
+    component: ProfileSelection
   }
 ]
 

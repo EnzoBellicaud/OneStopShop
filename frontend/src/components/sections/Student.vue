@@ -1,8 +1,11 @@
+<script setup>
+import RoleContent from './RoleContent.vue'
+const items = ['internship', 'thesis', 'challenge', 'hackathon', 'event', 'mobility']
+</script>
+
 <template>
-    <div class="profiles">
-        <div>
-            <h2>STUDENT PAGE</h2>
-            <p>Sorry, I'm under construction</p>
-        </div>
-    </div>
+  <RoleContent 
+    search-placeholder="Search internships, hackathons..." 
+    :shortcuts="items" 
+  />
 </template>
