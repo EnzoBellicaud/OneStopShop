@@ -309,7 +309,7 @@ class UserProfile(TimeStampedModel):
 	# Profile preferences stay lightweight for Stage 1 so the API can expose
 	# dashboard-ready data without introducing more relational tables than needed.
 	id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-	user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
+	user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="dashboard_profile")
 	bio = models.TextField(blank=True, default="")
 	avatar_url = models.URLField(max_length=500, blank=True, null=True)
 	preferred_domains = models.JSONField(default=list, blank=True)

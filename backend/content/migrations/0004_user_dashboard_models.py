@@ -91,7 +91,7 @@ class Migration(migrations.Migration):
                     "user",
                     models.OneToOneField(
                         on_delete=django.db.models.deletion.CASCADE,
-                        related_name="profile",
+                        related_name="dashboard_profile",
                         to="content.user",
                     ),
                 ),
