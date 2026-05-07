@@ -35,6 +35,7 @@ docker compose up -d --build --wait
 | `http://localhost:8000/api/openapi.json` | OpenAPI 3 schema |
 | `http://localhost:8000/api/health` | Health check |
 | `http://localhost:4200/offers` | Offer explorer UI |
+| `http://localhost:4200/dashboard` | User dashboard UI |
 | `http://localhost:4200/admin/scrapper` | Scraper dashboard |
 
 ## API Endpoints
@@ -48,6 +49,24 @@ docker compose up -d --build --wait
 **Offers**
 - `GET /api/offers` — offer list (`q`, `status`, `offer_type`, `organization`, `target_profile`, `domain`, `country`, `page`, `page_size`, `limit`)
 - `GET /api/offers/{offer_id}` — offer detail
+
+**Users / dashboard**
+- `POST /api/users` — create or update a dashboard user by email
+- `GET /api/users/{user_id}` — user profile with dashboard preferences and organizations
+- `PATCH /api/users/{user_id}` — update user profile fields
+- `DELETE /api/users/{user_id}` — soft-delete user
+- `POST /api/users/{user_id}/organizations` — link user to organization
+- `DELETE /api/users/{user_id}/organizations/{org_id}` — unlink organization
+- `GET /api/users/{user_id}/dashboard` — dashboard summary, recent favorites, and recent matches
+- `GET /api/users/{user_id}/needs` — paginated needs (`status`, `page`, `page_size`)
+- `POST /api/users/{user_id}/needs` — create need
+- `PUT /api/users/{user_id}/needs/{need_id}` — update need
+- `DELETE /api/users/{user_id}/needs/{need_id}` — delete need
+- `GET /api/users/{user_id}/favorites` — paginated saved offers (`page`, `page_size`)
+- `POST /api/users/{user_id}/favorites` — save offer
+- `DELETE /api/users/{user_id}/favorites/{offer_id}` — remove saved offer
+- `GET /api/users/{user_id}/matching-hits` — paginated recommendations (`status`, `sort`, `page`, `page_size`)
+- `PATCH /api/users/{user_id}/matching-hits/{hit_id}` — update match status
 
 **Import**
 - `GET /api/offers/import/template` — download `.xlsx` template with dropdown validation
@@ -219,6 +238,9 @@ curl "http://localhost:8000/api/scraping/runs?limit=5"
 curl "http://localhost:8000/api/scraping/overview?window=24h"
 curl "http://localhost:8000/api/scraping/sources/health"
 curl "http://localhost:8000/api/offers?limit=5"
+curl -X POST http://localhost:8000/api/users \
+  -H "Content-Type: application/json" \
+  -d '{"email":"dashboard.demo@example.com","username":"dashboard_demo"}'
 ```
 
 ## Backend Structure
@@ -232,6 +254,7 @@ backend/
     │   ├── health.py     health, api_docs, openapi_schema
     │   ├── lookups.py    offer_types, domains, organizations, countries
     │   ├── offers.py     offers, offer_detail
+    │   ├── users.py      user dashboard profile, needs, favorites, matching hits
     │   ├── scraping.py   scraping_runs, scraping_run_detail, scraping_overview,
     │   │                 scraping_sources_health, scraping_llm_stats
     │   ├── imports.py    import_template, import_preview, import_confirm
@@ -249,6 +272,7 @@ backend/
 ## Data Model Highlights
 
 - `Offer` — scraped offer records with organization, type, domains, country
+- `User`, `UserProfile`, `UserNeed`, `UserFavorite`, `MatchingHit` — user dashboard profile, saved needs, favorites, and recommendations
 - `ScrapingRun` — one record per scraper batch; holds counters and structured JSON log
 - `CrawlUrl` — per-URL queue record (status, next check time, consecutive errors, linked offer)
 
