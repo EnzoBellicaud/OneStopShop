@@ -38,11 +38,6 @@ const routes = [
     path: '/user_profile',
     name: 'UserProfile',
     component: UserProfile
-  },
-  {
-    path: '/profile_selection',
-    name: 'ProfileSelection',
-    component: ProfileSelection
   }
 ]
 

@@ -7,21 +7,21 @@
       </div>
 
       <div class="grid-profiles">
-        <div class="profile-card" @click="navigateTo('student')">
+        <div class="profile-select">
           <div class="icon">🎓</div>
           <h3>Student</h3>
           <p>Access courses, grades, and campus services effortlessly.</p>
           <router-link to="/student" class="select-btn">Continue as Student</router-link>
         </div>
 
-        <div class="profile-card" @click="navigateTo('staff')">
+        <div class="profile-select">
           <div class="icon">💼</div>
           <h3>Academic Staff</h3>
           <p>Manage teaching materials, research, and administrative tasks.</p>
           <router-link to="/staff" class="select-btn">Continue as Staff</router-link>
         </div>
 
-        <div class="profile-card" @click="navigateTo('external')">
+        <div class="profile-select">
           <div class="icon">🌐</div>
           <h3>External User</h3>
           <p>Discover public events, partnerships, and general information.</p>
