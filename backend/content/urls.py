@@ -10,6 +10,7 @@ urlpatterns = [
     path("auth/me", auth.get_current_user, name="get-current-user"),
     path("auth/me/update", auth.update_user_profile, name="update-user-profile"),
     path("auth/change-password", auth.change_password, name="change-password"),
+    path("auth/logout", auth.logout, name="logout"),
 
     # API documentation
     path("", views.api_docs, name="api-docs-home"),

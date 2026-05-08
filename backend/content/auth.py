@@ -348,3 +348,9 @@ def change_password(request):
 	return JsonResponse({
 		'detail': 'Password changed successfully',
 	}, status=200)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def logout(request):
+	return JsonResponse({'detail': 'Logged out successfully'}, status=200)
