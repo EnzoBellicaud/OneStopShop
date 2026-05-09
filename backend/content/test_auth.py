@@ -1,11 +1,12 @@
 """Tests for authentication endpoints."""
 import json
-from django.test import TestCase, Client
+from django.test import TestCase, Client, override_settings
 from django.urls import reverse
 from content.models import User
 from content.auth import hash_password, verify_password
 
 
+@override_settings(RATELIMIT_ENABLE=False)
 class AuthenticationTestCase(TestCase):
 	"""Test cases for authentication functionality."""
 
@@ -14,6 +15,7 @@ class AuthenticationTestCase(TestCase):
 		self.client = Client()
 		self.register_url = '/api/auth/register'
 		self.login_url = '/api/auth/login'
+		self.logout_url = '/api/auth/logout'
 		self.refresh_url = '/api/auth/refresh'
 		self.me_url = '/api/auth/me'
 		self.update_url = '/api/auth/me/update'
@@ -298,6 +300,26 @@ class AuthenticationTestCase(TestCase):
 		)
 
 		self.assertEqual(login_response.status_code, 200)
+
+
+	def test_logout_authenticated(self):
+		"""Test logout returns 200 with valid token."""
+		self.client.post(self.register_url, json.dumps(self.test_user_data), content_type='application/json')
+		login_res = self.client.post(self.login_url, json.dumps({'username': 'testuser', 'password': 'TestPassword123'}), content_type='application/json')
+		token = login_res.json()['tokens']['access_token']
+		response = self.client.post(self.logout_url, HTTP_AUTHORIZATION=f'Bearer {token}')
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response.json()['detail'], 'Logged out successfully')
+
+	def test_logout_unauthenticated(self):
+		"""Test logout returns 401 without token."""
+		response = self.client.post(self.logout_url)
+		self.assertEqual(response.status_code, 401)
+
+	def test_logout_invalid_token(self):
+		"""Test logout returns 401 with invalid token."""
+		response = self.client.post(self.logout_url, HTTP_AUTHORIZATION='Bearer invalidtoken')
+		self.assertEqual(response.status_code, 401)
 
 
 class PasswordHashingTestCase(TestCase):

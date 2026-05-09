@@ -168,7 +168,14 @@ export class OssApiService {
   }
 
   getImportTemplate(): void {
-    window.open(`${this.apiBaseUrl}/offers/import/template`, '_blank');
+    this.http.get(`${this.apiBaseUrl}/offers/import/template`, { responseType: 'blob' }).subscribe(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'oss_import_template.xlsx';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
   }
 
   private buildParams(

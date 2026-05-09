@@ -3,19 +3,16 @@ import OneStopShop from './OneStopShop.vue'
 import Auth from './pages/Auth.vue'
 
 const routes = [
-  {
-    path: '/',
-    component: OneStopShop,
-    name: 'Home'
-  },
-  {
-    path: '/auth',
-    component: Auth,
-    name: 'Auth'
-  }
+  { path: '/', component: OneStopShop, name: 'Home' },
+  { path: '/auth', component: Auth, name: 'Auth', meta: { guestOnly: true } },
 ]
 
 export const router = createRouter({
   history: createWebHistory(),
-  routes
+  routes,
+})
+
+router.beforeEach((to) => {
+  const token = localStorage.getItem('access_token')
+  if (to.meta.guestOnly && token) return '/'
 })

@@ -123,106 +123,51 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAuth } from '../composables/useAuth'
 
 const router = useRouter()
+const { login, register } = useAuth()
+
 const isLogin = ref(true)
 
-const loginForm = ref({
-  username: '',
-  password: ''
-})
-
-const registerForm = ref({
-  username: '',
-  email: '',
-  password: '',
-  firstName: '',
-  lastName: '',
-  profile: ''
-})
+const loginForm = ref({ username: '', password: '' })
+const registerForm = ref({ username: '', email: '', password: '', firstName: '', lastName: '', profile: '' })
 
 const loginError = ref('')
 const registerError = ref('')
 
 const handleLogin = async () => {
   loginError.value = ''
-
   try {
-    const response = await fetch('http://localhost:8000/api/auth/login', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        username: loginForm.value.username,
-        password: loginForm.value.password
-      })
-    })
-
-    const data = await response.json()
-
-    if (!response.ok) {
-      loginError.value = data.detail || 'Login failed'
-      return
-    }
-
-    // Store tokens
-    localStorage.setItem('access_token', data.tokens.access_token)
-    localStorage.setItem('refresh_token', data.tokens.refresh_token)
-    localStorage.setItem('user', JSON.stringify(data.user))
-
-    // Redirect to home
+    await login(loginForm.value.username, loginForm.value.password)
     router.push('/')
   } catch (error) {
-    loginError.value = 'Connection error: ' + error.message
+    loginError.value = error.message
   }
 }
 
 const handleRegister = async () => {
   registerError.value = ''
-
   if (registerForm.value.password.length < 8) {
     registerError.value = 'Password must be at least 8 characters'
     return
   }
-
   if (!registerForm.value.profile) {
     registerError.value = 'Please select a profile type'
     return
   }
-
   try {
-    const response = await fetch('http://localhost:8000/api/auth/register', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        username: registerForm.value.username,
-        email: registerForm.value.email,
-        password: registerForm.value.password,
-        first_name: registerForm.value.firstName,
-        last_name: registerForm.value.lastName,
-        profile: registerForm.value.profile
-      })
+    await register({
+      username: registerForm.value.username,
+      email: registerForm.value.email,
+      password: registerForm.value.password,
+      first_name: registerForm.value.firstName,
+      last_name: registerForm.value.lastName,
+      profile: registerForm.value.profile,
     })
-
-    const data = await response.json()
-
-    if (!response.ok) {
-      registerError.value = data.detail || 'Registration failed'
-      return
-    }
-
-    // Store tokens
-    localStorage.setItem('access_token', data.tokens.access_token)
-    localStorage.setItem('refresh_token', data.tokens.refresh_token)
-    localStorage.setItem('user', JSON.stringify(data.user))
-
-    // Redirect to home
     router.push('/')
   } catch (error) {
-    registerError.value = 'Connection error: ' + error.message
+    registerError.value = error.message
   }
 }
 </script>
