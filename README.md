@@ -19,7 +19,7 @@ The scraper worker runs on startup:
 1. `python manage.py seed_lookups`
 2. `python manage.py run_scraper_worker`
 
-The admin UI (Angular) serves at `http://localhost:4200`.
+> **Two separate frontends:** This repo contains the **backend admin UI** (Angular, `localhost:4200`) used by internal operators. The **public-facing student/staff frontend** (Vue.js) is a separate application that consumes the unauthenticated offer and lookup APIs — it is not part of this repo's Docker setup.
 
 To rebuild from a clean state:
 
@@ -45,17 +45,30 @@ Admin accounts cannot be created via the public registration endpoint — `profi
 
 ## Local URLs
 
+### API (`localhost:8000`)
+
 | URL | Description |
 |-----|-------------|
 | `http://localhost:8000/api` | Swagger UI |
 | `http://localhost:8000/api/docs` | Swagger UI (alias) |
 | `http://localhost:8000/api/openapi.json` | OpenAPI 3 schema |
 | `http://localhost:8000/api/health` | Health check |
-| `http://localhost:4200/login` | Admin UI login page |
-| `http://localhost:4200/offers` | Offer explorer (requires login) |
-| `http://localhost:4200/dashboard` | User dashboard (requires login) |
-| `http://localhost:4200/admin/scrapper` | Scraper dashboard (Admin only) |
-| `http://localhost:4200/admin/import` | Bulk import (Admin only) |
+
+### Backend admin UI — Angular (`localhost:4200`)
+
+Internal tool for operators. **All routes require login.** Not accessible to end users.
+
+| URL | Who can access | Description |
+|-----|---------------|-------------|
+| `http://localhost:4200/login` | Everyone | Login page |
+| `http://localhost:4200/offers` | Any logged-in user | Browse and search offers |
+| `http://localhost:4200/dashboard` | Any logged-in user | User dashboard |
+| `http://localhost:4200/admin/scrapper` | Admin only | Scraper telemetry dashboard |
+| `http://localhost:4200/admin/import` | Admin only | Bulk offer import |
+
+### Public frontend — Vue.js (separate repo)
+
+The student/staff-facing application. Runs independently, calls the API without authentication. See the Vue.js frontend repo for setup instructions.
 
 ## API Endpoints
 
@@ -70,17 +83,28 @@ Admin accounts cannot be created via the public registration endpoint — `profi
 
 All protected endpoints require `Authorization: Bearer <access_token>` header. Scraping and import endpoints require `profile: Admin`.
 
-**Lookups**
+**Authentication** _(used by the backend admin UI)_
+- `POST /api/auth/register` — register new user (`username`, `password`, `email`, `profile`: `Student|Academic staff|Company`)
+- `POST /api/auth/login` — login, returns `access_token` (1h) + `refresh_token` (7d)
+- `POST /api/auth/logout` — invalidate session (requires Bearer token)
+- `POST /api/auth/refresh` — exchange refresh token for new access token
+- `GET /api/auth/me` — current user info (requires Bearer token)
+- `PATCH /api/auth/me` — update `first_name`, `last_name`, `profile` (requires Bearer token)
+- `POST /api/auth/change-password` — change password (requires Bearer token)
+
+All protected endpoints require `Authorization: Bearer <access_token>` header. Scraping and import endpoints require `profile: Admin`.
+
+**Lookups** _(public — used by both frontends)_
 - `GET /api/lookups/offer-types` — OfferType reference data
 - `GET /api/lookups/domains` — Domain reference data
 - `GET /api/lookups/organizations` — Organization reference data
 - `GET /api/lookups/countries` — Countries used by offers
 
-**Offers**
+**Offers** _(public — primary API for the public Vue.js frontend)_
 - `GET /api/offers` — offer list (`q`, `status`, `offer_type`, `organization`, `target_profile`, `domain`, `country`, `page`, `page_size`, `limit`)
 - `GET /api/offers/{offer_id}` — offer detail
 
-**Users / dashboard**
+**Users / dashboard** _(used by the backend admin UI)_
 - `POST /api/users` — create or update a dashboard user by email
 - `GET /api/users/{user_id}` — user profile with dashboard preferences and organizations
 - `PATCH /api/users/{user_id}` — update user profile fields
@@ -98,16 +122,16 @@ All protected endpoints require `Authorization: Bearer <access_token>` header. S
 - `GET /api/users/{user_id}/matching-hits` — paginated recommendations (`status`, `sort`, `page`, `page_size`)
 - `PATCH /api/users/{user_id}/matching-hits/{hit_id}` — update match status
 
-**Import** _(Admin token required)_
+**Import** _(Admin token required — backend admin UI only)_
 - `GET /api/offers/import/template` — download `.xlsx` template with dropdown validation
 - `POST /api/offers/import/preview` — parse + validate CSV/Excel, no DB writes (multipart `file` field)
 - `POST /api/offers/import/confirm` — write confirmed rows to DB (JSON body `{"rows": [...]}`)
 
-**Scraping runs** _(Admin token required)_
+**Scraping runs** _(Admin token required — backend admin UI only)_
 - `GET /api/scraping/runs` — recent run summaries (`limit`)
 - `GET /api/scraping/runs/{run_id}` — run detail with full log
 
-**Dashboard / telemetry** _(Admin token required)_
+**Scraping telemetry** _(Admin token required — backend admin UI only)_
 - `GET /api/scraping/overview?window=24h|7d|30d` — KPI counts + timeline buckets
 - `GET /api/scraping/sources/health` — per-source URL queue stats from `CrawlUrl` table
 - `GET /api/scraping/llm/stats?window=24h|7d|30d` — extraction method split + confidence averages
@@ -163,7 +187,7 @@ pending → processing → done      (scraped, revisit in 7 days)
 
 ## Scraper Dashboard
 
-At `http://localhost:4200/admin/scrapper` — live telemetry, auto-refreshes every 30s.
+Part of the **backend admin UI** at `http://localhost:4200/admin/scrapper` — requires Admin login. Live telemetry, auto-refreshes every 30s.
 
 **Tabs:**
 
@@ -354,12 +378,18 @@ Decorator order matters: `@csrf_exempt` outermost, `@require_auth()` second, `@r
 | `Company` | Public | No |
 | `Admin` | Seeded only | Yes |
 
-### Angular admin UI auth
+### Backend admin UI auth (Angular)
+
+The Angular app (`localhost:4200`) is an **internal tool** — all routes are gated behind login. End users never interact with it.
 
 - `AuthService` caches `currentUser` and `loggedIn` as properties (no localStorage reads on change detection)
 - `AuthInterceptor` attaches `Authorization: Bearer <token>` to every outgoing HTTP request
 - On 401 response: `forceLogout()` clears session and redirects to `/login`
 - Route guards: `authGuard` (all app pages), `guestGuard` (`/login` redirects logged-in users to `/dashboard`)
+
+### Public Vue.js frontend
+
+The public-facing student/staff app lives in a separate repo. It calls `GET /api/offers` and `GET /api/lookups/*` without any authentication — those endpoints are intentionally public.
 
 ## Source Configuration
 
