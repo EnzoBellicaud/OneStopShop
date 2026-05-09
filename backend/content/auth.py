@@ -1,6 +1,7 @@
 import hmac
 import hashlib
 import json
+import logging
 import secrets
 from datetime import datetime, timedelta, timezone
 from functools import wraps
@@ -13,6 +14,8 @@ from django.views.decorators.http import require_http_methods
 from django_ratelimit.decorators import ratelimit
 
 from content.models import User
+
+logger = logging.getLogger(__name__)
 
 REGISTERABLE_PROFILES = [
 	User.ProfileType.STUDENT,
@@ -140,12 +143,12 @@ def register(request):
 	except json.JSONDecodeError:
 		return JsonResponse({'detail': 'Invalid JSON'}, status=400)
 
-	username = data.get('username', '').strip()
-	email = data.get('email', '').strip()
-	password = data.get('password', '')
-	first_name = data.get('first_name', '').strip()
-	last_name = data.get('last_name', '').strip()
-	profile = data.get('profile', User.ProfileType.STUDENT).strip()
+	username = (data.get('username') or '').strip()
+	email = (data.get('email') or '').strip()
+	password = data.get('password') or ''
+	first_name = (data.get('first_name') or '').strip()
+	last_name = (data.get('last_name') or '').strip()
+	profile = (data.get('profile') or User.ProfileType.STUDENT).strip()
 
 	if not username or len(username) < 3:
 		return JsonResponse({'detail': 'Username must be at least 3 characters'}, status=400)
@@ -170,8 +173,9 @@ def register(request):
 			profile=profile,
 		)
 		return JsonResponse({'user': _user_dict(user), 'tokens': generate_tokens(user.id, user.username, user.profile)}, status=201)
-	except Exception as e:
-		return JsonResponse({'detail': str(e)}, status=500)
+	except Exception:
+		logger.exception("User registration failed")
+		return JsonResponse({'detail': 'Registration failed. Please try again.'}, status=500)
 
 
 @csrf_exempt
@@ -246,10 +250,16 @@ def update_user_profile(request):
 	user = request.auth_user
 
 	if 'first_name' in data:
+		if not isinstance(data['first_name'], str):
+			return JsonResponse({'detail': "'first_name' must be a string."}, status=400)
 		user.first_name = data['first_name'].strip()
 	if 'last_name' in data:
+		if not isinstance(data['last_name'], str):
+			return JsonResponse({'detail': "'last_name' must be a string."}, status=400)
 		user.last_name = data['last_name'].strip()
 	if 'profile' in data:
+		if not isinstance(data['profile'], str):
+			return JsonResponse({'detail': "'profile' must be a string."}, status=400)
 		new_profile = data['profile'].strip()
 		if new_profile not in REGISTERABLE_PROFILES:
 			return JsonResponse({'detail': f'Profile must be one of: {", ".join(REGISTERABLE_PROFILES)}'}, status=400)

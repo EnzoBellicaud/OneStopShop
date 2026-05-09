@@ -16,6 +16,7 @@ export class AuthService {
   private readonly USER_KEY = 'oss.user';
 
   currentUser: { username: string; email: string; profile: string } | null = this.getUser();
+  loggedIn = !!localStorage.getItem(this.TOKEN_KEY);
 
   constructor(private readonly http: HttpClient, private readonly router: Router) {}
 
@@ -60,6 +61,7 @@ export class AuthService {
     localStorage.setItem(this.REFRESH_KEY, res.tokens.refresh_token);
     localStorage.setItem(this.USER_KEY, JSON.stringify(res.user));
     this.currentUser = res.user;
+    this.loggedIn = true;
   }
 
   private clearSession(): void {
@@ -67,5 +69,6 @@ export class AuthService {
     localStorage.removeItem(this.REFRESH_KEY);
     localStorage.removeItem(this.USER_KEY);
     this.currentUser = null;
+    this.loggedIn = false;
   }
 }

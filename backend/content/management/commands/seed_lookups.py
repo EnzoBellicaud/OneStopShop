@@ -176,9 +176,9 @@ class Command(BaseCommand):
                 "Set this env var before deploying to production."
             ))
         admin_user, created = User.objects.get_or_create(
-            email="admin@oss.com",
+            username="admin",
             defaults={
-                "username": "admin",
+                "email": "admin@oss.com",
                 "password_hash": hash_password(admin_password),
                 "profile": User.ProfileType.ADMIN,
                 "is_active": True,
