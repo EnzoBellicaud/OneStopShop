@@ -555,6 +555,16 @@ class UserCrudApiTests(TestCase):
 			email="otherstage2@example.com",
 			password_hash="secret",
 		)
+		cls.admin = User.objects.create(
+			username="stage2admin",
+			email="stage2admin@example.com",
+			password_hash="secret",
+			profile=User.ProfileType.ADMIN,
+			is_active=True,
+		)
+		cls.user_token = generate_tokens(cls.user.id, cls.user.username, cls.user.profile)["access_token"]
+		cls.other_user_token = generate_tokens(cls.other_user.id, cls.other_user.username, cls.other_user.profile)["access_token"]
+		cls.admin_token = generate_tokens(cls.admin.id, cls.admin.username, cls.admin.profile)["access_token"]
 		UserProfile.objects.create(
 			user=cls.user,
 			bio="Initial bio",
@@ -562,68 +572,24 @@ class UserCrudApiTests(TestCase):
 			preferred_countries=["IT"],
 		)
 
-	def test_upsert_user_creates_user_profile_and_org_link(self):
-		response = self.client.post(
-			"/api/users",
-			data={
-				"email": "new.user@example.com",
-				"username": "newuser",
-				"organization_id": str(self.organization.id),
-				"profile": {
-					"bio": "Created from stage 2",
-					"preferred_domains": ["Data"],
-					"preferred_countries": ["DE"],
-					"notification_enabled": False,
-				},
-			},
-			content_type="application/json",
-		)
+	def test_users_collection_rejects_anonymous_access(self):
+		response = self.client.get("/api/users")
+		self.assertEqual(response.status_code, 401)
 
-		payload = response.json()
-		self.assertEqual(response.status_code, 201)
-		self.assertTrue(payload["is_new"])
-		self.assertEqual(payload["profile"]["bio"], "Created from stage 2")
-		self.assertEqual(payload["organizations"][0]["name"], "Stage Two Org")
-		self.assertTrue(User.objects.filter(email="new.user@example.com").exists())
-
-	def test_upsert_user_updates_existing_user_and_reactivates(self):
-		self.user.is_active = False
-		self.user.save(update_fields=["is_active"])
-
-		response = self.client.post(
-			"/api/users",
-			data={"email": self.user.email, "username": "renamed-user"},
-			content_type="application/json",
-		)
-
+	def test_users_collection_lists_users_for_admin(self):
+		response = self.client.get("/api/users", HTTP_AUTHORIZATION=f"Bearer {self.admin_token}")
 		payload = response.json()
 		self.assertEqual(response.status_code, 200)
-		self.assertFalse(payload["is_new"])
-		self.user.refresh_from_db()
-		self.assertEqual(self.user.username, "renamed-user")
-		self.assertTrue(self.user.is_active)
+		self.assertGreaterEqual(payload["count"], 3)
 
-	def test_upsert_user_requires_email_and_username(self):
+	def test_post_users_endpoint_is_removed(self):
 		response = self.client.post(
 			"/api/users",
-			data={"email": "", "username": ""},
+			data={"email": "new.user@example.com", "username": "newuser"},
 			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.admin_token}",
 		)
-
-		self.assertEqual(response.status_code, 400)
-		self.assertEqual(response.json()["error"], "validation_error")
-
-	def test_upsert_user_accepts_cross_origin_json_without_csrf_token(self):
-		csrf_client = Client(enforce_csrf_checks=True)
-		response = csrf_client.post(
-			"/api/users",
-			data={"email": "spa.user@example.com", "username": "spauser"},
-			content_type="application/json",
-			HTTP_ORIGIN="http://localhost:4200",
-		)
-
-		self.assertEqual(response.status_code, 201)
-		self.assertTrue(User.objects.filter(email="spa.user@example.com").exists())
+		self.assertEqual(response.status_code, 405)
 
 	def test_get_user_detail_returns_profile_and_organizations(self):
 		UserOrganization.objects.create(
@@ -632,7 +598,7 @@ class UserCrudApiTests(TestCase):
 			role=self.member_role,
 		)
 
-		response = self.client.get(f"/api/users/{self.user.id}")
+		response = self.client.get(f"/api/users/{self.user.id}", HTTP_AUTHORIZATION=f"Bearer {self.admin_token}")
 		payload = response.json()
 
 		self.assertEqual(response.status_code, 200)
@@ -641,12 +607,16 @@ class UserCrudApiTests(TestCase):
 		self.assertEqual(payload["organizations"][0]["role"], "member")
 
 	def test_get_user_detail_invalid_uuid(self):
-		response = self.client.get("/api/users/not-a-uuid")
+		response = self.client.get("/api/users/not-a-uuid", HTTP_AUTHORIZATION=f"Bearer {self.admin_token}")
 		self.assertEqual(response.status_code, 400)
 
 	def test_get_user_detail_not_found(self):
-		response = self.client.get(f"/api/users/{uuid.uuid4()}")
+		response = self.client.get(f"/api/users/{uuid.uuid4()}", HTTP_AUTHORIZATION=f"Bearer {self.admin_token}")
 		self.assertEqual(response.status_code, 404)
+
+	def test_get_user_detail_rejects_non_admin(self):
+		response = self.client.get(f"/api/users/{self.user.id}", HTTP_AUTHORIZATION=f"Bearer {self.user_token}")
+		self.assertEqual(response.status_code, 403)
 
 	def test_patch_user_updates_account_and_profile(self):
 		response = self.client.patch(
@@ -660,6 +630,7 @@ class UserCrudApiTests(TestCase):
 				},
 			},
 			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.admin_token}",
 		)
 
 		payload = response.json()
@@ -673,13 +644,14 @@ class UserCrudApiTests(TestCase):
 			f"/api/users/{self.user.id}",
 			data={"email": self.other_user.email},
 			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.admin_token}",
 		)
 
 		self.assertEqual(response.status_code, 409)
 		self.assertEqual(response.json()["error"], "conflict")
 
 	def test_delete_user_soft_deletes_account(self):
-		response = self.client.delete(f"/api/users/{self.user.id}")
+		response = self.client.delete(f"/api/users/{self.user.id}", HTTP_AUTHORIZATION=f"Bearer {self.admin_token}")
 
 		self.assertEqual(response.status_code, 204)
 		self.user.refresh_from_db()
@@ -688,14 +660,34 @@ class UserCrudApiTests(TestCase):
 	def test_link_user_organization_creates_link(self):
 		response = self.client.post(
 			f"/api/users/{self.user.id}/organizations",
-			data={"organization_id": str(self.organization.id), "role": "contributor"},
+			data={"organization_id": str(self.organization.id)},
 			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.user_token}",
 		)
 
 		payload = response.json()
 		self.assertEqual(response.status_code, 201)
 		self.assertEqual(payload["name"], "Stage Two Org")
-		self.assertEqual(payload["role"], "contributor")
+		self.assertEqual(payload["role"], "member")
+
+	def test_link_user_organization_rejects_non_admin_role_assignment(self):
+		response = self.client.post(
+			f"/api/users/{self.user.id}/organizations",
+			data={"organization_id": str(self.organization.id), "role": "contributor"},
+			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.user_token}",
+		)
+		self.assertEqual(response.status_code, 403)
+
+	def test_link_user_organization_allows_admin_role_assignment(self):
+		response = self.client.post(
+			f"/api/users/{self.user.id}/organizations",
+			data={"organization_id": str(self.organization.id), "role": "contributor"},
+			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.admin_token}",
+		)
+		self.assertEqual(response.status_code, 201)
+		self.assertEqual(response.json()["role"], "contributor")
 
 	def test_link_user_organization_rejects_duplicate_org(self):
 		UserOrganization.objects.create(
@@ -708,6 +700,7 @@ class UserCrudApiTests(TestCase):
 			f"/api/users/{self.user.id}/organizations",
 			data={"organization_id": str(self.organization.id)},
 			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.user_token}",
 		)
 
 		self.assertEqual(response.status_code, 409)
@@ -721,7 +714,8 @@ class UserCrudApiTests(TestCase):
 		)
 
 		response = self.client.delete(
-			f"/api/users/{self.user.id}/organizations/{self.organization.id}"
+			f"/api/users/{self.user.id}/organizations/{self.organization.id}",
+			HTTP_AUTHORIZATION=f"Bearer {self.user_token}",
 		)
 
 		self.assertEqual(response.status_code, 204)
@@ -734,7 +728,8 @@ class UserCrudApiTests(TestCase):
 
 	def test_unlink_user_organization_returns_not_found_for_missing_link(self):
 		response = self.client.delete(
-			f"/api/users/{self.user.id}/organizations/{self.other_organization.id}"
+			f"/api/users/{self.user.id}/organizations/{self.other_organization.id}",
+			HTTP_AUTHORIZATION=f"Bearer {self.user_token}",
 		)
 
 		self.assertEqual(response.status_code, 404)
@@ -773,6 +768,16 @@ class UserContentApiTests(TestCase):
 			email="other-stage3@example.com",
 			password_hash="secret",
 		)
+		cls.admin = User.objects.create(
+			username="stage3-admin",
+			email="stage3-admin@example.com",
+			password_hash="secret",
+			profile=User.ProfileType.ADMIN,
+			is_active=True,
+		)
+		cls.user_token = generate_tokens(cls.user.id, cls.user.username, cls.user.profile)["access_token"]
+		cls.other_user_token = generate_tokens(cls.other_user.id, cls.other_user.username, cls.other_user.profile)["access_token"]
+		cls.admin_token = generate_tokens(cls.admin.id, cls.admin.username, cls.admin.profile)["access_token"]
 		cls.offer_one = Offer.objects.create(
 			title="AI Residency",
 			summary="Research residency",
@@ -861,7 +866,7 @@ class UserContentApiTests(TestCase):
 		)
 
 	def test_dashboard_returns_stats_and_recent_items(self):
-		response = self.client.get(f"/api/users/{self.user.id}/dashboard")
+		response = self.client.get(f"/api/users/{self.user.id}/dashboard", HTTP_AUTHORIZATION=f"Bearer {self.user_token}")
 		payload = response.json()
 
 		self.assertEqual(response.status_code, 200)
@@ -871,8 +876,15 @@ class UserContentApiTests(TestCase):
 		self.assertEqual(len(payload["recent_favorites"]), 2)
 		self.assertEqual(len(payload["recent_matches"]), 2)
 
+	def test_me_alias_returns_authenticated_user_dashboard(self):
+		response = self.client.get("/api/users/me/dashboard", HTTP_AUTHORIZATION=f"Bearer {self.user_token}")
+		payload = response.json()
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(payload["user"]["id"], str(self.user.id))
+
 	def test_list_needs_defaults_to_active_filter(self):
-		response = self.client.get(f"/api/users/{self.user.id}/needs")
+		response = self.client.get(f"/api/users/{self.user.id}/needs", HTTP_AUTHORIZATION=f"Bearer {self.user_token}")
 		payload = response.json()
 
 		self.assertEqual(response.status_code, 200)
@@ -883,6 +895,7 @@ class UserContentApiTests(TestCase):
 		response = self.client.get(
 			f"/api/users/{self.user.id}/needs",
 			{"status": UserNeed.NeedStatus.FULFILLED, "page": 1, "page_size": 1},
+			HTTP_AUTHORIZATION=f"Bearer {self.user_token}",
 		)
 		payload = response.json()
 
@@ -892,7 +905,11 @@ class UserContentApiTests(TestCase):
 		self.assertEqual(payload["results"][0]["status"], UserNeed.NeedStatus.FULFILLED)
 
 	def test_list_needs_rejects_invalid_status_filter(self):
-		response = self.client.get(f"/api/users/{self.user.id}/needs", {"status": "broken"})
+		response = self.client.get(
+			f"/api/users/{self.user.id}/needs",
+			{"status": "broken"},
+			HTTP_AUTHORIZATION=f"Bearer {self.user_token}",
+		)
 		self.assertEqual(response.status_code, 400)
 
 	def test_create_need_persists_domains_and_countries(self):
@@ -906,6 +923,7 @@ class UserContentApiTests(TestCase):
 				"countries": ["it", "de"],
 			},
 			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.user_token}",
 		)
 		payload = response.json()
 
@@ -925,6 +943,7 @@ class UserContentApiTests(TestCase):
 				"countries": ["fr"],
 			},
 			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.user_token}",
 		)
 		payload = response.json()
 
@@ -934,7 +953,10 @@ class UserContentApiTests(TestCase):
 		self.assertEqual(len(payload["domain_ids"]), 1)
 
 	def test_delete_need_removes_record(self):
-		response = self.client.delete(f"/api/users/{self.user.id}/needs/{self.need_fulfilled.id}")
+		response = self.client.delete(
+			f"/api/users/{self.user.id}/needs/{self.need_fulfilled.id}",
+			HTTP_AUTHORIZATION=f"Bearer {self.user_token}",
+		)
 
 		self.assertEqual(response.status_code, 204)
 		self.assertFalse(UserNeed.objects.filter(id=self.need_fulfilled.id).exists())
@@ -943,6 +965,7 @@ class UserContentApiTests(TestCase):
 		response = self.client.get(
 			f"/api/users/{self.user.id}/favorites",
 			{"page": 1, "page_size": 1},
+			HTTP_AUTHORIZATION=f"Bearer {self.user_token}",
 		)
 		payload = response.json()
 
@@ -956,6 +979,7 @@ class UserContentApiTests(TestCase):
 			f"/api/users/{self.user.id}/favorites",
 			data={"offer_id": str(self.offer_three.id), "note": "Worth saving"},
 			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.user_token}",
 		)
 		payload = response.json()
 
@@ -967,13 +991,15 @@ class UserContentApiTests(TestCase):
 			f"/api/users/{self.user.id}/favorites",
 			data={"offer_id": str(self.offer_one.id)},
 			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.user_token}",
 		)
 
 		self.assertEqual(response.status_code, 409)
 
 	def test_remove_favorite_deletes_existing_record(self):
 		response = self.client.delete(
-			f"/api/users/{self.user.id}/favorites/{self.offer_one.id}"
+			f"/api/users/{self.user.id}/favorites/{self.offer_one.id}",
+			HTTP_AUTHORIZATION=f"Bearer {self.user_token}",
 		)
 
 		self.assertEqual(response.status_code, 204)
@@ -985,6 +1011,7 @@ class UserContentApiTests(TestCase):
 		response = self.client.get(
 			f"/api/users/{self.user.id}/matching-hits",
 			{"status": MatchingHit.MatchStatus.NEW, "sort": "-match_score", "page_size": 5},
+			HTTP_AUTHORIZATION=f"Bearer {self.user_token}",
 		)
 		payload = response.json()
 
@@ -996,6 +1023,7 @@ class UserContentApiTests(TestCase):
 		response = self.client.get(
 			f"/api/users/{self.user.id}/matching-hits",
 			{"sort": "wrong"},
+			HTTP_AUTHORIZATION=f"Bearer {self.user_token}",
 		)
 		self.assertEqual(response.status_code, 400)
 
@@ -1004,6 +1032,7 @@ class UserContentApiTests(TestCase):
 			f"/api/users/{self.user.id}/matching-hits/{self.match_one.id}",
 			data={"status": MatchingHit.MatchStatus.INTERESTED},
 			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.user_token}",
 		)
 		payload = response.json()
 
@@ -1017,6 +1046,7 @@ class UserContentApiTests(TestCase):
 			f"/api/users/{self.user.id}/matching-hits/{self.match_one.id}",
 			data={"status": MatchingHit.MatchStatus.NEW},
 			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.user_token}",
 		)
 		self.assertEqual(response.status_code, 400)
 
@@ -1047,6 +1077,8 @@ class UserContentEdgeCaseTests(TestCase):
 			email="edge-other@example.com",
 			password_hash="secret",
 		)
+		cls.user_token = generate_tokens(cls.user.id, cls.user.username, cls.user.profile)["access_token"]
+		cls.other_user_token = generate_tokens(cls.other_user.id, cls.other_user.username, cls.other_user.profile)["access_token"]
 		cls.offer = Offer.objects.create(
 			title="Edge Opportunity",
 			summary="Edge case offer",
@@ -1079,7 +1111,10 @@ class UserContentEdgeCaseTests(TestCase):
 		)
 
 	def test_dashboard_handles_empty_lists(self):
-		response = self.client.get(f"/api/users/{self.other_user.id}/dashboard")
+		response = self.client.get(
+			f"/api/users/{self.other_user.id}/dashboard",
+			HTTP_AUTHORIZATION=f"Bearer {self.other_user_token}",
+		)
 		payload = response.json()
 
 		self.assertEqual(response.status_code, 200)
@@ -1088,7 +1123,10 @@ class UserContentEdgeCaseTests(TestCase):
 		self.assertEqual(payload["recent_matches"], [])
 
 	def test_needs_returns_empty_list_for_user_without_needs(self):
-		response = self.client.get(f"/api/users/{self.other_user.id}/needs")
+		response = self.client.get(
+			f"/api/users/{self.other_user.id}/needs",
+			HTTP_AUTHORIZATION=f"Bearer {self.other_user_token}",
+		)
 		payload = response.json()
 
 		self.assertEqual(response.status_code, 200)
@@ -1106,6 +1144,7 @@ class UserContentEdgeCaseTests(TestCase):
 				"countries": ["ES"],
 			},
 			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.user_token}",
 		)
 
 		self.assertEqual(response.status_code, 400)
@@ -1122,6 +1161,7 @@ class UserContentEdgeCaseTests(TestCase):
 				"countries": ["ES"],
 			},
 			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.user_token}",
 		)
 
 		self.assertEqual(response.status_code, 404)
@@ -1139,16 +1179,23 @@ class UserContentEdgeCaseTests(TestCase):
 				"countries": ["ES"],
 			},
 			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.other_user_token}",
 		)
 
 		self.assertEqual(response.status_code, 404)
 
 	def test_delete_need_rejects_invalid_need_id(self):
-		response = self.client.delete(f"/api/users/{self.user.id}/needs/not-a-uuid")
+		response = self.client.delete(
+			f"/api/users/{self.user.id}/needs/not-a-uuid",
+			HTTP_AUTHORIZATION=f"Bearer {self.user_token}",
+		)
 		self.assertEqual(response.status_code, 400)
 
 	def test_list_favorites_returns_empty_list_for_user_without_favorites(self):
-		response = self.client.get(f"/api/users/{self.other_user.id}/favorites")
+		response = self.client.get(
+			f"/api/users/{self.other_user.id}/favorites",
+			HTTP_AUTHORIZATION=f"Bearer {self.other_user_token}",
+		)
 		payload = response.json()
 
 		self.assertEqual(response.status_code, 200)
@@ -1160,6 +1207,7 @@ class UserContentEdgeCaseTests(TestCase):
 			f"/api/users/{self.user.id}/favorites",
 			data={"offer_id": str(uuid.uuid4())},
 			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.user_token}",
 		)
 
 		self.assertEqual(response.status_code, 404)
@@ -1167,12 +1215,16 @@ class UserContentEdgeCaseTests(TestCase):
 
 	def test_remove_favorite_returns_not_found_when_missing(self):
 		response = self.client.delete(
-			f"/api/users/{self.other_user.id}/favorites/{self.offer.id}"
+			f"/api/users/{self.other_user.id}/favorites/{self.offer.id}",
+			HTTP_AUTHORIZATION=f"Bearer {self.other_user_token}",
 		)
 		self.assertEqual(response.status_code, 404)
 
 	def test_matching_hits_returns_empty_list_for_user_without_hits(self):
-		response = self.client.get(f"/api/users/{self.other_user.id}/matching-hits")
+		response = self.client.get(
+			f"/api/users/{self.other_user.id}/matching-hits",
+			HTTP_AUTHORIZATION=f"Bearer {self.other_user_token}",
+		)
 		payload = response.json()
 
 		self.assertEqual(response.status_code, 200)
@@ -1183,6 +1235,7 @@ class UserContentEdgeCaseTests(TestCase):
 		response = self.client.get(
 			f"/api/users/{self.user.id}/matching-hits",
 			{"status": "invalid"},
+			HTTP_AUTHORIZATION=f"Bearer {self.user_token}",
 		)
 		self.assertEqual(response.status_code, 400)
 
@@ -1191,6 +1244,7 @@ class UserContentEdgeCaseTests(TestCase):
 			f"/api/users/{self.other_user.id}/matching-hits/{self.match.id}",
 			data={"status": MatchingHit.MatchStatus.VIEWED},
 			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.other_user_token}",
 		)
 		self.assertEqual(response.status_code, 404)
 
@@ -1199,6 +1253,7 @@ class UserContentEdgeCaseTests(TestCase):
 			f"/api/users/{self.user.id}/matching-hits/not-a-uuid",
 			data={"status": MatchingHit.MatchStatus.VIEWED},
 			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.user_token}",
 		)
 		self.assertEqual(response.status_code, 400)
 
@@ -1225,6 +1280,7 @@ class UserIntegrationTests(TestCase):
 			email="integration@example.com",
 			password_hash="secret",
 		)
+		cls.user_token = generate_tokens(cls.user.id, cls.user.username, cls.user.profile)["access_token"]
 		cls.offer = Offer.objects.create(
 			title="Integration Grant",
 			summary="Integration offer",
@@ -1251,6 +1307,7 @@ class UserIntegrationTests(TestCase):
 				"countries": ["be"],
 			},
 			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.user_token}",
 		)
 		self.assertEqual(create_response.status_code, 201)
 		need_id = create_response.json()["id"]
@@ -1268,10 +1325,14 @@ class UserIntegrationTests(TestCase):
 			f"/api/users/{self.user.id}/favorites",
 			data={"offer_id": str(self.offer.id), "note": "save this"},
 			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.user_token}",
 		)
 		self.assertEqual(favorite_response.status_code, 201)
 
-		dashboard_response = self.client.get(f"/api/users/{self.user.id}/dashboard")
+		dashboard_response = self.client.get(
+			f"/api/users/{self.user.id}/dashboard",
+			HTTP_AUTHORIZATION=f"Bearer {self.user_token}",
+		)
 		payload = dashboard_response.json()
 
 		self.assertEqual(payload["stats"]["active_needs_count"], 1)
@@ -1331,6 +1392,7 @@ class UserContentPerformanceTests(TestCase):
 			email="performance@example.com",
 			password_hash="secret",
 		)
+		cls.user_token = generate_tokens(cls.user.id, cls.user.username, cls.user.profile)["access_token"]
 		offer = Offer.objects.create(
 			title="Performance Offer",
 			summary="Performance summary",
@@ -1369,6 +1431,7 @@ class UserContentPerformanceTests(TestCase):
 		response = self.client.get(
 			f"/api/users/{self.user.id}/needs",
 			{"status": UserNeed.NeedStatus.ACTIVE, "page": 2, "page_size": 25},
+			HTTP_AUTHORIZATION=f"Bearer {self.user_token}",
 		)
 		duration = perf_counter() - start
 		payload = response.json()
@@ -1383,6 +1446,7 @@ class UserContentPerformanceTests(TestCase):
 		response = self.client.get(
 			f"/api/users/{self.user.id}/matching-hits",
 			{"page": 1, "page_size": 10, "sort": "-match_score"},
+			HTTP_AUTHORIZATION=f"Bearer {self.user_token}",
 		)
 		duration = perf_counter() - start
 		payload = response.json()

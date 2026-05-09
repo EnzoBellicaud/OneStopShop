@@ -28,8 +28,6 @@ import {
   UserNeedCreateRequest,
   UserNeedsQueryParams,
   UserNeedUpdateRequest,
-  UserUpsertRequest,
-  UserUpsertResponse,
   SourcesHealthResponse,
 } from './api.models';
 import { environment } from '../../environments/environment';
@@ -76,10 +74,6 @@ export class OssApiService {
 
   getScrapingRunDetail(runId: string): Observable<ScrapingRunDetail> {
     return this.http.get<ScrapingRunDetail>(`${this.apiBaseUrl}/scraping/runs/${runId}`);
-  }
-
-  upsertUser(payload: UserUpsertRequest): Observable<UserUpsertResponse> {
-    return this.http.post<UserUpsertResponse>(`${this.apiBaseUrl}/users`, payload);
   }
 
   getUser(userId: string): Observable<UserDetail> {

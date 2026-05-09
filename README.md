@@ -104,23 +104,23 @@ All protected endpoints require `Authorization: Bearer <access_token>` header. S
 - `GET /api/offers` — offer list (`q`, `status`, `offer_type`, `organization`, `target_profile`, `domain`, `country`, `page`, `page_size`, `limit`)
 - `GET /api/offers/{offer_id}` — offer detail
 
-**Users / dashboard** _(used by the backend admin UI)_
-- `POST /api/users` — create or update a dashboard user by email
-- `GET /api/users/{user_id}` — user profile with dashboard preferences and organizations
-- `PATCH /api/users/{user_id}` — update user profile fields
-- `DELETE /api/users/{user_id}` — soft-delete user
-- `POST /api/users/{user_id}/organizations` — link user to organization
-- `DELETE /api/users/{user_id}/organizations/{org_id}` — unlink organization
-- `GET /api/users/{user_id}/dashboard` — dashboard summary, recent favorites, and recent matches
-- `GET /api/users/{user_id}/needs` — paginated needs (`status`, `page`, `page_size`)
-- `POST /api/users/{user_id}/needs` — create need
-- `PUT /api/users/{user_id}/needs/{need_id}` — update need
-- `DELETE /api/users/{user_id}/needs/{need_id}` — delete need
-- `GET /api/users/{user_id}/favorites` — paginated saved offers (`page`, `page_size`)
-- `POST /api/users/{user_id}/favorites` — save offer
-- `DELETE /api/users/{user_id}/favorites/{offer_id}` — remove saved offer
-- `GET /api/users/{user_id}/matching-hits` — paginated recommendations (`status`, `sort`, `page`, `page_size`)
-- `PATCH /api/users/{user_id}/matching-hits/{hit_id}` — update match status
+**Users / dashboard** _(Bearer token required)_
+- `GET /api/users` — admin-only paginated user list (`search`, `status`, `page`, `page_size`)
+- `GET /api/users/{user_id}` — admin-only user profile with dashboard preferences and organizations
+- `PATCH /api/users/{user_id}` — admin-only user profile update
+- `DELETE /api/users/{user_id}` — admin-only soft-delete user
+- `POST /api/users/{user_id}/organizations` — admin or authenticated user themself; non-admin users can only link as `member`
+- `DELETE /api/users/{user_id}/organizations/{org_id}` — admin or authenticated user themself
+- `GET /api/users/{user_id}/dashboard` — admin or authenticated user themself; `{user_id}` may be `me`
+- `GET /api/users/{user_id}/needs` — admin or authenticated user themself (`status`, `page`, `page_size`)
+- `POST /api/users/{user_id}/needs` — admin or authenticated user themself
+- `PUT /api/users/{user_id}/needs/{need_id}` — admin or authenticated user themself
+- `DELETE /api/users/{user_id}/needs/{need_id}` — admin or authenticated user themself
+- `GET /api/users/{user_id}/favorites` — admin or authenticated user themself (`page`, `page_size`)
+- `POST /api/users/{user_id}/favorites` — admin or authenticated user themself
+- `DELETE /api/users/{user_id}/favorites/{offer_id}` — admin or authenticated user themself
+- `GET /api/users/{user_id}/matching-hits` — admin or authenticated user themself (`status`, `sort`, `page`, `page_size`)
+- `PATCH /api/users/{user_id}/matching-hits/{hit_id}` — admin or authenticated user themself
 
 **Import** _(Admin token required — backend admin UI only)_
 - `GET /api/offers/import/template` — download `.xlsx` template with dropdown validation
@@ -304,6 +304,7 @@ curl -H "Authorization: Bearer $TOKEN" "http://localhost:8000/api/scraping/runs?
 curl -H "Authorization: Bearer $TOKEN" "http://localhost:8000/api/scraping/overview?window=24h"
 curl -H "Authorization: Bearer $TOKEN" "http://localhost:8000/api/scraping/sources/health"
 curl -H "Authorization: Bearer $TOKEN" "http://localhost:8000/api/offers/import/template" --output template.xlsx
+curl -H "Authorization: Bearer $TOKEN" "http://localhost:8000/api/users"
 ```
 
 ## Backend Structure

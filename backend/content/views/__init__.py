@@ -13,7 +13,6 @@ from content.views.users import (
     dashboard,
     link_user_organization,
     unlink_user_organization,
-    upsert_user,
     user_favorite_detail,
     user_favorites,
     user_matching_hit_detail,
@@ -21,6 +20,7 @@ from content.views.users import (
     user_need_detail,
     user_needs,
     user_resource,
+    users_collection,
 )
 
 __all__ = [
@@ -46,7 +46,6 @@ __all__ = [
     "dashboard",
     "link_user_organization",
     "unlink_user_organization",
-    "upsert_user",
     "user_favorite_detail",
     "user_favorites",
     "user_matching_hit_detail",
@@ -54,4 +53,5 @@ __all__ = [
     "user_need_detail",
     "user_needs",
     "user_resource",
+    "users_collection",
 ]

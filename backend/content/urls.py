@@ -34,7 +34,7 @@ urlpatterns = [
     path("lookups/countries", views.countries, name="countries"),
 
     # Offer endpoints
-    path("users", views.upsert_user, name="upsert-user"),
+    path("users", views.users_collection, name="users-collection"),
     path("users/<str:user_id>", views.user_resource, name="user-detail"),
     path("users/<str:user_id>/organizations", views.link_user_organization, name="link-user-organization"),
     path("users/<str:user_id>/organizations/<str:org_id>", views.unlink_user_organization, name="unlink-user-organization"),
