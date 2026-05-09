@@ -8,7 +8,7 @@ The SUNRISE One Stop Shop application.
 docker compose up -d --build
 ```
 
-This starts three services: `postgres`, `api`, `scraper-worker`.
+This starts four services: `postgres`, `api`, `scraper-worker`, `admin-ui`.
 
 The API container runs on startup:
 1. `python manage.py migrate`
@@ -19,12 +19,29 @@ The scraper worker runs on startup:
 1. `python manage.py seed_lookups`
 2. `python manage.py run_scraper_worker`
 
+The admin UI (Angular) serves at `http://localhost:4200`.
+
 To rebuild from a clean state:
 
 ```bash
 docker compose down -v
 docker compose up -d --build --wait
 ```
+
+## Default Credentials
+
+### Admin account (seeded automatically)
+
+| Field | Value |
+|-------|-------|
+| Username | `admin` |
+| Password | `passw0rd` |
+| Email | `admin@oss.com` |
+| Profile | `Admin` |
+
+> **Production:** set `ADMIN_SEED_PASSWORD` env var before first `seed_lookups` run. The seed command warns if the default password is used.
+
+Admin accounts cannot be created via the public registration endpoint — `profile: "Admin"` is rejected at the API level. Admin access is only available through the seeded account or direct DB creation.
 
 ## Local URLs
 
@@ -34,11 +51,24 @@ docker compose up -d --build --wait
 | `http://localhost:8000/api/docs` | Swagger UI (alias) |
 | `http://localhost:8000/api/openapi.json` | OpenAPI 3 schema |
 | `http://localhost:8000/api/health` | Health check |
-| `http://localhost:4200/offers` | Offer explorer UI |
-| `http://localhost:4200/dashboard` | User dashboard UI |
-| `http://localhost:4200/admin/scrapper` | Scraper dashboard |
+| `http://localhost:4200/login` | Admin UI login page |
+| `http://localhost:4200/offers` | Offer explorer (requires login) |
+| `http://localhost:4200/dashboard` | User dashboard (requires login) |
+| `http://localhost:4200/admin/scrapper` | Scraper dashboard (Admin only) |
+| `http://localhost:4200/admin/import` | Bulk import (Admin only) |
 
 ## API Endpoints
+
+**Authentication**
+- `POST /api/auth/register` — register new user (`username`, `password`, `email`, `profile`: `Student|Academic staff|Company`)
+- `POST /api/auth/login` — login, returns `access_token` (1h) + `refresh_token` (7d)
+- `POST /api/auth/logout` — invalidate session (requires Bearer token)
+- `POST /api/auth/refresh` — exchange refresh token for new access token
+- `GET /api/auth/me` — current user info (requires Bearer token)
+- `PATCH /api/auth/me` — update `first_name`, `last_name`, `profile` (requires Bearer token)
+- `POST /api/auth/change-password` — change password (requires Bearer token)
+
+All protected endpoints require `Authorization: Bearer <access_token>` header. Scraping and import endpoints require `profile: Admin`.
 
 **Lookups**
 - `GET /api/lookups/offer-types` — OfferType reference data
@@ -68,16 +98,16 @@ docker compose up -d --build --wait
 - `GET /api/users/{user_id}/matching-hits` — paginated recommendations (`status`, `sort`, `page`, `page_size`)
 - `PATCH /api/users/{user_id}/matching-hits/{hit_id}` — update match status
 
-**Import**
+**Import** _(Admin token required)_
 - `GET /api/offers/import/template` — download `.xlsx` template with dropdown validation
 - `POST /api/offers/import/preview` — parse + validate CSV/Excel, no DB writes (multipart `file` field)
 - `POST /api/offers/import/confirm` — write confirmed rows to DB (JSON body `{"rows": [...]}`)
 
-**Scraping runs**
+**Scraping runs** _(Admin token required)_
 - `GET /api/scraping/runs` — recent run summaries (`limit`)
 - `GET /api/scraping/runs/{run_id}` — run detail with full log
 
-**Dashboard / telemetry**
+**Dashboard / telemetry** _(Admin token required)_
 - `GET /api/scraping/overview?window=24h|7d|30d` — KPI counts + timeline buckets
 - `GET /api/scraping/sources/health` — per-source URL queue stats from `CrawlUrl` table
 - `GET /api/scraping/llm/stats?window=24h|7d|30d` — extraction method split + confidence averages
@@ -166,6 +196,8 @@ Copy `backend/.env.example` to `backend/.env` and adjust as needed.
 | `DJANGO_ALLOWED_HOSTS` | `127.0.0.1,localhost,testserver` | |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:4200,http://127.0.0.1:4200` | |
 | `API_PORT` | `8000` | |
+| `SECRET_KEY` | (set in .env) | Django secret key — also used to sign JWTs. Rotate in production. |
+| `ADMIN_SEED_PASSWORD` | `passw0rd` | Password for the seeded `admin` account. Override before first deploy. |
 
 ### Scraper
 
@@ -233,14 +265,21 @@ print(CrawlUrl.objects.values('status').annotate(n=Count('id')))
 ### Smoke test endpoints
 
 ```bash
+# Public
 curl http://localhost:8000/api/health
-curl "http://localhost:8000/api/scraping/runs?limit=5"
-curl "http://localhost:8000/api/scraping/overview?window=24h"
-curl "http://localhost:8000/api/scraping/sources/health"
 curl "http://localhost:8000/api/offers?limit=5"
-curl -X POST http://localhost:8000/api/users \
+
+# Login and capture token
+TOKEN=$(curl -s -X POST http://localhost:8000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"dashboard.demo@example.com","username":"dashboard_demo"}'
+  -d '{"username":"admin","password":"passw0rd"}' \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['tokens']['access_token'])")
+
+# Admin-only endpoints (require token)
+curl -H "Authorization: Bearer $TOKEN" "http://localhost:8000/api/scraping/runs?limit=5"
+curl -H "Authorization: Bearer $TOKEN" "http://localhost:8000/api/scraping/overview?window=24h"
+curl -H "Authorization: Bearer $TOKEN" "http://localhost:8000/api/scraping/sources/health"
+curl -H "Authorization: Bearer $TOKEN" "http://localhost:8000/api/offers/import/template" --output template.xlsx
 ```
 
 ## Backend Structure
@@ -263,9 +302,11 @@ backend/
     ├── scrapers/         Crawler + scraper service (APScheduler jobs)
     ├── ingestion/        CSV/Excel import service
     ├── management/       Django management commands (run_scrape_once, seed_lookups)
-    ├── models.py         Offer, Organization, CrawlUrl, ScrapingRun, lookups
+    ├── auth.py           JWT auth: register, login, logout, refresh, require_auth decorator
+    ├── models.py         Offer, Organization, CrawlUrl, ScrapingRun, User, lookups
     ├── urls.py           URL routing (no changes needed when adding views)
     ├── tests.py          API integration tests
+    ├── test_auth.py      Auth endpoint tests (register, login, logout, token flow)
     └── test_scraper_service.py  Scraper unit tests
 ```
 
@@ -276,7 +317,49 @@ backend/
 - `ScrapingRun` — one record per scraper batch; holds counters and structured JSON log
 - `CrawlUrl` — per-URL queue record (status, next check time, consecutive errors, linked offer)
 
-Migrations: `0001` – `0005` (including `CrawlUrl` table added in `0005`)
+Migrations: `0001` – `0008` (including `CrawlUrl` in `0005`, `User` model in `0006`, Admin profile type in `0008`)
+
+## Authentication Architecture
+
+JWT-based auth using PyJWT (HS256). No Django session framework used.
+
+### Token lifecycle
+
+| Token | TTL | Usage |
+|-------|-----|-------|
+| `access_token` | 1 hour | Sent as `Authorization: Bearer <token>` on every API request |
+| `refresh_token` | 7 days | Sent to `POST /api/auth/refresh` to get a new access token |
+
+### `require_auth` decorator
+
+Applied to protected views in `content/auth.py`:
+
+```python
+@csrf_exempt
+@require_auth(roles=['Admin'])   # omit roles= for any authenticated user
+@require_http_methods(["GET"])
+def my_view(request):
+    user = request.auth_user     # verified User instance attached here
+    ...
+```
+
+Decorator order matters: `@csrf_exempt` outermost, `@require_auth()` second, `@require_http_methods` innermost.
+
+### User profiles
+
+| Profile | Registration | Scraper/Import access |
+|---------|-------------|----------------------|
+| `Student` | Public | No |
+| `Academic staff` | Public | No |
+| `Company` | Public | No |
+| `Admin` | Seeded only | Yes |
+
+### Angular admin UI auth
+
+- `AuthService` caches `currentUser` and `loggedIn` as properties (no localStorage reads on change detection)
+- `AuthInterceptor` attaches `Authorization: Bearer <token>` to every outgoing HTTP request
+- On 401 response: `forceLogout()` clears session and redirects to `/login`
+- Route guards: `authGuard` (all app pages), `guestGuard` (`/login` redirects logged-in users to `/dashboard`)
 
 ## Source Configuration
 

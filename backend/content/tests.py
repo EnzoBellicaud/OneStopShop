@@ -356,6 +356,8 @@ class UserDashboardModelTests(TestCase):
 			target_profile=self.target_profile,
 		)
 
+		# Offer.created_by/updated_by are PROTECT FKs — must clear before deleting user
+		Offer.objects.filter(created_by=self.user).delete()
 		self.user.delete()
 
 		self.assertFalse(UserNeed.objects.filter(id=need.id).exists())
@@ -1296,6 +1298,8 @@ class UserIntegrationTests(TestCase):
 			match_reason="Cascade match",
 		)
 
+		# Offer.created_by/updated_by are PROTECT FKs — must clear before deleting user
+		Offer.objects.filter(created_by=self.user).delete()
 		self.user.delete()
 
 		self.assertFalse(UserProfile.objects.filter(user_id=self.user.id).exists())
