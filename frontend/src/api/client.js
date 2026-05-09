@@ -1,4 +1,7 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL
+if (!BASE_URL) {
+  throw new Error('VITE_API_BASE_URL is not set. Copy .env.example to .env and set the value.')
+}
 
 let refreshPromise = null
 
@@ -54,4 +57,4 @@ function clearAuth() {
   localStorage.removeItem('user')
 }
 
-export { apiFetch, clearAuth }
+export { apiFetch, clearAuth, BASE_URL }

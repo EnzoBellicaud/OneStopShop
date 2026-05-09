@@ -101,7 +101,11 @@ def require_auth(roles: list[str] | None = None):
 			if not payload or payload.get('type') != 'access':
 				return JsonResponse({'detail': 'Invalid or expired token'}, status=401)
 
-			user = User.objects.filter(id=payload['user_id']).first()
+			user_id = payload.get('user_id')
+			if not user_id:
+				return JsonResponse({'detail': 'Invalid or expired token'}, status=401)
+
+			user = User.objects.filter(id=user_id).first()
 			if not user:
 				return JsonResponse({'detail': 'User not found'}, status=401)
 			if not user.is_active:
@@ -211,7 +215,11 @@ def refresh_token(request):
 	if not payload or payload.get('type') != 'refresh':
 		return JsonResponse({'detail': 'Invalid refresh token'}, status=401)
 
-	user = User.objects.filter(id=payload['user_id']).first()
+	user_id = payload.get('user_id')
+	if not user_id:
+		return JsonResponse({'detail': 'Invalid refresh token'}, status=401)
+
+	user = User.objects.filter(id=user_id).first()
 	if not user:
 		return JsonResponse({'detail': 'User not found'}, status=404)
 	if not user.is_active:

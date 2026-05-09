@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import { apiFetch, clearAuth } from '../api/client'
+import { apiFetch, clearAuth, BASE_URL } from '../api/client'
 import { useRouter } from 'vue-router'
 
 function safeParseUser() {
@@ -28,7 +28,7 @@ export function useAuth() {
   }
 
   async function login(username, password) {
-    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/login`, {
+    const res = await fetch(`${BASE_URL}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password }),
@@ -39,7 +39,7 @@ export function useAuth() {
   }
 
   async function register(payload) {
-    const res = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/auth/register`, {
+    const res = await fetch(`${BASE_URL}/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),

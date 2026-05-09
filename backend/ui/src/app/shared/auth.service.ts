@@ -15,6 +15,8 @@ export class AuthService {
   private readonly REFRESH_KEY = 'oss.refresh_token';
   private readonly USER_KEY = 'oss.user';
 
+  currentUser: { username: string; email: string; profile: string } | null = this.getUser();
+
   constructor(private readonly http: HttpClient, private readonly router: Router) {}
 
   login(username: string, password: string): Observable<LoginResponse> {
@@ -57,11 +59,13 @@ export class AuthService {
     localStorage.setItem(this.TOKEN_KEY, res.tokens.access_token);
     localStorage.setItem(this.REFRESH_KEY, res.tokens.refresh_token);
     localStorage.setItem(this.USER_KEY, JSON.stringify(res.user));
+    this.currentUser = res.user;
   }
 
   private clearSession(): void {
     localStorage.removeItem(this.TOKEN_KEY);
     localStorage.removeItem(this.REFRESH_KEY);
     localStorage.removeItem(this.USER_KEY);
+    this.currentUser = null;
   }
 }

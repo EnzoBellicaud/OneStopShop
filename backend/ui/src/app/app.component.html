@@ -9,7 +9,7 @@
         <a routerLink="/admin/import" routerLinkActive="active">Bulk Import</a>
       </nav>
       <div class="user-section">
-        <span class="username">{{ auth.getUser()?.username }}</span>
+        <span class="username">{{ auth.currentUser?.username }}</span>
         <button class="logout-btn" (click)="logout()">Logout</button>
       </div>
     </aside>
