@@ -384,6 +384,7 @@ class ScrapeServiceBehaviorTests(TestCase):
         with patch("content.scrapers.service.OllamaClient") as MockOllamaClient:
             mock_ollama = Mock()
             mock_ollama.assess_and_extract.return_value = (False, None, "alumni_page")
+            mock_ollama.flush_cooldown_events.return_value = []
             mock_ollama.last_switch_count = 0
             MockOllamaClient.return_value = mock_ollama
 
@@ -782,6 +783,33 @@ class ScraperUtilityTests(TestCase):
         self.assertNotIn("https://outside.edu/offers/four", links)
         self.assertEqual(len(links), 2)
         self.assertEqual(skipped, 0)
+
+    @patch("content.scrapers.extractors.LinkExtractor")
+    def test_extract_links_from_html_fallback_counts_skipped(self, mock_extractor):
+        html = """
+        <html><body>
+            <a href="/home/one">One</a>
+            <a href="/home/two">Two</a>
+        </body></html>
+        """
+        first = Mock()
+        first.extract_links.return_value = []
+        second = Mock()
+        second.extract_links.return_value = [
+            Mock(url="https://example.edu/home/one"),
+            Mock(url="https://example.edu/home/two"),
+        ]
+        mock_extractor.side_effect = [first, second]
+
+        links, skipped = extract_links_from_html(
+            html=html,
+            seed_url="https://example.edu/root",
+            include_patterns=["/home/"],
+            max_links=1,
+        )
+
+        self.assertEqual(links, ["https://example.edu/home/one"])
+        self.assertEqual(skipped, 1)
 
     def test_ollama_client_rotates_model_when_primary_rate_limited(self):
         client = OllamaClient()

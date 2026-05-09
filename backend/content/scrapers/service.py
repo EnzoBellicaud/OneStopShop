@@ -24,7 +24,7 @@ from content.models import (
     TargetProfile,
     User,
 )
-from content.scrapers.extractors import extract_links_from_html, extract_deterministic, is_generic_page
+from content.scrapers.extractors import count_links_in_html, extract_links_from_html, extract_deterministic, is_generic_page
 from content.scrapers.ollama_client import OllamaClient
 from content.scrapers.source_registry import get_sources
 from content.scrapers.types import ExtractedPayload, SourceDefinition
@@ -181,6 +181,7 @@ class ScrapeService:
                                     "url": source.url,
                                     "http_status": status_code,
                                     "action": "deleted_invalid_source_offers",
+                                    "offers_deleted": deleted_count,
                                     "message": f"Deleted {deleted_count} invalid offers (HTTP {status_code})",
                                 }
                             )
@@ -479,7 +480,10 @@ class ScrapeService:
                     exclude_patterns=source.crawl_exclude_patterns,
                     max_links=remaining,
                 )
-                total_skipped += skipped
+                raw_count = count_links_in_html(html, frontier_url)
+                allowed_count = len(links) + skipped
+                filtered_out = max(0, raw_count - allowed_count)
+                total_skipped += filtered_out + skipped
                 for link in links:
                     if link not in visited and len(discovered) < source.crawl_max_pages:
                         visited.add(link)
