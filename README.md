@@ -104,14 +104,14 @@ All protected endpoints require `Authorization: Bearer <access_token>` header. S
 - `GET /api/offers` — offer list (`q`, `status`, `offer_type`, `organization`, `target_profile`, `domain`, `country`, `page`, `page_size`, `limit`)
 - `GET /api/offers/{offer_id}` — offer detail
 
-**Users / dashboard** _(Bearer token required)_
+**Users / dashboard** _(Bearer token required; for authenticated self-service routes below, `{user_id}` may be `me`)_
 - `GET /api/users` — admin-only paginated user list (`search`, `status`, `page`, `page_size`)
 - `GET /api/users/{user_id}` — admin-only user profile with dashboard preferences and organizations
 - `PATCH /api/users/{user_id}` — admin-only user profile update
 - `DELETE /api/users/{user_id}` — admin-only soft-delete user
 - `POST /api/users/{user_id}/organizations` — admin or authenticated user themself; non-admin users can only link as `member`
 - `DELETE /api/users/{user_id}/organizations/{org_id}` — admin or authenticated user themself
-- `GET /api/users/{user_id}/dashboard` — admin or authenticated user themself; `{user_id}` may be `me`
+- `GET /api/users/{user_id}/dashboard` — admin or authenticated user themself
 - `GET /api/users/{user_id}/needs` — admin or authenticated user themself (`status`, `page`, `page_size`)
 - `POST /api/users/{user_id}/needs` — admin or authenticated user themself
 - `PUT /api/users/{user_id}/needs/{need_id}` — admin or authenticated user themself
