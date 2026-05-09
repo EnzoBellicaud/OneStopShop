@@ -66,9 +66,9 @@ Internal tool for operators. **All routes require login.** Not accessible to end
 | `http://localhost:4200/admin/scrapper` | Admin only | Scraper telemetry dashboard |
 | `http://localhost:4200/admin/import` | Admin only | Bulk offer import |
 
-### Public frontend — Vue.js (separate repo)
+### Public frontend — Vue.js (`frontend/`)
 
-The student/staff-facing application. Runs independently, calls the API without authentication. See the Vue.js frontend repo for setup instructions.
+The student/staff-facing application. Runs independently from `frontend/`, calls the API without authentication.
 
 ## API Endpoints
 
@@ -387,9 +387,9 @@ The Angular app (`localhost:4200`) is an **internal tool** — all routes are ga
 - On 401 response: `forceLogout()` clears session and redirects to `/login`
 - Route guards: `authGuard` (all app pages), `guestGuard` (`/login` redirects logged-in users to `/dashboard`)
 
-### Public Vue.js frontend
+### Public Vue.js frontend (`frontend/`)
 
-The public-facing student/staff app lives in a separate repo. It calls `GET /api/offers` and `GET /api/lookups/*` without any authentication — those endpoints are intentionally public.
+The public-facing student/staff app lives in `frontend/` in this repo. It calls `GET /api/offers` and `GET /api/lookups/*` without any authentication — those endpoints are intentionally public.
 
 ## Source Configuration
 
