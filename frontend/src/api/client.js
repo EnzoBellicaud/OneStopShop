@@ -1,5 +1,7 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL
 
+let refreshPromise = null
+
 async function apiFetch(path, options = {}) {
   const token = localStorage.getItem('access_token')
   const headers = { 'Content-Type': 'application/json', ...options.headers }
@@ -22,6 +24,12 @@ async function apiFetch(path, options = {}) {
 }
 
 async function tryRefresh() {
+  if (refreshPromise) return refreshPromise
+  refreshPromise = _doRefresh().finally(() => { refreshPromise = null })
+  return refreshPromise
+}
+
+async function _doRefresh() {
   const refreshToken = localStorage.getItem('refresh_token')
   if (!refreshToken) return false
   try {

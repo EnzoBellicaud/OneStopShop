@@ -1,47 +1,44 @@
-import jwt
+import hmac
 import hashlib
+import json
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 
+import jwt
 from django.conf import settings
 from django.http import JsonResponse
-from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
 from django_ratelimit.decorators import ratelimit
-import json
 
 from content.models import User
+
+REGISTERABLE_PROFILES = [
+	User.ProfileType.STUDENT,
+	User.ProfileType.ACADEMIC_STAFF,
+	User.ProfileType.COMPANY,
+]
 
 
 def hash_password(password: str) -> str:
 	salt = secrets.token_hex(16)
-	key = hashlib.pbkdf2_hmac(
-		'sha256',
-		password.encode('utf-8'),
-		bytes.fromhex(salt),
-		100000,
-	)
+	key = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), bytes.fromhex(salt), 100000)
 	return f"{salt}${key.hex()}"
 
 
 def verify_password(password: str, password_hash: str) -> bool:
 	try:
 		salt, key = password_hash.split('$')
-		new_key = hashlib.pbkdf2_hmac(
-			'sha256',
-			password.encode('utf-8'),
-			bytes.fromhex(salt),
-			100000,
-		)
-		return new_key.hex() == key
+		new_key = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), bytes.fromhex(salt), 100000)
+		return hmac.compare_digest(new_key.hex(), key)
 	except (ValueError, AttributeError):
 		return False
 
 
 def generate_tokens(user_id: str, username: str, profile: str) -> dict:
 	secret_key = settings.SECRET_KEY
-	now = datetime.utcnow()
+	now = datetime.now(tz=timezone.utc)
 
 	access_payload = {
 		'user_id': str(user_id),
@@ -51,8 +48,6 @@ def generate_tokens(user_id: str, username: str, profile: str) -> dict:
 		'iat': now,
 		'exp': now + timedelta(hours=1),
 	}
-	access_token = jwt.encode(access_payload, secret_key, algorithm='HS256')
-
 	refresh_payload = {
 		'user_id': str(user_id),
 		'username': username,
@@ -60,11 +55,9 @@ def generate_tokens(user_id: str, username: str, profile: str) -> dict:
 		'iat': now,
 		'exp': now + timedelta(days=7),
 	}
-	refresh_token = jwt.encode(refresh_payload, secret_key, algorithm='HS256')
-
 	return {
-		'access_token': access_token,
-		'refresh_token': refresh_token,
+		'access_token': jwt.encode(access_payload, secret_key, algorithm='HS256'),
+		'refresh_token': jwt.encode(refresh_payload, secret_key, algorithm='HS256'),
 		'token_type': 'Bearer',
 		'expires_in': 3600,
 	}
@@ -72,9 +65,7 @@ def generate_tokens(user_id: str, username: str, profile: str) -> dict:
 
 def verify_token(token: str) -> dict | None:
 	try:
-		secret_key = settings.SECRET_KEY
-		payload = jwt.decode(token, secret_key, algorithms=['HS256'])
-		return payload
+		return jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
 	except jwt.InvalidTokenError:
 		return None
 
@@ -84,12 +75,14 @@ def require_auth(roles: list[str] | None = None):
 	Decorator for authentication + optional role-based authorization.
 
 	Usage:
-	    @require_auth()                          # any authenticated user
-	    @require_auth(roles=['Company'])         # company users only
-	    @require_auth(roles=['Student', 'Academic staff'])  # multiple roles
+	    @require_auth()                        # any authenticated user
+	    @require_auth(roles=['Admin'])         # admin only
+	    @require_auth(roles=['Student', 'Company'])  # multiple allowed roles
 
 	Attaches verified User instance to request.auth_user.
-	Returns 401 for missing/invalid token, 403 for insufficient role.
+	Returns 401 for missing/invalid/expired token or inactive account.
+	Returns 403 for insufficient role.
+	Must be outermost decorator (applied last in source, closest to @csrf_exempt).
 	"""
 	def decorator(view_func):
 		@wraps(view_func)
@@ -98,19 +91,15 @@ def require_auth(roles: list[str] | None = None):
 			if not auth_header.startswith('Bearer '):
 				return JsonResponse({'detail': 'Authentication required'}, status=401)
 
-			token = auth_header[7:]
-			payload = verify_token(token)
-
+			payload = verify_token(auth_header[7:])
 			if not payload or payload.get('type') != 'access':
 				return JsonResponse({'detail': 'Invalid or expired token'}, status=401)
 
 			user = User.objects.filter(id=payload['user_id']).first()
 			if not user:
 				return JsonResponse({'detail': 'User not found'}, status=401)
-
 			if not user.is_active:
 				return JsonResponse({'detail': 'Account is inactive'}, status=401)
-
 			if roles and user.profile not in roles:
 				return JsonResponse({'detail': 'Insufficient permissions'}, status=403)
 
@@ -128,6 +117,7 @@ def _user_dict(user: User) -> dict:
 		'first_name': user.first_name,
 		'last_name': user.last_name,
 		'profile': user.profile,
+		'is_active': user.is_active,
 	}
 
 
@@ -153,15 +143,8 @@ def register(request):
 		return JsonResponse({'detail': 'Invalid email address'}, status=400)
 	if not password or len(password) < 8:
 		return JsonResponse({'detail': 'Password must be at least 8 characters'}, status=400)
-
-	REGISTERABLE_PROFILES = [
-		User.ProfileType.STUDENT,
-		User.ProfileType.ACADEMIC_STAFF,
-		User.ProfileType.COMPANY,
-	]
 	if profile not in REGISTERABLE_PROFILES:
 		return JsonResponse({'detail': f'Profile must be one of: {", ".join(REGISTERABLE_PROFILES)}'}, status=400)
-
 	if User.objects.filter(username=username).exists():
 		return JsonResponse({'detail': 'Username already exists'}, status=409)
 	if User.objects.filter(email=email).exists():
@@ -199,7 +182,6 @@ def login(request):
 	user = User.objects.filter(username=username).first()
 	if not user or not verify_password(password, user.password_hash):
 		return JsonResponse({'detail': 'Invalid credentials'}, status=401)
-
 	if not user.is_active:
 		return JsonResponse({'detail': 'Account is inactive'}, status=401)
 
@@ -207,6 +189,7 @@ def login(request):
 
 
 @csrf_exempt
+@ratelimit(key='ip', rate='20/h', method='POST')
 @require_http_methods(["POST"])
 def refresh_token(request):
 	try:
@@ -225,18 +208,20 @@ def refresh_token(request):
 	user = User.objects.filter(id=payload['user_id']).first()
 	if not user:
 		return JsonResponse({'detail': 'User not found'}, status=404)
+	if not user.is_active:
+		return JsonResponse({'detail': 'Account is inactive'}, status=401)
 
 	return JsonResponse({'tokens': generate_tokens(user.id, user.username, user.profile)}, status=200)
 
 
-@require_auth()
 @require_http_methods(["GET"])
+@require_auth()
 def get_current_user(request):
 	return JsonResponse({'user': _user_dict(request.auth_user)}, status=200)
 
 
-@require_auth()
 @csrf_exempt
+@require_auth()
 @require_http_methods(["PATCH"])
 def update_user_profile(request):
 	try:
@@ -251,18 +236,17 @@ def update_user_profile(request):
 	if 'last_name' in data:
 		user.last_name = data['last_name'].strip()
 	if 'profile' in data:
-		profile = data['profile'].strip()
-		valid_profiles = [choice[0] for choice in User.ProfileType.choices]
-		if profile not in valid_profiles:
-			return JsonResponse({'detail': f'Profile must be one of: {", ".join(valid_profiles)}'}, status=400)
-		user.profile = profile
+		new_profile = data['profile'].strip()
+		if new_profile not in REGISTERABLE_PROFILES:
+			return JsonResponse({'detail': f'Profile must be one of: {", ".join(REGISTERABLE_PROFILES)}'}, status=400)
+		user.profile = new_profile
 
 	user.save()
 	return JsonResponse({'user': _user_dict(user)}, status=200)
 
 
-@require_auth()
 @csrf_exempt
+@require_auth()
 @ratelimit(key='ip', rate='5/h', method='POST')
 @require_http_methods(["POST"])
 def change_password(request):

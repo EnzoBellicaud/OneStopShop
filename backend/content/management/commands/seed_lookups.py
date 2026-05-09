@@ -1,3 +1,5 @@
+import os
+
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
@@ -167,17 +169,18 @@ class Command(BaseCommand):
                     role=admin_role,
                 )
 
-        admin_user, created = User.objects.update_or_create(
+        admin_password = os.environ.get("ADMIN_SEED_PASSWORD", "passw0rd")
+        admin_user, created = User.objects.get_or_create(
             email="admin@oss.com",
             defaults={
                 "username": "admin",
-                "password_hash": hash_password("passw0rd"),
+                "password_hash": hash_password(admin_password),
                 "profile": User.ProfileType.ADMIN,
                 "is_active": True,
             },
         )
         if created:
-            self.stdout.write(self.style.SUCCESS("Admin account seeded: admin@oss.com / passw0rd"))
+            self.stdout.write(self.style.SUCCESS("Admin account seeded: admin@oss.com"))
 
         # Remove deprecated types. Safe: scraper no longer assigns these;
         # Offer FK is PROTECT so deletion will surface any orphaned offers

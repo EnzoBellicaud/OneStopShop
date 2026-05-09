@@ -155,8 +155,8 @@ def import_template(request):
     )
 
 
-@require_auth(roles=['Admin'])
 @csrf_exempt
+@require_auth(roles=['Admin'])
 @require_http_methods(["POST"])
 def import_preview(request):
     from content.ingestion.importer import ImportService  # noqa: PLC0415
@@ -177,8 +177,8 @@ def import_preview(request):
     return JsonResponse(result.to_dict())
 
 
-@require_auth(roles=['Admin'])
 @csrf_exempt
+@require_auth(roles=['Admin'])
 @require_http_methods(["POST"])
 def import_confirm(request):
     from content.ingestion.importer import ImportService  # noqa: PLC0415
