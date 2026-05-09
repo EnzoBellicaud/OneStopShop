@@ -128,6 +128,27 @@ def extract_links_from_html(
             seen.add(normalized)
             links.append(normalized)
 
+    if include_patterns and not links:
+        compiled_patterns = [re.compile(pattern) for pattern in include_patterns]
+        fallback_extractor = LinkExtractor(
+            deny=exclude_patterns or [],
+            allow_domains=[seed_host],
+            unique=True,
+        )
+        fallback_links = fallback_extractor.extract_links(scrapy_response)
+        matched_count = 0
+        for link in fallback_links:
+            normalized = _normalize_link(link.url)
+            if normalized in seen:
+                continue
+            if any(pattern.search(normalized) for pattern in compiled_patterns):
+                seen.add(normalized)
+                matched_count += 1
+                if len(links) < max_links:
+                    links.append(normalized)
+        if matched_count > max_links:
+            return links, matched_count - max_links
+
     if len(links) > max_links:
         skipped = len(links) - max_links
         return links[:max_links], skipped
