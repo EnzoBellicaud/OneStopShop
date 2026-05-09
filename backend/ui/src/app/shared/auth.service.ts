@@ -44,7 +44,13 @@ export class AuthService {
 
   getUser(): { username: string; email: string; profile: string } | null {
     const raw = localStorage.getItem(this.USER_KEY);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      localStorage.removeItem(this.USER_KEY);
+      return null;
+    }
   }
 
   private storeSession(res: LoginResponse): void {
