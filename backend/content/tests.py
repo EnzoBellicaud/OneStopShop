@@ -8,6 +8,7 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.test import Client, TestCase
 
+from content.auth import generate_tokens
 from content.models import (
 	CrawlUrl,
 	Domain,
@@ -56,6 +57,14 @@ class ReadApiTests(TestCase):
 			email="tester@example.com",
 			password_hash="not-used",
 		)
+		cls.admin = User.objects.create(
+			username="admin_test",
+			email="admin_test@example.com",
+			password_hash="not-used",
+			profile=User.ProfileType.ADMIN,
+			is_active=True,
+		)
+		cls.admin_token = generate_tokens(cls.admin.id, cls.admin.username, cls.admin.profile)["access_token"]
 		cls.offer = Offer.objects.create(
 			id=uuid.uuid4(),
 			title="AI Master Programme",
@@ -205,20 +214,20 @@ class ReadApiTests(TestCase):
 		self.assertEqual(len(payload["results"]), 1)
 
 	def test_scraping_runs_endpoint(self):
-		response = self.client.get("/api/scraping/runs")
+		response = self.client.get("/api/scraping/runs", HTTP_AUTHORIZATION=f"Bearer {self.admin_token}")
 		payload = response.json()
 		self.assertEqual(response.status_code, 200)
 		self.assertEqual(payload["count"], 0)
 
 	def test_scraping_run_detail_endpoint(self):
 		run = ScrapingRun.objects.create(source_key="test-source", status=ScrapingRun.RunStatus.SUCCESS)
-		response = self.client.get(f"/api/scraping/runs/{run.id}")
+		response = self.client.get(f"/api/scraping/runs/{run.id}", HTTP_AUTHORIZATION=f"Bearer {self.admin_token}")
 		payload = response.json()
 		self.assertEqual(response.status_code, 200)
 		self.assertEqual(payload["id"], str(run.id))
 
 	def test_scraping_run_detail_not_found(self):
-		response = self.client.get(f"/api/scraping/runs/{uuid.uuid4()}")
+		response = self.client.get(f"/api/scraping/runs/{uuid.uuid4()}", HTTP_AUTHORIZATION=f"Bearer {self.admin_token}")
 		self.assertEqual(response.status_code, 404)
 
 	def test_offer_detail_endpoint(self):
@@ -1401,6 +1410,14 @@ class ImportEndpointTests(TestCase):
 			email="tester@example.com",
 			password_hash="not-used",
 		)
+		cls.admin = User.objects.create(
+			username="import_admin",
+			email="import_admin@example.com",
+			password_hash="not-used",
+			profile=User.ProfileType.ADMIN,
+			is_active=True,
+		)
+		cls.admin_token = generate_tokens(cls.admin.id, cls.admin.username, cls.admin.profile)["access_token"]
 
 	def _csv_file(self, rows: list[dict]) -> io.BytesIO:
 		from content.ingestion.importer import ALL_COLUMNS
@@ -1423,7 +1440,7 @@ class ImportEndpointTests(TestCase):
 		}
 
 	def test_import_template_returns_xlsx(self):
-		response = self.client.get("/api/offers/import/template")
+		response = self.client.get("/api/offers/import/template", HTTP_AUTHORIZATION=f"Bearer {self.admin_token}")
 		self.assertEqual(response.status_code, 200)
 		self.assertIn(
 			"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -1437,6 +1454,7 @@ class ImportEndpointTests(TestCase):
 			"/api/offers/import/preview",
 			{"file": f},
 			format="multipart",
+			HTTP_AUTHORIZATION=f"Bearer {self.admin_token}",
 		)
 		payload = response.json()
 		self.assertEqual(response.status_code, 200)
@@ -1448,7 +1466,7 @@ class ImportEndpointTests(TestCase):
 		row = self._valid_row()
 		del row["url"]
 		f = self._csv_file([row])
-		response = self.client.post("/api/offers/import/preview", {"file": f}, format="multipart")
+		response = self.client.post("/api/offers/import/preview", {"file": f}, format="multipart", HTTP_AUTHORIZATION=f"Bearer {self.admin_token}")
 		payload = response.json()
 		self.assertEqual(response.status_code, 200)
 		self.assertEqual(len(payload["invalid"]), 1)
@@ -1471,7 +1489,7 @@ class ImportEndpointTests(TestCase):
 			updated_by=self.user,
 		)
 		f = self._csv_file([self._valid_row(url=url)])
-		response = self.client.post("/api/offers/import/preview", {"file": f}, format="multipart")
+		response = self.client.post("/api/offers/import/preview", {"file": f}, format="multipart", HTTP_AUTHORIZATION=f"Bearer {self.admin_token}")
 		payload = response.json()
 		self.assertEqual(response.status_code, 200)
 		self.assertEqual(len(payload["valid"]), 1)
@@ -1485,6 +1503,7 @@ class ImportEndpointTests(TestCase):
 			"/api/offers/import/confirm",
 			data=json.dumps({"rows": rows}),
 			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.admin_token}",
 		)
 		payload = response.json()
 		self.assertEqual(response.status_code, 200)
@@ -1501,6 +1520,7 @@ class ImportEndpointTests(TestCase):
 			"/api/offers/import/confirm",
 			data=json.dumps({"rows": rows}),
 			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.admin_token}",
 		)
 		payload = response.json()
 		self.assertEqual(response.status_code, 200)
@@ -1517,6 +1537,7 @@ class ImportEndpointTests(TestCase):
 			"/api/offers/import/confirm",
 			data=json.dumps({"rows": rows}),
 			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.admin_token}",
 		)
 		payload = response.json()
 		self.assertEqual(response.status_code, 200)
@@ -1528,6 +1549,7 @@ class ImportEndpointTests(TestCase):
 			"/api/offers/import/confirm",
 			data=json.dumps({"rows": [42]}),
 			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.admin_token}",
 		)
 		self.assertEqual(response.status_code, 400)
 		self.assertIn("Row 0", response.json()["error"])
@@ -1539,6 +1561,7 @@ class ImportEndpointTests(TestCase):
 			"/api/offers/import/confirm",
 			data=json.dumps({"rows": [row]}),
 			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.admin_token}",
 		)
 		self.assertEqual(response.status_code, 400)
 		self.assertIn("offer_type", response.json()["error"])
@@ -1553,6 +1576,7 @@ class ImportEndpointTests(TestCase):
 			"/api/offers/import/confirm",
 			data=json.dumps({"rows": [good_row, bad_row]}),
 			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.admin_token}",
 		)
 		self.assertEqual(response.status_code, 400)
 		self.assertEqual(Offer.objects.count(), offer_count_before)
@@ -1564,6 +1588,7 @@ class ImportEndpointTests(TestCase):
 			"/api/offers/import/confirm",
 			data=json.dumps({"rows": [row]}),
 			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.admin_token}",
 		)
 		self.assertEqual(response.status_code, 400)
 		self.assertIn("status", response.json()["error"])
@@ -1587,7 +1612,15 @@ class ScrapingAnalyticsTests(TestCase):
 			email="scrape@example.com",
 			password_hash="not-used",
 		)
-		cls.run = ScrapingRun.objects.create(
+		cls.admin = User.objects.create(
+			username="scrape_admin",
+			email="scrape_admin@example.com",
+			password_hash="not-used",
+			profile=User.ProfileType.ADMIN,
+			is_active=True,
+		)
+		cls.admin_token = generate_tokens(cls.admin.id, cls.admin.username, cls.admin.profile)["access_token"]
+		cls.scraping_run = ScrapingRun.objects.create(
 			source_key="test-source",
 			status=ScrapingRun.RunStatus.SUCCESS,
 			offers_processed=2,
@@ -1629,7 +1662,7 @@ class ScrapingAnalyticsTests(TestCase):
 		)
 
 	def test_scraping_overview_returns_shape(self):
-		response = self.client.get("/api/scraping/overview", {"window": "24h"})
+		response = self.client.get("/api/scraping/overview", {"window": "24h"}, HTTP_AUTHORIZATION=f"Bearer {self.admin_token}")
 		payload = response.json()
 		self.assertEqual(response.status_code, 200)
 		self.assertIn("runs_total", payload)
@@ -1639,15 +1672,15 @@ class ScrapingAnalyticsTests(TestCase):
 	def test_scraping_overview_window_params(self):
 		for window in ("7d", "30d"):
 			with self.subTest(window=window):
-				response = self.client.get("/api/scraping/overview", {"window": window})
+				response = self.client.get("/api/scraping/overview", {"window": window}, HTTP_AUTHORIZATION=f"Bearer {self.admin_token}")
 				self.assertEqual(response.status_code, 200)
 
 	def test_scraping_overview_invalid_window(self):
-		response = self.client.get("/api/scraping/overview", {"window": "bad"})
+		response = self.client.get("/api/scraping/overview", {"window": "bad"}, HTTP_AUTHORIZATION=f"Bearer {self.admin_token}")
 		self.assertEqual(response.status_code, 400)
 
 	def test_sources_health_returns_per_source(self):
-		response = self.client.get("/api/scraping/sources/health")
+		response = self.client.get("/api/scraping/sources/health", HTTP_AUTHORIZATION=f"Bearer {self.admin_token}")
 		payload = response.json()
 		self.assertEqual(response.status_code, 200)
 		sources = {s["source_key"]: s for s in payload["results"]}
@@ -1658,7 +1691,7 @@ class ScrapingAnalyticsTests(TestCase):
 		self.assertEqual(s["total_urls"], 2)
 
 	def test_llm_stats_returns_method_split(self):
-		response = self.client.get("/api/scraping/llm/stats", {"window": "24h"})
+		response = self.client.get("/api/scraping/llm/stats", {"window": "24h"}, HTTP_AUTHORIZATION=f"Bearer {self.admin_token}")
 		payload = response.json()
 		self.assertEqual(response.status_code, 200)
 		self.assertIn("method_split", payload)
@@ -1667,7 +1700,7 @@ class ScrapingAnalyticsTests(TestCase):
 		self.assertIsNotNone(payload["avg_confidence_llm"])
 
 	def test_llm_stats_empty_window(self):
-		response = self.client.get("/api/scraping/llm/stats", {"window": "30d"})
+		response = self.client.get("/api/scraping/llm/stats", {"window": "30d"}, HTTP_AUTHORIZATION=f"Bearer {self.admin_token}")
 		payload = response.json()
 		self.assertEqual(response.status_code, 200)
 		# run created in setUpTestData falls within 30d too — just verify shape

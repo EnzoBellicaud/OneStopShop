@@ -82,7 +82,13 @@ def require_auth(roles: list[str] | None = None):
 	Attaches verified User instance to request.auth_user.
 	Returns 401 for missing/invalid/expired token or inactive account.
 	Returns 403 for insufficient role.
-	Must be outermost decorator (applied last in source, closest to @csrf_exempt).
+
+	Decorator ordering: place @csrf_exempt outermost, then @require_auth(),
+	then @ratelimit/@require_http_methods innermost. Example:
+	    @csrf_exempt
+	    @require_auth(roles=['Admin'])
+	    @require_http_methods(["POST"])
+	    def my_view(request): ...
 	"""
 	def decorator(view_func):
 		@wraps(view_func)

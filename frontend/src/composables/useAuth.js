@@ -2,8 +2,17 @@ import { ref, computed } from 'vue'
 import { apiFetch, clearAuth } from '../api/client'
 import { useRouter } from 'vue-router'
 
+function safeParseUser() {
+  try {
+    return JSON.parse(localStorage.getItem('user') || 'null')
+  } catch {
+    localStorage.removeItem('user')
+    return null
+  }
+}
+
 // Module-level singletons — shared across all useAuth() callers
-const user = ref(JSON.parse(localStorage.getItem('user') || 'null'))
+const user = ref(safeParseUser())
 const accessToken = ref(localStorage.getItem('access_token') || null)
 
 export function useAuth() {

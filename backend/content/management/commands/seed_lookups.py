@@ -170,6 +170,11 @@ class Command(BaseCommand):
                 )
 
         admin_password = os.environ.get("ADMIN_SEED_PASSWORD", "passw0rd")
+        if admin_password == "passw0rd":
+            self.stdout.write(self.style.WARNING(
+                "ADMIN_SEED_PASSWORD not set — using default dev password. "
+                "Set this env var before deploying to production."
+            ))
         admin_user, created = User.objects.get_or_create(
             email="admin@oss.com",
             defaults={
