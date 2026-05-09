@@ -76,6 +76,23 @@ def _normalize_link(url: str) -> str:
     return urlunparse(cleaned)
 
 
+def count_links_in_html(html: str, seed_url: str) -> int:
+    scrapy_response = HtmlResponse(
+        url=seed_url,
+        body=html.encode("utf-8", errors="replace"),
+        encoding="utf-8",
+    )
+    extractor = LinkExtractor(unique=True)
+    raw_links = extractor.extract_links(scrapy_response)
+
+    seen: set[str] = set()
+    for link in raw_links:
+        normalized = _normalize_link(link.url)
+        seen.add(normalized)
+
+    return len(seen)
+
+
 def extract_links_from_html(
     html: str,
     seed_url: str,
