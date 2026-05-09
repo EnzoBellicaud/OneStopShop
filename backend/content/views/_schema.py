@@ -133,31 +133,30 @@ def _openapi_spec() -> dict:
                 }
             },
             "/api/users": {
-                "post": {
-                    "summary": "Create or update a dashboard user",
-                    "requestBody": {
-                        "required": True,
-                        "content": {"application/json": {"schema": {"$ref": "#/components/schemas/UserUpsertRequest"}}},
-                    },
+                "get": {
+                    "summary": "List dashboard users",
+                    "description": "Admin only.",
+                    "parameters": [
+                        {"name": "search", "in": "query", "schema": {"type": "string"}},
+                        {"name": "status", "in": "query", "schema": {"type": "string", "enum": ["active", "inactive"]}},
+                        {"name": "page", "in": "query", "schema": {"type": "integer", "minimum": 1}},
+                        {"name": "page_size", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 200}},
+                    ],
                     "responses": {
                         "200": {
-                            "description": "Existing user updated",
-                            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/UserUpsertResponse"}}},
-                        },
-                        "201": {
-                            "description": "User created",
-                            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/UserUpsertResponse"}}},
+                            "description": "Paginated users",
+                            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/UserListResponse"}}},
                         },
                         "400": {
                             "description": "Invalid request",
                             "content": {"application/json": {"schema": {"$ref": "#/components/schemas/UserApiErrorResponse"}}},
                         },
-                        "404": {
-                            "description": "Related organization not found",
+                        "401": {
+                            "description": "Authentication required",
                             "content": {"application/json": {"schema": {"$ref": "#/components/schemas/UserApiErrorResponse"}}},
                         },
-                        "409": {
-                            "description": "User conflict",
+                        "403": {
+                            "description": "Admin access required",
                             "content": {"application/json": {"schema": {"$ref": "#/components/schemas/UserApiErrorResponse"}}},
                         },
                     },
@@ -166,6 +165,7 @@ def _openapi_spec() -> dict:
             "/api/users/{user_id}": {
                 "get": {
                     "summary": "Get dashboard user",
+                    "description": "Admin only.",
                     "parameters": [{"$ref": "#/components/parameters/UserId"}],
                     "responses": {
                         "200": {
@@ -184,6 +184,7 @@ def _openapi_spec() -> dict:
                 },
                 "patch": {
                     "summary": "Update dashboard user",
+                    "description": "Admin only.",
                     "parameters": [{"$ref": "#/components/parameters/UserId"}],
                     "requestBody": {
                         "required": True,
@@ -210,6 +211,7 @@ def _openapi_spec() -> dict:
                 },
                 "delete": {
                     "summary": "Soft-delete dashboard user",
+                    "description": "Admin only.",
                     "parameters": [{"$ref": "#/components/parameters/UserId"}],
                     "responses": {
                         "204": {"description": "User soft-deleted"},
@@ -227,6 +229,7 @@ def _openapi_spec() -> dict:
             "/api/users/{user_id}/organizations": {
                 "post": {
                     "summary": "Link user to organization",
+                    "description": "Authenticated user can link themself as member. Admins can assign allowed roles.",
                     "parameters": [{"$ref": "#/components/parameters/UserId"}],
                     "requestBody": {
                         "required": True,
@@ -255,6 +258,7 @@ def _openapi_spec() -> dict:
             "/api/users/{user_id}/organizations/{org_id}": {
                 "delete": {
                     "summary": "Unlink user organization",
+                    "description": "Admin or the authenticated user themself.",
                     "parameters": [
                         {"$ref": "#/components/parameters/UserId"},
                         {"name": "org_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
@@ -275,6 +279,7 @@ def _openapi_spec() -> dict:
             "/api/users/{user_id}/dashboard": {
                 "get": {
                     "summary": "Get user dashboard",
+                    "description": "Admin or the authenticated user themself.",
                     "parameters": [{"$ref": "#/components/parameters/UserId"}],
                     "responses": {
                         "200": {
@@ -295,6 +300,7 @@ def _openapi_spec() -> dict:
             "/api/users/{user_id}/needs": {
                 "get": {
                     "summary": "List user needs",
+                    "description": "Admin or the authenticated user themself.",
                     "parameters": [
                         {"$ref": "#/components/parameters/UserId"},
                         {"name": "status", "in": "query", "schema": {"$ref": "#/components/schemas/UserNeedStatus"}},
@@ -318,6 +324,7 @@ def _openapi_spec() -> dict:
                 },
                 "post": {
                     "summary": "Create user need",
+                    "description": "Admin or the authenticated user themself.",
                     "parameters": [{"$ref": "#/components/parameters/UserId"}],
                     "requestBody": {
                         "required": True,
@@ -342,6 +349,7 @@ def _openapi_spec() -> dict:
             "/api/users/{user_id}/needs/{need_id}": {
                 "put": {
                     "summary": "Update user need",
+                    "description": "Admin or the authenticated user themself.",
                     "parameters": [
                         {"$ref": "#/components/parameters/UserId"},
                         {"name": "need_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
@@ -367,6 +375,7 @@ def _openapi_spec() -> dict:
                 },
                 "delete": {
                     "summary": "Delete user need",
+                    "description": "Admin or the authenticated user themself.",
                     "parameters": [
                         {"$ref": "#/components/parameters/UserId"},
                         {"name": "need_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
@@ -387,6 +396,7 @@ def _openapi_spec() -> dict:
             "/api/users/{user_id}/favorites": {
                 "get": {
                     "summary": "List user favorites",
+                    "description": "Admin or the authenticated user themself.",
                     "parameters": [
                         {"$ref": "#/components/parameters/UserId"},
                         {"name": "page", "in": "query", "schema": {"type": "integer", "minimum": 1}},
@@ -409,6 +419,7 @@ def _openapi_spec() -> dict:
                 },
                 "post": {
                     "summary": "Add user favorite",
+                    "description": "Admin or the authenticated user themself.",
                     "parameters": [{"$ref": "#/components/parameters/UserId"}],
                     "requestBody": {
                         "required": True,
@@ -437,6 +448,7 @@ def _openapi_spec() -> dict:
             "/api/users/{user_id}/favorites/{offer_id}": {
                 "delete": {
                     "summary": "Remove user favorite",
+                    "description": "Admin or the authenticated user themself.",
                     "parameters": [
                         {"$ref": "#/components/parameters/UserId"},
                         {"name": "offer_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
@@ -457,6 +469,7 @@ def _openapi_spec() -> dict:
             "/api/users/{user_id}/matching-hits": {
                 "get": {
                     "summary": "List user matching hits",
+                    "description": "Admin or the authenticated user themself.",
                     "parameters": [
                         {"$ref": "#/components/parameters/UserId"},
                         {"name": "status", "in": "query", "schema": {"$ref": "#/components/schemas/MatchingHitStatus"}},
@@ -483,6 +496,7 @@ def _openapi_spec() -> dict:
             "/api/users/{user_id}/matching-hits/{hit_id}": {
                 "patch": {
                     "summary": "Update matching hit status",
+                    "description": "Admin or the authenticated user themself.",
                     "parameters": [
                         {"$ref": "#/components/parameters/UserId"},
                         {"name": "hit_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}},
@@ -609,7 +623,8 @@ def _openapi_spec() -> dict:
                     "name": "user_id",
                     "in": "path",
                     "required": True,
-                    "schema": {"type": "string", "format": "uuid"},
+                    "description": "User UUID. Authenticated self-service endpoints also accept `me`.",
+                    "schema": {"type": "string"},
                 },
             },
             "schemas": {
@@ -796,16 +811,6 @@ def _openapi_spec() -> dict:
                         "notification_enabled": {"type": "boolean"},
                     },
                 },
-                "UserUpsertRequest": {
-                    "type": "object",
-                    "properties": {
-                        "email": {"type": "string", "format": "email"},
-                        "username": {"type": "string"},
-                        "organization_id": {"type": "string", "format": "uuid", "nullable": True},
-                        "profile": {"$ref": "#/components/schemas/UserProfileRequest"},
-                    },
-                    "required": ["email", "username"],
-                },
                 "UserUpdateRequest": {
                     "type": "object",
                     "properties": {
@@ -814,15 +819,15 @@ def _openapi_spec() -> dict:
                         "profile": {"$ref": "#/components/schemas/UserProfileRequest"},
                     },
                 },
-                "UserUpsertResponse": {
-                    "allOf": [
-                        {"$ref": "#/components/schemas/UserDetail"},
-                        {
-                            "type": "object",
-                            "properties": {"is_new": {"type": "boolean"}},
-                            "required": ["is_new"],
-                        },
-                    ],
+                "UserListResponse": {
+                    "type": "object",
+                    "properties": {
+                        "count": {"type": "integer"},
+                        "next": {"type": "string", "nullable": True},
+                        "previous": {"type": "string", "nullable": True},
+                        "results": {"type": "array", "items": {"$ref": "#/components/schemas/UserDetail"}},
+                    },
+                    "required": ["count", "next", "previous", "results"],
                 },
                 "UserOrganizationLinkRequest": {
                     "type": "object",

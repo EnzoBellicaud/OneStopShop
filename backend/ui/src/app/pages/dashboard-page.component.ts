@@ -13,9 +13,9 @@ import {
   UserNeed,
   UserNeedCreateRequest,
   UserNeedUpdateRequest,
-  UserUpsertRequest,
 } from '../shared/api.models';
 import { OssApiService } from '../shared/oss-api.service';
+import { AuthService } from '../shared/auth.service';
 
 @Component({
   selector: 'app-dashboard-page',
@@ -59,9 +59,12 @@ export class DashboardPageComponent implements OnInit, OnDestroy {
   };
 
   private readonly destroy$ = new Subject<void>();
-  private userId = localStorage.getItem('oss.dashboard.userId') ?? '';
+  private userId = 'me';
 
-  constructor(private readonly api: OssApiService) {}
+  constructor(
+    private readonly api: OssApiService,
+    private readonly auth: AuthService,
+  ) {}
 
   ngOnInit(): void {
     this.bootstrapUserAndLoad();
@@ -274,30 +277,21 @@ export class DashboardPageComponent implements OnInit, OnDestroy {
     this.savingUser = true;
     this.errorMessage = '';
 
-    const payload: UserUpsertRequest = {
-      email: this.userDraft.email.trim().toLowerCase(),
-      username: this.userDraft.username.trim(),
-      profile: {
+    const currentUser = this.auth.currentUser;
+    if (currentUser) {
+      this.userDraft = {
+        email: currentUser.email,
+        username: currentUser.username,
         bio: this.userDraft.bio,
-      },
-    };
+      };
+    }
 
-    this.api.upsertUser(payload).pipe(takeUntil(this.destroy$)).subscribe({
-      next: (user) => {
-        this.savingUser = false;
-        this.userReady = true;
-        this.userId = user.id;
-        localStorage.setItem('oss.dashboard.userId', user.id);
-        localStorage.setItem('oss.dashboard.userDraft', JSON.stringify(this.userDraft));
-        this.loadReferenceData();
-        this.reloadDashboardData();
-      },
-      error: () => {
-        this.savingUser = false;
-        this.userReady = false;
-        this.errorMessage = 'Could not initialize the dashboard user. Verify that the API is running on localhost:8000.';
-      },
-    });
+    this.savingUser = false;
+    this.userReady = true;
+    this.userId = 'me';
+    localStorage.setItem('oss.dashboard.userDraft', JSON.stringify(this.userDraft));
+    this.loadReferenceData();
+    this.reloadDashboardData();
   }
 
   private reloadDashboardData(): void {
