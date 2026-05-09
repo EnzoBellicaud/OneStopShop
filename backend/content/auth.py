@@ -154,9 +154,13 @@ def register(request):
 	if not password or len(password) < 8:
 		return JsonResponse({'detail': 'Password must be at least 8 characters'}, status=400)
 
-	valid_profiles = [choice[0] for choice in User.ProfileType.choices]
-	if profile not in valid_profiles:
-		return JsonResponse({'detail': f'Profile must be one of: {", ".join(valid_profiles)}'}, status=400)
+	REGISTERABLE_PROFILES = [
+		User.ProfileType.STUDENT,
+		User.ProfileType.ACADEMIC_STAFF,
+		User.ProfileType.COMPANY,
+	]
+	if profile not in REGISTERABLE_PROFILES:
+		return JsonResponse({'detail': f'Profile must be one of: {", ".join(REGISTERABLE_PROFILES)}'}, status=400)
 
 	if User.objects.filter(username=username).exists():
 		return JsonResponse({'detail': 'Username already exists'}, status=409)

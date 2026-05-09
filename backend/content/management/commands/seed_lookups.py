@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
+from content.auth import hash_password
 from content.models import (
     ContactRole,
     Domain,
@@ -165,6 +166,18 @@ class Command(BaseCommand):
                     organization=organization_map[row["org_token"]],
                     role=admin_role,
                 )
+
+        admin_user, created = User.objects.update_or_create(
+            email="admin@oss.com",
+            defaults={
+                "username": "admin",
+                "password_hash": hash_password("passw0rd"),
+                "profile": User.ProfileType.ADMIN,
+                "is_active": True,
+            },
+        )
+        if created:
+            self.stdout.write(self.style.SUCCESS("Admin account seeded: admin@oss.com / passw0rd"))
 
         # Remove deprecated types. Safe: scraper no longer assigns these;
         # Offer FK is PROTECT so deletion will surface any orphaned offers
