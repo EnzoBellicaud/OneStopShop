@@ -228,8 +228,8 @@ def refresh_token(request):
 	return JsonResponse({'tokens': generate_tokens(user.id, user.username, user.profile)}, status=200)
 
 
-@require_http_methods(["GET"])
 @require_auth()
+@require_http_methods(["GET"])
 def get_current_user(request):
 	return JsonResponse({'user': _user_dict(request.auth_user)}, status=200)
 
