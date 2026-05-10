@@ -1,16 +1,16 @@
 <template>
     <nav :style="cssVars">
-        <a class="nav-logo" href="/">Uni<span>Portal</span></a>
+        <RouterLink class="nav-logo" :to="{ name: 'Home' }">One Stop<span> shop</span></RouterLink>
         <ul class="nav-links">
-            <li><a href="#Opportunities">Opportunities</a></li>
-            <li><a href="#about">About</a></li>
-            <li><a href="#how">How it works</a></li>
-            <li><a href="#contact">Contact</a></li>
+            <li><RouterLink :to="{ name: 'Home', hash: '#Opportunities' }">Opportunities</RouterLink></li>
+            <li><RouterLink :to="{ name: 'Home', hash: '#about' }">About</RouterLink></li>
+            <li><RouterLink :to="{ name: 'Home', hash: '#how' }">How it works</RouterLink></li>
+            <li><RouterLink :to="{ name: 'Home', hash: '#contact' }">Contact</RouterLink></li>
         </ul>
         <div class="nav-right">
-            <a class="btn-nav" href="#opportunities">Browse opportunities</a>
+            <RouterLink class="btn-nav" :to="{ name: 'Offers' }">Browse opportunities</RouterLink>
             <template v-if="isLoggedIn">
-                <span class="nav-username">{{ user?.username }}</span>
+                <RouterLink :to="{ name: 'Profile' }" class="nav-username">{{ user?.username }}</RouterLink>
                 <button class="btn-login" @click="logout">Logout</button>
             </template>
             <RouterLink v-else to="/auth" class="btn-login">Login</RouterLink>
@@ -47,22 +47,27 @@ const cssVars = computed(() => ({
   font-weight: 500;
   color: var(--ink);
   padding: 8px 4px;
+  text-decoration: none;
+}
+
+.nav-username:hover {
+  text-decoration: underline;
 }
 
 .btn-login {
   padding: 8px 16px;
-  border: 1px solid #111110;
+  border: 1px solid var(--ink);
   border-radius: 4px;
   text-decoration: none;
   cursor: pointer;
   transition: all 0.2s;
-  color: #111110;
+  color: var(--ink);
   background: transparent;
   font-size: 14px;
 }
 
 .btn-login:hover {
-  background: #111110;
-  color: #ffffff;
+  background: var(--ink);
+  color: var(--surface);
 }
 </style>

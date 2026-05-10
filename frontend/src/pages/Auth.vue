@@ -3,7 +3,7 @@
     <div class="auth-card">
       <div class="auth-header">
         <h1>{{ isLogin ? 'Login' : 'Create Account' }}</h1>
-        <p>{{ isLogin ? 'Welcome back to UniPortal' : 'Join UniPortal today' }}</p>
+        <p>{{ isLogin ? 'Welcome back to the One Stop Shop' : 'Join the One Stop Shop today' }}</p>
       </div>
 
       <!-- Login Form -->
