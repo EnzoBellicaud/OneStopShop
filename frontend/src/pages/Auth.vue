@@ -122,10 +122,11 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
 
 const router = useRouter()
+const route = useRoute()
 const { login, register } = useAuth()
 
 const isLogin = ref(true)
@@ -140,7 +141,8 @@ const handleLogin = async () => {
   loginError.value = ''
   try {
     await login(loginForm.value.username, loginForm.value.password)
-    router.push('/')
+    const raw = route.query.redirect
+    router.push(typeof raw === 'string' && raw.startsWith('/') ? raw : '/')
   } catch (error) {
     loginError.value = error.message
   }
@@ -165,7 +167,8 @@ const handleRegister = async () => {
       last_name: registerForm.value.lastName,
       profile: registerForm.value.profile,
     })
-    router.push('/')
+    const raw = route.query.redirect
+    router.push(typeof raw === 'string' && raw.startsWith('/') ? raw : '/')
   } catch (error) {
     registerError.value = error.message
   }
