@@ -1,6 +1,7 @@
 <template>
   <div class="auth-container">
     <div class="auth-card">
+      <RouterLink :to="{ name: 'Home' }" class="back-link">&larr; Back to home</RouterLink>
       <div class="auth-header">
         <h1>{{ isLogin ? 'Login' : 'Create Account' }}</h1>
         <p>{{ isLogin ? 'Welcome back to the One Stop Shop' : 'Join the One Stop Shop today' }}</p>
@@ -122,7 +123,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRouter, useRoute, RouterLink } from 'vue-router'
 import { useAuth } from '../composables/useAuth'
 
 const router = useRouter()
@@ -192,6 +193,19 @@ const handleRegister = async () => {
   width: 100%;
   max-width: 400px;
   padding: 40px;
+}
+
+.back-link {
+  display: inline-block;
+  margin-bottom: 20px;
+  font-size: 14px;
+  color: #666;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.back-link:hover {
+  color: #111110;
 }
 
 .auth-header {
