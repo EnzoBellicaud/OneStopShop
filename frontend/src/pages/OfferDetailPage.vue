@@ -60,7 +60,7 @@ const offer = computed(() =>
   <AppHeader />
   <main>
     <div class="detail-wrap">
-      <button class="back-btn" @click="router.push('/offers')">← Back to offers</button>
+      <button class="back-btn" @click="router.back()">← Back to offers</button>
 
       <div class="detail-card">
         <div class="card-top">
@@ -84,8 +84,8 @@ const offer = computed(() =>
         </div>
         <p class="detail-desc">{{ offer.description }}</p>
         <div class="detail-actions">
-          <a href="#" class="btn-primary">Apply now</a>
-          <button class="btn-ghost" @click="router.push('/offers')">Back to list</button>
+          <button class="btn-primary" disabled>Apply now</button>
+          <button class="btn-ghost" @click="router.back()">Back to list</button>
         </div>
       </div>
     </div>

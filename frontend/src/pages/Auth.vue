@@ -141,7 +141,8 @@ const handleLogin = async () => {
   loginError.value = ''
   try {
     await login(loginForm.value.username, loginForm.value.password)
-    router.push(route.query.redirect || '/')
+    const raw = route.query.redirect
+    router.push(typeof raw === 'string' && raw.startsWith('/') ? raw : '/')
   } catch (error) {
     loginError.value = error.message
   }
@@ -166,7 +167,8 @@ const handleRegister = async () => {
       last_name: registerForm.value.lastName,
       profile: registerForm.value.profile,
     })
-    router.push(route.query.redirect || '/')
+    const raw = route.query.redirect
+    router.push(typeof raw === 'string' && raw.startsWith('/') ? raw : '/')
   } catch (error) {
     registerError.value = error.message
   }

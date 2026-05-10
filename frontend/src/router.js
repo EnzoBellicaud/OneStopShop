@@ -35,6 +35,8 @@ export const router = createRouter({
 })
 
 router.beforeEach((to) => {
+  // Presence-only check — expiry is handled by api/client.js (401 → refresh → clearAuth).
+  // A stale token here keeps guestOnly routes blocked until the next API call fails.
   const token = localStorage.getItem('access_token')
   if (to.meta.requiresAuth && !token) {
     return { name: 'Auth', query: { redirect: to.fullPath } }

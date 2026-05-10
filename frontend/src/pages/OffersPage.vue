@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import AppHeader from '../components/layout/AppHeader.vue'
 import AppFooter from '../components/layout/AppFooter.vue'
@@ -7,7 +7,7 @@ import AppFooter from '../components/layout/AppFooter.vue'
 const activeFilter = ref('All')
 const filters = ['All', 'Thesis', 'Internship', 'Job', 'Course']
 
-const placeholderCards = [
+const allCards = [
   { id: 1, type: 'Thesis', tagClass: 'tag-thesis', uni: 'UNIBZ',
     title: 'Machine Learning for Climate Data Analysis', location: 'Bolzano, Italy', deadline: 'Jun 2025' },
   { id: 2, type: 'Internship', tagClass: 'tag-intern', uni: 'LiU',
@@ -21,6 +21,12 @@ const placeholderCards = [
   { id: 6, type: 'Internship', tagClass: 'tag-intern', uni: 'TU/e',
     title: 'UX Research Internship — EdTech Startup', location: 'Eindhoven, Netherlands', deadline: 'Jun 2025' },
 ]
+
+const filteredCards = computed(() =>
+  activeFilter.value === 'All'
+    ? allCards
+    : allCards.filter(c => c.type === activeFilter.value)
+)
 </script>
 
 <template>
@@ -54,7 +60,7 @@ const placeholderCards = [
     </div>
 
     <div class="cards-grid">
-      <div v-for="card in placeholderCards" :key="card.id" class="opp-card">
+      <div v-for="card in filteredCards" :key="card.id" class="opp-card">
         <div class="card-top">
           <span class="type-tag" :class="card.tagClass">{{ card.type }}</span>
           <div class="uni-logo-sm">{{ card.uni }}</div>
