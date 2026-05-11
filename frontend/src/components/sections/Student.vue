@@ -1,11 +1,18 @@
 <script setup>
 import RoleContent from './RoleContent.vue'
-const items = ['internship', 'thesis', 'challenge', 'hackathon', 'event', 'mobility']
+import AppHeader from '../layout/AppHeader.vue'
+import AppFooter from '../layout/AppFooter.vue'
+const items = ['thesis', 'training']
 </script>
 
 <template>
-  <RoleContent 
-    search-placeholder="Search internships, hackathons..." 
-    :shortcuts="items" 
-  />
+  <div class="sharedbg">
+    <AppHeader />
+    <RoleContent
+      search-placeholder="Search internships, thesis topics..."
+      :shortcuts="items"
+      target-profile="Student"
+    />
+    <AppFooter />
+  </div>
 </template>

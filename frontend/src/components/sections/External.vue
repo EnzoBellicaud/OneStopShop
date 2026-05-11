@@ -1,11 +1,18 @@
 <script setup>
 import RoleContent from './RoleContent.vue'
-const items = ['life long learning (LLL)', 'experts', 'trainings', 'testbeds', 'labs']
+import AppHeader from '../layout/AppHeader.vue'
+import AppFooter from '../layout/AppFooter.vue'
+const items = ['funding_partner', 'research_group']
 </script>
 
 <template>
-  <RoleContent 
-    search-placeholder="Search labs, trainings..." 
-    :shortcuts="items" 
-  />
+  <div class="sharedbg">
+    <AppHeader />
+    <RoleContent
+      search-placeholder="Search funding partners, research groups..."
+      :shortcuts="items"
+      target-profile="company"
+    />
+    <AppFooter />
+  </div>
 </template>

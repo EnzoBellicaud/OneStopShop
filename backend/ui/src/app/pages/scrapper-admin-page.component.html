@@ -1,0 +1,320 @@
+<section class="scrapper-page">
+
+  <!-- Header -->
+  <header>
+    <p class="eyebrow">Operations</p>
+    <h1>Scraper Dashboard</h1>
+    <div class="header-meta">
+      <p class="lead">Read-only telemetry for crawler &amp; scraper runs.</p>
+      <div class="refresh-controls">
+        <span class="last-refresh">Refreshed {{ lastRefreshed | date:'HH:mm:ss' }}</span>
+        <button class="btn-ghost" (click)="toggleAutoRefresh()" [class.active]="autoRefresh()">
+          {{ autoRefresh() ? '⟳ Auto' : '⟳ Paused' }}
+        </button>
+        <button class="btn-primary" (click)="refresh()">Refresh</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Tab bar -->
+  <nav class="tab-bar">
+    <button
+      *ngFor="let tab of TABS; let i = index"
+      class="tab-btn"
+      [class.active]="activeTab() === tab.id"
+      (click)="selectTab(tab.id)"
+    >{{ i + 1 }}. {{ tab.label }}</button>
+  </nav>
+
+  <!-- ───────────────────── OVERVIEW TAB ───────────────────── -->
+  <div *ngIf="activeTab() === 'overview'" class="tab-content">
+    <div class="tab-toolbar">
+      <span class="section-title">Overview</span>
+      <div class="window-toggle">
+        <button *ngFor="let w of WINDOWS" [class.active]="overviewWindow === w" (click)="changeOverviewWindow(w)">{{ w }}</button>
+      </div>
+    </div>
+
+    <p class="hint" *ngIf="loadingOverview">Loading overview…</p>
+
+    <ng-container *ngIf="!loadingOverview && overview">
+      <!-- KPI cards -->
+      <div class="kpi-grid">
+        <app-stat-card label="Total runs" [value]="overview.runs_total"></app-stat-card>
+        <app-stat-card label="Success" [value]="overview.runs_success" tone="positive"></app-stat-card>
+        <app-stat-card label="Offers created" [value]="overview.offers_created" tone="positive"></app-stat-card>
+        <app-stat-card label="Offers updated" [value]="overview.offers_updated"></app-stat-card>
+        <app-stat-card label="URLs skipped" [value]="overview.urls_neglected_total" hint="Skipped — generic page or deemed not relevant"></app-stat-card>
+        <app-stat-card label="Errors total" [value]="overview.errors_total" [tone]="overview.errors_total > 0 ? 'danger' : 'neutral'"></app-stat-card>
+        <app-stat-card label="AI confidence" [value]="overviewConfLlm" hint="How confident the AI was when extracting offers (0–1)"></app-stat-card>
+        <app-stat-card label="Rules confidence" [value]="overviewConfDet" hint="How confident the rules-based extractor was (0–1)"></app-stat-card>
+      </div>
+
+      <!-- Timeline charts -->
+      <div class="charts-row">
+        <app-mini-bar-chart
+          [data]="timelineRunChart"
+          [title]="'Scrape runs — ' + overviewWindow"
+          color="#23638f"
+          [width]="300"
+          [barHeight]="72">
+        </app-mini-bar-chart>
+        <app-mini-bar-chart
+          [data]="timelineErrorChart"
+          [title]="'URL errors — ' + overviewWindow"
+          color="#c0392b"
+          [width]="300"
+          [barHeight]="72">
+        </app-mini-bar-chart>
+      </div>
+
+      <!-- Method split -->
+      <div class="method-split-bar" *ngIf="overviewMethodSplit.length">
+        <span class="section-title">Method split</span>
+        <div class="method-bars">
+          <div
+            *ngFor="let m of overviewMethodSplit"
+            class="method-segment"
+            [style.flex]="m.pct"
+            [title]="friendlyMethod(m.method) + ': ' + m.count + ' (' + m.pct + '%)'"
+            [attr.data-method]="m.method"
+          >{{ m.pct > 8 ? m.pct + '%' : '' }}</div>
+        </div>
+        <div class="method-legend">
+          <span *ngFor="let m of overviewMethodSplit" class="legend-item">
+            <span class="legend-dot" [attr.data-method]="m.method"></span>
+            {{ friendlyMethod(m.method) }}: {{ m.count }}
+          </span>
+        </div>
+      </div>
+    </ng-container>
+  </div>
+
+  <!-- ───────────────────── RUNS TAB ───────────────────── -->
+  <div *ngIf="activeTab() === 'runs'" class="tab-content">
+    <div class="tab-toolbar">
+      <label>
+        Max runs
+        <select [(ngModel)]="limit" (change)="refreshRuns()">
+          <option [value]="10">10</option>
+          <option [value]="20">20</option>
+          <option [value]="50">50</option>
+          <option [value]="100">100</option>
+        </select>
+      </label>
+      <label>
+        Status
+        <select [(ngModel)]="statusFilter">
+          <option value="">All</option>
+          <option *ngFor="let s of statuses" [value]="s">{{ s }}</option>
+        </select>
+      </label>
+      <label>
+        Source
+        <input type="text" [(ngModel)]="sourceFilter" placeholder="filter…" />
+      </label>
+      <label class="toggle-label">
+        <input type="checkbox" [(ngModel)]="pinFailures" />
+        Pin failures
+      </label>
+      <button class="btn-primary" (click)="refreshRuns()">Refresh</button>
+    </div>
+
+    <p class="hint" *ngIf="loadingRuns">Loading runs…</p>
+
+    <div class="runs-layout" *ngIf="!loadingRuns">
+      <!-- Run list -->
+      <aside class="run-list">
+        <article
+          class="run-card"
+          *ngFor="let run of filteredRuns; trackBy: trackRun"
+          (click)="selectRun(run.id)"
+          [class.active]="selectedRun?.id === run.id"
+        >
+          <div class="card-top">
+            <app-status-chip [status]="run.status"></app-status-chip>
+            <small class="muted">{{ relativeTime(run.created_at) }}</small>
+          </div>
+          <h3>{{ run.source_key }}</h3>
+          <p class="counters">
+            {{ run.offers_created }} new · {{ run.offers_updated }} updated · {{ run.urls_neglected }} skipped · {{ run.errors_count }} errors
+          </p>
+        </article>
+        <p class="hint" *ngIf="filteredRuns.length === 0">No runs match.</p>
+      </aside>
+
+      <!-- Run detail -->
+      <section class="run-detail">
+        <p class="hint" *ngIf="loadingDetail">Loading run details…</p>
+
+        <ng-container *ngIf="!loadingDetail && selectedRun as run">
+          <!-- Summary strip -->
+          <div class="detail-header">
+            <h2>{{ run.source_key }}</h2>
+            <app-status-chip [status]="run.status"></app-status-chip>
+          </div>
+          <div class="stats" [class.has-errors]="run.errors_count > 0">
+            <div><span>Processed</span><strong>{{ run.offers_processed }}</strong></div>
+            <div><span>Created</span><strong>{{ run.offers_created }}</strong></div>
+            <div><span>Updated</span><strong>{{ run.offers_updated }}</strong></div>
+            <div><span>Unchanged</span><strong>{{ run.offers_unchanged }}</strong></div>
+            <div><span>Skipped</span><strong>{{ run.urls_neglected }}</strong></div>
+            <div><span>Errors</span><strong [class.red]="run.errors_count > 0">{{ run.errors_count }}</strong></div>
+          </div>
+
+          <!-- URL results table -->
+          <div class="table-toolbar">
+            <span class="section-title">URL Results ({{ selectedRunUrlResults.length }})</span>
+            <div class="table-controls">
+              <label>
+                <input type="radio" [(ngModel)]="runUrlFilter" value="all" /> All
+              </label>
+              <label>
+                <input type="radio" [(ngModel)]="runUrlFilter" value="failures" /> Errors only
+              </label>
+              <label>
+                <input type="radio" [(ngModel)]="runUrlFilter" value="skipped" /> Skipped only
+              </label>
+              <button class="btn-ghost" (click)="exportRunCsv()">Export CSV</button>
+            </div>
+          </div>
+
+          <div class="url-table-wrap">
+            <table class="data-table url-table">
+              <thead>
+                <tr>
+                  <th (click)="sortRunResults('url')">URL {{ runSortCol === 'url' ? (runSortAsc ? '▲' : '▼') : '' }}</th>
+                  <th (click)="sortRunResults('method')">Method</th>
+                  <th (click)="sortRunResults('http_status')">HTTP</th>
+                  <th (click)="sortRunResults('confidence')">Conf</th>
+                  <th>Status</th>
+                  <th>Note</th>
+                </tr>
+              </thead>
+              <tbody>
+                <ng-container *ngFor="let r of selectedRunUrlResults">
+                  <tr (click)="toggleRawRow(r.url)" [class.failed-row]="r.failed" [class.skipped-row]="r.neglected" style="cursor:pointer">
+                    <td class="url-cell" [title]="r.url">{{ r.url }}</td>
+                    <td>
+                      <app-status-chip *ngIf="r.method" [status]="r.method" variant="method"></app-status-chip>
+                    </td>
+                    <td>{{ r.http_status ?? '—' }}</td>
+                    <td>{{ r.confidence != null ? (r.confidence | number:'1.2-2') : '—' }}</td>
+                    <td>
+                      <span class="chip-inline"
+                        [class.chip-ok]="!r.failed && !r.neglected"
+                        [class.chip-warn]="r.neglected"
+                        [class.chip-fail]="r.failed">
+                        {{ r.failed ? 'error' : r.neglected ? 'skipped' : r.action ?? 'ok' }}
+                      </span>
+                    </td>
+                    <td class="muted small">{{ r.reason ?? r.message ?? '' }}</td>
+                  </tr>
+                  <tr *ngIf="expandedRawRows.has(r.url)" class="raw-row">
+                    <td colspan="6">
+                      <pre>{{ r | json }}</pre>
+                    </td>
+                  </tr>
+                </ng-container>
+                <tr *ngIf="selectedRunUrlResults.length === 0">
+                  <td colspan="6" class="hint">No URL results in this run.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Raw log -->
+          <details class="raw-log-details">
+            <summary>Raw log ({{ run.log.length }} entries)</summary>
+            <pre>{{ run.log | json }}</pre>
+          </details>
+        </ng-container>
+
+        <p class="hint" *ngIf="!loadingDetail && !selectedRun">Select a run to inspect details.</p>
+      </section>
+    </div>
+  </div>
+
+  <!-- ───────────────────── SOURCES TAB ───────────────────── -->
+  <div *ngIf="activeTab() === 'sources'" class="tab-content">
+    <div class="tab-toolbar">
+      <span class="section-title">Queue Health</span>
+      <div class="sort-controls">
+        Sort:
+        <button *ngFor="let opt of SOURCE_SORTS"
+          [class.active]="sourceSort === opt.id"
+          (click)="sourceSort = opt.id">{{ opt.label }}</button>
+      </div>
+    </div>
+
+    <p class="hint" *ngIf="loadingSources">Loading sources…</p>
+
+    <div class="source-grid" *ngIf="!loadingSources">
+      <article class="source-card" *ngFor="let s of sortedSources">
+        <div class="card-top">
+          <h3>{{ formatSourceKey(s.source_key) }}</h3>
+          <span class="badge-total">{{ s.total_urls }} URLs</span>
+        </div>
+        <p class="muted small">Last scraped: {{ relativeTime(s.last_scraped_at) }}</p>
+
+        <!-- Progress bar: done vs total -->
+        <div class="queue-progress">
+          <div class="queue-bar-fill" [style.width.%]="sourceDonePercent(s)" [title]="sourceDonePercent(s) + '% done'"></div>
+        </div>
+        <p class="queue-pct muted small">{{ sourceDonePercent(s) }}% done</p>
+
+        <div class="source-metrics">
+          <span class="metric-pill metric-done">✓ {{ s.done }} done</span>
+          <span class="metric-pill metric-pending" *ngIf="s.pending > 0">⏳ {{ s.pending }} pending</span>
+          <span class="metric-pill metric-error" *ngIf="s.error > 0">⚠ {{ s.error }} error</span>
+          <span class="metric-pill metric-archived" *ngIf="s.archived > 0">✕ {{ s.archived }} archived</span>
+        </div>
+
+        <button class="btn-ghost" (click)="viewSourceRuns(s.source_key)">View runs →</button>
+      </article>
+      <p class="hint" *ngIf="sortedSources.length === 0">No source data yet.</p>
+    </div>
+  </div>
+
+  <!-- ───────────────────── ERRORS TAB ───────────────────── -->
+  <div *ngIf="activeTab() === 'errors'" class="tab-content">
+    <div class="tab-toolbar">
+      <span class="section-title">URL fetch errors — last 50 runs</span>
+      <button class="btn-primary" (click)="loadErrors()">Reload</button>
+    </div>
+
+    <p class="hint" *ngIf="loadingErrors">Loading error data… (fetches up to 50 run logs)</p>
+
+    <ng-container *ngIf="!loadingErrors">
+      <p class="hint muted">{{ crossRunErrors.length }} fetch errors found. (Skipped/neglected URLs are not listed here.)</p>
+      <div class="url-table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Source</th>
+              <th>URL</th>
+              <th>HTTP</th>
+              <th>Message</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let e of crossRunErrors" class="failed-row">
+              <td class="small muted">{{ e.ts | date:'short' }}</td>
+              <td class="small">{{ e.source_key ?? '—' }}</td>
+              <td class="url-cell small" [title]="e.url">{{ e.url ?? '—' }}</td>
+              <td class="num">{{ e.http_status ?? '—' }}</td>
+              <td class="small muted">{{ e.message ?? '—' }}</td>
+              <td><button class="btn-ghost small" (click)="openRunFromError(e.runId)">→ Run</button></td>
+            </tr>
+            <tr *ngIf="crossRunErrors.length === 0">
+              <td colspan="6" class="hint">No errors found in last 50 runs.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </ng-container>
+  </div>
+
+</section>

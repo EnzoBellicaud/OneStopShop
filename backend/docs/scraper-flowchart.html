@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OneStopShop Scraper Flowchart</title>
+  <style>
+    :root {
+      --bg: #f7f8f5;
+      --panel: #ffffff;
+      --ink: #1f2a2a;
+      --muted: #5a6969;
+      --accent: #0f766e;
+      --accent-soft: #d6f0ec;
+      --border: #d7e0de;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: radial-gradient(circle at 0 0, #eef5ee 0%, var(--bg) 55%);
+      color: var(--ink);
+    }
+
+    .page {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(31, 42, 42, 0.07);
+    }
+
+    h1 { margin: 0 0 6px; color: #0c4a45; font-size: 1.8rem; line-height: 1.2; }
+    h2 { margin: 0 0 6px; color: #0c4a45; font-size: 1.15rem; }
+    p  { margin: 0; color: var(--muted); line-height: 1.55; }
+
+    .meta { margin-top: 6px; font-size: 0.88rem; color: #45615f; }
+
+    .chart-wrap {
+      margin-top: 16px;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: linear-gradient(180deg, #fbfcfb 0%, #f4f8f7 100%);
+      padding: 10px;
+    }
+
+    .mermaid { margin: 0; min-width: 700px; }
+    .mermaid svg { height: auto; }
+
+    .legend {
+      margin-top: 14px;
+      padding: 12px 16px;
+      border: 1px dashed #bdd5d2;
+      border-radius: 10px;
+      background: var(--accent-soft);
+      color: #134e4a;
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+
+    .legend-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 6px 20px;
+      margin-top: 8px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.88rem;
+    }
+
+    .dot {
+      width: 12px; height: 12px;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    code {
+      background: rgba(15, 118, 110, 0.1);
+      padding: 1px 5px;
+      border-radius: 5px;
+      color: #0f5e57;
+      font-size: 0.88em;
+    }
+
+    .job-label {
+      display: inline-block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 3px 10px;
+      border-radius: 20px;
+      margin-bottom: 8px;
+    }
+
+    .job-crawler { background: #dbeafe; color: #1e40af; }
+    .job-scraper { background: #d1fae5; color: #065f46; }
+    .job-api     { background: #ede9fe; color: #4c1d95; }
+  </style>
+</head>
+<body>
+  <main class="page">
+
+    <!-- Header -->
+    <section class="card">
+      <h1>OneStopShop — Scraper &amp; Import Architecture</h1>
+      <p>Two decoupled APScheduler jobs share a <code>CrawlUrl</code> queue table. The Crawler discovers URLs; the Scraper processes them. Manual imports write directly via the API.</p>
+      <p class="meta">Reflects logic in <code>backend/content/scrapers/service.py</code>, <code>source_registry.py</code>, and <code>content/ingestion/importer.py</code></p>
+    </section>
+
+    <!-- Job 1: Crawler -->
+    <section class="card">
+      <span class="job-label job-crawler">Job 1 — Crawler · every 360 min</span>
+      <h2>URL Discovery → CrawlUrl Queue</h2>
+      <p>Runs for each configured source. Populates the queue; never fetches or parses page content.</p>
+
+      <div class="chart-wrap">
+        <pre class="mermaid">
+flowchart TD
+  A(["Crawler triggered"]) --> B["Load enabled sources"]
+  B --> C{"Any sources?"}
+  C -- No --> Z1(["Done"])
+  C -- Yes --> D["For each source"]
+
+  D --> E{"crawl_enabled?"}
+
+  E -- "Yes - BFS mode" --> F["Fetch seed URL HTML"]
+  F --> G["Extract depth-1 links filtered by include/exclude patterns"]
+  G --> H["get_or_create CrawlUrl per link — archived not resurrected"]
+
+  E -- "No - single URL" --> I["get_or_create CrawlUrl for known URL"]
+
+  H --> J{"More sources?"}
+  I --> J
+  J -- Yes --> D
+  J -- No --> Z2(["Crawler done — queue updated"])
+
+  classDef startend fill:#dbeafe,stroke:#2563eb,stroke-width:1.5px,color:#1e3a8a
+  classDef process  fill:#e8f0ff,stroke:#2563eb,stroke-width:1px,color:#1e3a8a
+  classDef decision fill:#fff7db,stroke:#b45309,stroke-width:1px,color:#7c2d12
+  classDef done     fill:#d1fae5,stroke:#059669,stroke-width:1.5px,color:#064e3b
+
+  class A,Z1,Z2 startend
+  class B,D,F,G,H,I process
+  class C,E,J decision
+        </pre>
+      </div>
+    </section>
+
+    <!-- Job 2: Scraper -->
+    <section class="card">
+      <span class="job-label job-scraper">Job 2 — Scraper · every 5 min</span>
+      <h2>URL Processing → Offer Upsert</h2>
+      <p>Claims a batch of pending/due <code>CrawlUrl</code> rows and processes each one. Creates a <code>ScrapingRun</code> record with a full structured log.</p>
+
+      <div class="chart-wrap">
+        <pre class="mermaid">
+flowchart TD
+  A(["Scraper triggered"]) --> B["Claim up to BATCH_SIZE pending/due CrawlUrls"]
+  B --> C{"URLs claimed?"}
+  C -- No --> Z1(["Done — queue empty"])
+  C -- Yes --> D["Create ScrapingRun — status RUNNING"]
+  D --> E["For each URL"]
+
+  E --> F["Fetch HTML"]
+  F --> G{"HTTP result?"}
+
+  G -- "404 / 410" --> P1["status = archived"]
+  P1 --> P2["Archive or delete linked offer"]
+  P2 --> LOG
+
+  G -- "5xx / timeout" --> Q1["Increment consecutive_errors"]
+  Q1 --> Q2{"errors >= MAX?"}
+  Q2 -- Yes --> Q3["status = archived — archive offer"]
+  Q2 -- No  --> Q4["status = error — backoff 1h / 6h / 24h"]
+  Q3 --> LOG
+  Q4 --> LOG
+
+  G -- "2xx" --> H["Run deterministic extraction"]
+  H --> I{"crawl_enabled source?"}
+
+  I -- Yes --> J["AI relevance check and extraction via Ollama"]
+  J --> K{"Relevant offer? Confidence >= threshold?"}
+  K -- No  --> K1["Decision: NEGLECT — log reason code"]
+  K1 --> K2["status = done — skipped"]
+  K2 --> LOG
+  K -- Yes --> L["Pick best payload: LLM if confidence >= deterministic"]
+  L --> M["Upsert Offer — link CrawlUrl.offer"]
+  M --> N["status = done — next_check_at = now + 7 days"]
+  N --> LOG
+
+  I -- No --> R["AI is primary — deterministic is fallback"]
+  R --> L
+
+  LOG["Append url_processed or url_neglected to ScrapingRun log"] --> MORE{"More URLs?"}
+  MORE -- Yes --> E
+  MORE -- No --> FIN["Update ScrapingRun counters and status"]
+  FIN --> STALE["Flag stale candidates — successful sources only"]
+  STALE --> Z2(["ScrapingRun complete"])
+
+  classDef startend fill:#d1fae5,stroke:#059669,stroke-width:1.5px,color:#064e3b
+  classDef process  fill:#e8f0ff,stroke:#2563eb,stroke-width:1px,color:#1e3a8a
+  classDef decision fill:#fff7db,stroke:#b45309,stroke-width:1px,color:#7c2d12
+  classDef fail     fill:#fee2e2,stroke:#b91c1c,stroke-width:1px,color:#7f1d1d
+  classDef skip     fill:#fef9c3,stroke:#ca8a04,stroke-width:1px,color:#78350f
+
+  class A,Z1,Z2 startend
+  class B,D,E,F,H,J,L,M,N,R,LOG,FIN,STALE process
+  class C,G,I,K,MORE,Q2 decision
+  class P1,P2,Q1,Q3,Q4 fail
+  class K1,K2 skip
+        </pre>
+      </div>
+    </section>
+
+    <!-- Manual Import -->
+    <section class="card">
+      <span class="job-label job-api">API — Manual Import</span>
+      <h2>CSV / Excel → Offer + CrawlUrl</h2>
+      <p>Operator uploads a file, reviews validation output, then confirms. No scraper job involved.</p>
+
+      <div class="chart-wrap">
+        <pre class="mermaid">
+flowchart LR
+  A(["Operator"]) --> B["GET /api/offers/import/template — download .xlsx"]
+  A --> C["POST /api/offers/import/preview — upload CSV or Excel"]
+  C --> D["Parse and validate rows — required fields, URL format, lookup values"]
+  D --> E["Return PreviewResult — valid list and invalid list with errors"]
+  E --> F{"Review and confirm"}
+  F -- "POST confirm with rows" --> G["POST /api/offers/import/confirm"]
+  G --> H["For each row: get_or_create Offer — status draft or published"]
+  H --> I["Create CrawlUrl — source_key = import__ plus org_id — status pending"]
+  I --> J(["ConfirmResult — drafts and published counts"])
+
+  classDef startend fill:#ede9fe,stroke:#7c3aed,stroke-width:1.5px,color:#4c1d95
+  classDef process  fill:#e8f0ff,stroke:#2563eb,stroke-width:1px,color:#1e3a8a
+  classDef decision fill:#fff7db,stroke:#b45309,stroke-width:1px,color:#7c2d12
+  classDef done     fill:#d1fae5,stroke:#059669,stroke-width:1.5px,color:#064e3b
+
+  class A,J startend
+  class B,C,D,E,G,H,I process
+  class F decision
+        </pre>
+      </div>
+    </section>
+
+    <!-- URL Status Lifecycle -->
+    <section class="card">
+      <h2>CrawlUrl Status Lifecycle</h2>
+      <div class="chart-wrap">
+        <pre class="mermaid">
+stateDiagram-v2
+  [*] --> pending : Crawler discovers URL or import confirms row
+
+  pending --> processing : Scraper claims batch
+
+  processing --> done     : 2xx — offer upserted or page skipped — next check in 7 days
+  processing --> error    : 5xx or timeout — consecutive errors below MAX — backoff applied
+  processing --> archived : 404 or 410 or consecutive errors reached MAX — offer archived
+
+  error --> pending : Backoff expires — re-queued for retry
+
+  done --> pending : Revisit window expires after 7 days
+        </pre>
+      </div>
+
+      <div class="legend">
+        <strong>Decision codes logged per URL in ScrapingRun.log:</strong>
+        <div class="legend-grid">
+          <div class="legend-item"><div class="dot" style="background:#86efac"></div><span><code>mapped</code> — offer upserted successfully</span></div>
+          <div class="legend-item"><div class="dot" style="background:#fde68a"></div><span><code>neglected / non_relevant_page</code> — crawl page rejected by AI</span></div>
+          <div class="legend-item"><div class="dot" style="background:#fde68a"></div><span><code>neglected / missing_core_fields</code> — extraction returned incomplete data</span></div>
+          <div class="legend-item"><div class="dot" style="background:#fca5a5"></div><span><code>failed</code> — HTTP or network error</span></div>
+          <div class="legend-item"><div class="dot" style="background:#d1d5db"></div><span><code>archived</code> — permanent 404/410 or repeated errors exceeded limit</span></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: "base",
+      themeVariables: {
+        primaryTextColor: "#1f2a2a",
+        lineColor: "#4b6b69",
+        fontFamily: "Segoe UI, Tahoma, Geneva, Verdana, sans-serif",
+        fontSize: "13px"
+      },
+      flowchart: {
+        curve: "basis",
+        nodeSpacing: 30,
+        rankSpacing: 40,
+        useMaxWidth: true,
+        htmlLabels: false
+      }
+    });
+  </script>
+</body>
+</html>

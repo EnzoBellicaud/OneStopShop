@@ -1,63 +1,86 @@
 <template>
-  <div class="profile-container">
-    <div class="profile-card">
-      <div class="profile-header">
-        <div class="avatar-circle">
-          {{ user.name.charAt(0) }}
-        </div>
-        <div class="header-info">
-          <h2>{{ user.name }}</h2>
-          <span class="role-badge">{{ user.role }}</span>
-        </div>
+  <div>
+    <div v-if="!user" class="profile-container">
+      <div class="profile-card">
+        <p style="text-align:center; color:#666;">
+          Please <router-link to="/login" style="color:var(--accent-mid)">log in</router-link> to view your profile.
+        </p>
       </div>
+    </div>
 
-      <div class="profile-details">
-        <div class="detail-item">
-          <label>Email Address</label>
-          <p>{{ user.email }}</p>
+    <div v-else class="profile-container">
+      <div class="profile-card">
+        <div class="profile-header">
+          <div class="avatar-circle">{{ initials }}</div>
+          <div class="header-info">
+            <h2>{{ fullName }}</h2>
+            <span class="role-badge">{{ user.profile }}</span>
+          </div>
         </div>
-        
-        <div class="detail-item">
-          <label>Student ID / Staff Number</label>
-          <p>{{ user.idNumber }}</p>
+
+        <div class="profile-details">
+          <div class="detail-item">
+            <label>Email Address</label>
+            <p>{{ user.email }}</p>
+          </div>
+          <div class="detail-item">
+            <label>Username</label>
+            <p>{{ user.username }}</p>
+          </div>
         </div>
 
-        <div class="detail-item">
-          <label>Department / Faculty</label>
-          <p>{{ user.department }}</p>
+        <div class="user-sections">
+          <div class="section-box">
+            <h3>Saved Favorites</h3>
+            <div v-if="favLoading" class="placeholder-info">Loading…</div>
+            <div v-else-if="favorites.length === 0" class="placeholder-info">No saved favorites yet.</div>
+            <ul v-else class="favorites-list">
+              <li v-for="fav in favorites" :key="fav.id" style="margin-bottom:8px;">
+                <a :href="fav.offer.link" target="_blank" rel="noopener noreferrer" style="color:var(--accent-mid); text-decoration:none;">
+                  ⭐ {{ fav.offer.title }} — {{ fav.offer.organization }}
+                </a>
+              </li>
+            </ul>
+          </div>
         </div>
-      </div>
 
-      <div class="user-sections">
-  <div class="section-box">
-    <h3>My Needs & Offers</h3>
-    <div class="placeholder-info">You haven't posted any offers yet.</div>
-  </div>
-
-  <div class="section-box">
-    <h3>Saved Favorites</h3>
-    <ul class="favorites-list">
-      <li>⭐ International Exchange Program</li>
-      <li>⭐ Library Digital Access</li>
-    </ul>
-  </div>
-</div>
-
-      <div class="profile-actions">
-        <router-link to="/" class="edit-btn">Home page</router-link>
+        <div class="profile-actions">
+          <router-link to="/" class="edit-btn">Home page</router-link>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useAuth } from '../../composables/useAuth.js'
+import { api } from '../../services/api.js'
 
-const user = ref({
-  name: 'FirstName SecondName',
-  role: 'Role',
-  email: 'u.example@university.st',
-  idNumber: 'ST-123456',
-  department: 'Faculty of Computer Science'
+const { user } = useAuth()
+
+const favLoading = ref(false)
+const favorites = ref([])
+
+const fullName = computed(() => {
+  if (!user.value) return ''
+  const { first_name, last_name, username } = user.value
+  return (first_name || last_name) ? `${first_name} ${last_name}`.trim() : username
+})
+
+const initials = computed(() => fullName.value.charAt(0).toUpperCase())
+
+onMounted(async () => {
+  if (!user.value) return
+  favLoading.value = true
+  try {
+    const res = await api.get(`/api/users/${user.value.id}/favorites?page_size=10`)
+    if (res && res.ok) {
+      const data = await res.json()
+      favorites.value = data.results
+    }
+  } finally {
+    favLoading.value = false
+  }
 })
 </script>
