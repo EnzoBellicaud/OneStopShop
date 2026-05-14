@@ -1,0 +1,43 @@
+<div class="login-shell">
+  <div class="login-card">
+    <p class="brand">SUNRISE OSS</p>
+    <h1>Admin Login</h1>
+    <p class="subtitle">Internal management portal</p>
+
+    <form (ngSubmit)="onSubmit()" #loginForm="ngForm">
+      <div class="field">
+        <label for="username">Username</label>
+        <input
+          id="username"
+          name="username"
+          type="text"
+          [(ngModel)]="username"
+          required
+          autocomplete="username"
+          placeholder="admin"
+        />
+      </div>
+
+      <div class="field">
+        <label for="password">Password</label>
+        <input
+          id="password"
+          name="password"
+          type="password"
+          [(ngModel)]="password"
+          required
+          autocomplete="current-password"
+          placeholder="••••••••"
+        />
+      </div>
+
+      @if (error) {
+        <p class="error">{{ error }}</p>
+      }
+
+      <button type="submit" [disabled]="loading || !loginForm.valid">
+        {{ loading ? 'Signing in…' : 'Sign in' }}
+      </button>
+    </form>
+  </div>
+</div>

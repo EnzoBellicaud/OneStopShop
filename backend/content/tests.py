@@ -551,69 +551,6 @@ class UserCrudApiTests(TestCase):
 			preferred_countries=["IT"],
 		)
 
-	def test_upsert_user_creates_user_profile_and_org_link(self):
-		response = self.client.post(
-			"/api/users",
-			data={
-				"email": "new.user@example.com",
-				"username": "newuser",
-				"organization_id": str(self.organization.id),
-				"profile": {
-					"bio": "Created from stage 2",
-					"preferred_domains": ["Data"],
-					"preferred_countries": ["DE"],
-					"notification_enabled": False,
-				},
-			},
-			content_type="application/json",
-		)
-
-		payload = response.json()
-		self.assertEqual(response.status_code, 201)
-		self.assertTrue(payload["is_new"])
-		self.assertEqual(payload["profile"]["bio"], "Created from stage 2")
-		self.assertEqual(payload["organizations"][0]["name"], "Stage Two Org")
-		self.assertTrue(User.objects.filter(email="new.user@example.com").exists())
-
-	def test_upsert_user_updates_existing_user_and_reactivates(self):
-		self.user.is_active = False
-		self.user.save(update_fields=["is_active"])
-
-		response = self.client.post(
-			"/api/users",
-			data={"email": self.user.email, "username": "renamed-user"},
-			content_type="application/json",
-		)
-
-		payload = response.json()
-		self.assertEqual(response.status_code, 200)
-		self.assertFalse(payload["is_new"])
-		self.user.refresh_from_db()
-		self.assertEqual(self.user.username, "renamed-user")
-		self.assertTrue(self.user.is_active)
-
-	def test_upsert_user_requires_email_and_username(self):
-		response = self.client.post(
-			"/api/users",
-			data={"email": "", "username": ""},
-			content_type="application/json",
-		)
-
-		self.assertEqual(response.status_code, 400)
-		self.assertEqual(response.json()["error"], "validation_error")
-
-	def test_upsert_user_accepts_cross_origin_json_without_csrf_token(self):
-		csrf_client = Client(enforce_csrf_checks=True)
-		response = csrf_client.post(
-			"/api/users",
-			data={"email": "spa.user@example.com", "username": "spauser"},
-			content_type="application/json",
-			HTTP_ORIGIN="http://localhost:4200",
-		)
-
-		self.assertEqual(response.status_code, 201)
-		self.assertTrue(User.objects.filter(email="spa.user@example.com").exists())
-
 	def test_get_user_detail_returns_profile_and_organizations(self):
 		UserOrganization.objects.create(
 			user=self.user,

@@ -147,21 +147,10 @@ export interface UserDetail extends UserSummary {
   organizations: UserOrganization[];
 }
 
-export interface UserUpsertRequest {
-  email: string;
-  username: string;
-  organization_id?: string | null;
-  profile?: Partial<UserProfile>;
-}
-
 export interface UserUpdateRequest {
   email?: string;
   username?: string;
   profile?: Partial<UserProfile>;
-}
-
-export interface UserUpsertResponse extends UserDetail {
-  is_new: boolean;
 }
 
 export interface DashboardStats {
@@ -396,7 +385,9 @@ export interface AdminMatchingStats {
 export interface AdminContentStatsResponse {
   needs: AdminNeedsStats;
   favorites: AdminFavoritesStats;
-  matching: AdminMatchingStats;}
+  matching: AdminMatchingStats;
+}
+
 export interface TimelineBucket {
   bucket: string;
   runs: number;

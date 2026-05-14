@@ -9,21 +9,13 @@
     </div>
 
     <form class="identity-card" (ngSubmit)="saveIdentity()">
-      <h2>Local dev identity</h2>
+      <h2>View user dashboard</h2>
       <label>
-        Email
-        <input type="email" name="userEmail" [(ngModel)]="userDraft.email" aria-label="Dashboard user email" />
-      </label>
-      <label>
-        Username
-        <input type="text" name="userName" [(ngModel)]="userDraft.username" aria-label="Dashboard user username" />
-      </label>
-      <label>
-        Bio
-        <textarea name="userBio" [(ngModel)]="userDraft.bio" rows="2" aria-label="Dashboard user bio"></textarea>
+        User ID
+        <input type="text" name="userId" [(ngModel)]="userDraft.userId" placeholder="Paste a user UUID" aria-label="User ID" />
       </label>
       <button type="submit" [disabled]="savingUser">
-        {{ savingUser ? 'Syncing user...' : 'Sync user' }}
+        {{ savingUser ? 'Loading...' : 'Load dashboard' }}
       </button>
     </form>
   </header>

@@ -13,7 +13,6 @@ import {
   UserNeed,
   UserNeedCreateRequest,
   UserNeedUpdateRequest,
-  UserUpsertRequest,
 } from '../shared/api.models';
 import { OssApiService } from '../shared/oss-api.service';
 
@@ -37,7 +36,7 @@ export class DashboardPageComponent implements OnInit, OnDestroy {
   targetProfiles: TargetProfileLookup[] = [];
   offers: Offer[] = [];
 
-  userDraft = this.loadUserDraft();
+  userDraft = { userId: localStorage.getItem('oss.dashboard.userId') ?? '' };
   selectedNeedStatus: UserNeed['status'] = 'active';
   selectedMatchStatus: MatchingHitsQueryParams['status'] | '' = '';
   selectedMatchSort: MatchingHitsQueryParams['sort'] = '-match_score';
@@ -85,7 +84,7 @@ export class DashboardPageComponent implements OnInit, OnDestroy {
 
   get selectedUserLabel(): string {
     if (!this.dashboard) {
-      return this.userDraft.username;
+      return this.userDraft.userId || '—';
     }
 
     return `${this.dashboard.user.username} (${this.dashboard.user.email})`;
@@ -271,31 +270,28 @@ export class DashboardPageComponent implements OnInit, OnDestroy {
   }
 
   private bootstrapUserAndLoad(): void {
+    const id = this.userDraft.userId.trim();
+    if (!id) {
+      this.errorMessage = 'Enter a user ID to load the dashboard.';
+      return;
+    }
+
     this.savingUser = true;
     this.errorMessage = '';
+    this.userId = id;
 
-    const payload: UserUpsertRequest = {
-      email: this.userDraft.email.trim().toLowerCase(),
-      username: this.userDraft.username.trim(),
-      profile: {
-        bio: this.userDraft.bio,
-      },
-    };
-
-    this.api.upsertUser(payload).pipe(takeUntil(this.destroy$)).subscribe({
-      next: (user) => {
+    this.api.getUser(id).pipe(takeUntil(this.destroy$)).subscribe({
+      next: () => {
         this.savingUser = false;
         this.userReady = true;
-        this.userId = user.id;
-        localStorage.setItem('oss.dashboard.userId', user.id);
-        localStorage.setItem('oss.dashboard.userDraft', JSON.stringify(this.userDraft));
+        localStorage.setItem('oss.dashboard.userId', id);
         this.loadReferenceData();
         this.reloadDashboardData();
       },
       error: () => {
         this.savingUser = false;
         this.userReady = false;
-        this.errorMessage = 'Could not initialize the dashboard user. Verify that the API is running on localhost:8000.';
+        this.errorMessage = 'User not found. Enter a valid user UUID.';
       },
     });
   }
@@ -427,21 +423,4 @@ export class DashboardPageComponent implements OnInit, OnDestroy {
     };
   }
 
-  private loadUserDraft(): { email: string; username: string; bio: string } {
-    const saved = localStorage.getItem('oss.dashboard.userDraft');
-    if (saved) {
-      try {
-        return JSON.parse(saved) as { email: string; username: string; bio: string };
-      } catch {
-        localStorage.removeItem('oss.dashboard.userDraft');
-      }
-    }
-
-    const seed = crypto.randomUUID().slice(0, 8);
-    return {
-      email: `dashboard.${seed}@example.com`,
-      username: `dashboard_${seed}`,
-      bio: 'Frontend-first dashboard user',
-    };
-  }
 }
