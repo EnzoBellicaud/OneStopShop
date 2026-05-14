@@ -1,6 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router'
+
 import OneStopShop from './OneStopShop.vue'
 import Auth from './pages/Auth.vue'
+import Dashboard from './pages/Dashboard.vue'
 
 const routes = [
   {
@@ -12,6 +14,11 @@ const routes = [
     path: '/auth',
     component: Auth,
     name: 'Auth'
+  },
+  {
+    path: '/dashboard',
+    component: Dashboard,
+    name: 'Dashboard'
   }
 ]
 
