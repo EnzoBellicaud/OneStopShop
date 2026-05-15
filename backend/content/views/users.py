@@ -27,6 +27,13 @@ ADMIN_PROFILE = User.ProfileType.ADMIN
 DEFAULT_ORGANIZATION_ROLE = "member"
 ADMIN_ASSIGNABLE_ORGANIZATION_ROLES = {"member", "contributor", "admin"}
 
+# Maps user profile type to the corresponding TargetProfile name in the DB
+_USER_PROFILE_TO_TARGET_PROFILE = {
+    "Student": "student",
+    "Academic staff": "researcher",
+    "Company": "company",
+}
+
 
 def _json_error(error: str, message: str, status: int) -> JsonResponse:
     return JsonResponse({"error": error, "message": message}, status=status)
@@ -127,7 +134,7 @@ def _serialize_need(need: UserNeed) -> dict:
         "title": need.title,
         "description": need.description,
         "status": need.status,
-        "target_profile_id": str(need.target_profile_id),
+        "target_profile_id": str(need.target_profile_id) if need.target_profile_id else None,
         "domain_ids": [str(domain.id) for domain in need.domains.all()],
         "countries": need.countries,
         "matching_hits_count": getattr(need, "matching_hits_count", need.matching_hits.count()),
@@ -441,7 +448,12 @@ def user_needs(request, user_id: str):
         return _json_error("validation_error", "Invalid JSON body.", 400)
 
     try:
-        target_profile = _resolve_target_profile(str(body.get("target_profile_id", "")))
+        target_profile_id_str = str(body.get("target_profile_id") or "").strip()
+        if target_profile_id_str:
+            target_profile = _resolve_target_profile(target_profile_id_str)
+        else:
+            tp_name = _USER_PROFILE_TO_TARGET_PROFILE.get(user.profile)
+            target_profile = TargetProfile.objects.filter(name=tp_name).first() if tp_name else None
         domains = _resolve_domains(body.get("domain_ids"))
         countries = _normalize_countries(body.get("countries"))
     except ValueError as exc:
@@ -451,8 +463,8 @@ def user_needs(request, user_id: str):
 
     title = str(body.get("title") or "").strip()
     description = str(body.get("description") or "").strip()
-    if not title or not description:
-        return _json_error("validation_error", "title and description are required.", 400)
+    if not title:
+        return _json_error("validation_error", "title is required.", 400)
 
     need = UserNeed.objects.create(
         user=user,
@@ -468,7 +480,7 @@ def user_needs(request, user_id: str):
 
 @csrf_exempt
 @require_auth()
-@require_http_methods(["PUT", "DELETE"])
+@require_http_methods(["PUT", "PATCH", "DELETE"])
 def user_need_detail(request, user_id: str, need_id: str):
     user, error_response = _get_user_or_response(user_id, request)
     if error_response is not None:
@@ -504,7 +516,11 @@ def user_need_detail(request, user_id: str, need_id: str):
         return _json_error("validation_error", "Invalid need status.", 400)
 
     try:
-        target_profile = _resolve_target_profile(str(body.get("target_profile_id", need.target_profile_id)))
+        target_profile_id_raw = body.get("target_profile_id", need.target_profile_id)
+        if target_profile_id_raw is not None:
+            target_profile = _resolve_target_profile(str(target_profile_id_raw))
+        else:
+            target_profile = None
         domains = _resolve_domains(body.get("domain_ids"))
         countries = _normalize_countries(body.get("countries"))
     except ValueError as exc:
@@ -512,10 +528,10 @@ def user_need_detail(request, user_id: str, need_id: str):
     except LookupError as exc:
         return _json_error("not_found", str(exc), 404)
 
-    title = str(body.get("title") or "").strip()
-    description = str(body.get("description") or "").strip()
-    if not title or not description:
-        return _json_error("validation_error", "title and description are required.", 400)
+    title = str(body.get("title") or need.title).strip()
+    description = str(body.get("description") if "description" in body else need.description).strip()
+    if not title:
+        return _json_error("validation_error", "title is required.", 400)
 
     need.title = title
     need.description = description

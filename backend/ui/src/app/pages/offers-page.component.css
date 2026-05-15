@@ -178,6 +178,48 @@
   font-weight: 600;
 }
 
+.moderation-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  align-items: center;
+  padding-top: 0.5rem;
+  border-top: 1px solid #e4eef6;
+  margin-top: 0.25rem;
+}
+
+.moderation-actions button {
+  padding: 0.28rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid #c8d8e8;
+  background: #f4f8fc;
+  color: #2c4a63;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.moderation-actions button:hover {
+  background: #daeaf7;
+  border-color: #8fb4d0;
+}
+
+.moderation-actions button.active {
+  background: #0f5e9c;
+  color: #fff;
+  border-color: #0f5e9c;
+}
+
+.moderation-actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.mod-error {
+  font-size: 0.75rem;
+  color: #b53535;
+}
+
 .hint {
   color: #456;
 }

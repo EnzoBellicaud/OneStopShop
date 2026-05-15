@@ -62,25 +62,31 @@
           </div>
 
           <div v-else class="cards-container">
-            <a
+            <div
               v-for="offer in offers"
               :key="offer.id"
-              :href="offer.link"
-              target="_blank"
-              rel="noopener noreferrer"
               class="opportunity-card"
             >
               <div class="card-top-row">
                 <span class="card-tag">{{ offer.offer_type }}</span>
                 <span class="card-country">{{ offer.country }}</span>
+                <button
+                  v-if="user"
+                  :class="['fav-btn', { saved: favIds.has(offer.id) }]"
+                  :title="favIds.has(offer.id) ? 'Remove from favorites' : 'Save to favorites'"
+                  :disabled="togglingFav === offer.id"
+                  @click.stop="toggleFavorite(offer)"
+                >{{ favIds.has(offer.id) ? '★' : '☆' }}</button>
               </div>
-              <h3 class="card-title">{{ offer.title }}</h3>
-              <p class="card-summary">{{ offer.summary }}</p>
+              <a :href="offer.link" target="_blank" rel="noopener noreferrer" class="card-link-area">
+                <h3 class="card-title">{{ offer.title }}</h3>
+                <p class="card-summary">{{ offer.summary }}</p>
+              </a>
               <div class="card-footer-row">
                 <span class="card-org">{{ offer.organization.name }}</span>
                 <span class="card-link-hint">Open ↗</span>
               </div>
-            </a>
+            </div>
           </div>
 
           <div v-if="totalPages > 1" class="pagination">
@@ -97,12 +103,50 @@
 <script setup>
 import { ref, watch } from 'vue'
 import { api } from '../../services/api.js'
+import { useAuth } from '../../composables/useAuth.js'
 
 const props = defineProps({
   shortcuts: Array,
   searchPlaceholder: String,
   targetProfile: String,
 })
+
+const { user } = useAuth()
+const favIds = ref(new Set())
+const togglingFav = ref(null)
+
+async function loadFavIds() {
+  if (!user.value) return
+  const res = await api.get(`/api/users/${user.value.id}/favorites?page_size=200`)
+  if (res.ok) {
+    const data = await res.json()
+    favIds.value = new Set(data.results.map(f => f.offer.id))
+  }
+}
+
+async function toggleFavorite(offer) {
+  if (!user.value || togglingFav.value) return
+  togglingFav.value = offer.id
+  try {
+    if (favIds.value.has(offer.id)) {
+      const res = await api.delete(`/api/users/${user.value.id}/favorites/${offer.id}`)
+      if (res.ok) {
+        const next = new Set(favIds.value)
+        next.delete(offer.id)
+        favIds.value = next
+      }
+    } else {
+      const res = await api.post(`/api/users/${user.value.id}/favorites`, { offer_id: offer.id })
+      if (res.ok) {
+        const next = new Set(favIds.value)
+        next.add(offer.id)
+        favIds.value = next
+      }
+    }
+  } finally {
+    togglingFav.value = null
+  }
+}
 
 const isSearching = ref(false)
 const searchTerm = ref('')
@@ -181,6 +225,9 @@ async function fetchOffers() {
 }
 
 watch(isSearching, (val) => {
-  if (val && offers.value.length === 0) fetchOffers()
+  if (val) {
+    if (offers.value.length === 0) fetchOffers()
+    loadFavIds()
+  }
 })
 </script>

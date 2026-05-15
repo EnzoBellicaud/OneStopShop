@@ -335,6 +335,8 @@ class UserNeed(TimeStampedModel):
 		TargetProfile,
 		on_delete=models.PROTECT,
 		related_name="user_needs",
+		null=True,
+		blank=True,
 	)
 	status = models.CharField(
 		max_length=20,

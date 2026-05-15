@@ -1130,7 +1130,8 @@ p {
 }
 
 .opportunity-card {
-  display: block;
+  display: flex;
+  flex-direction: column;
   background: white;
   border: 1px solid #eee;
   padding: 20px;
@@ -1204,6 +1205,28 @@ p {
   color: var(--accent-mid, #9b2020);
   font-weight: 500;
 }
+
+.card-link-area {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  flex: 1;
+}
+
+.fav-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  color: #ccc;
+  padding: 0 2px;
+  line-height: 1;
+  transition: color 0.15s, transform 0.1s;
+  margin-left: auto;
+}
+.fav-btn:hover { color: var(--accent-mid, #9b2020); transform: scale(1.15); }
+.fav-btn.saved { color: var(--accent-mid, #9b2020); }
+.fav-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .empty-state {
   padding: 40px;

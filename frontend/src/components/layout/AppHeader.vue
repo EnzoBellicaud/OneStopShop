@@ -2,7 +2,6 @@
   <nav :style="cssVars">
     <router-link class="nav-logo" to="/">Uni<span>Portal</span></router-link>
     <ul class="nav-links">
-      <li><a href="#Opportunities">Opportunities</a></li>
       <li><a href="#about">About</a></li>
       <li><a href="#how">How it works</a></li>
       <li><a href="#contact">Contact</a></li>
@@ -10,13 +9,13 @@
     <div class="nav-right">
       <template v-if="user">
         <span class="nav-username">{{ user.first_name || user.username }}</span>
+        <router-link to="/dashboard" class="btn-nav">Dashboard</router-link>
         <router-link to="/user_profile" class="btn-nav">Profile</router-link>
         <button class="btn-nav btn-logout" @click="handleLogout">Log out</button>
       </template>
       <template v-else>
         <router-link to="/login" class="btn-nav">Log in / Register</router-link>
       </template>
-      <router-link to="/home" class="btn-nav">Browse opportunities</router-link>
     </div>
   </nav>
 </template>

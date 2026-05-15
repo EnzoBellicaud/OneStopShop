@@ -99,6 +99,7 @@ class UrlScraperService(ScrapeService):
 
         stats = {"processed": 0, "created": 0, "updated": 0, "unchanged": 0, "archived": 0, "errors": 0, "neglected": 0}
         logs: list[dict] = []
+        matched_offer_ids: list = []
 
         LOGGER.info("URL scraper batch — size=%d", len(batch))
 
@@ -122,7 +123,7 @@ class UrlScraperService(ScrapeService):
                 stats["archived"] += 1
                 continue
 
-            self._scrape_one(crawl_url, source, source_type, ingestion_user, stats, logs)
+            self._scrape_one(crawl_url, source, source_type, ingestion_user, stats, logs, matched_offer_ids)
 
         run.status = ScrapingRun.RunStatus.SUCCESS
         run.offers_processed = stats["processed"]
@@ -140,6 +141,15 @@ class UrlScraperService(ScrapeService):
             stats["processed"], stats["created"], stats["updated"],
             stats["archived"], stats["errors"], stats["neglected"],
         )
+
+        if matched_offer_ids:
+            try:
+                from content.matching_service import run_matching_for_offers
+                match_stats = run_matching_for_offers(matched_offer_ids)
+                LOGGER.info("Post-scrape matching — %s", match_stats)
+            except Exception:
+                LOGGER.exception("Post-scrape matching failed — continuing")
+
         return stats
 
     def _claim_batch(self) -> list[CrawlUrl]:
@@ -169,6 +179,7 @@ class UrlScraperService(ScrapeService):
         ingestion_user,
         stats: dict,
         logs: list[dict],
+        matched_offer_ids: list,
     ) -> None:
         page_source = replace(source, url=crawl_url.url)
 
@@ -250,8 +261,12 @@ class UrlScraperService(ScrapeService):
         stats["processed"] += 1
         if action == "created":
             stats["created"] += 1
+            if offer:
+                matched_offer_ids.append(offer.id)
         elif action == "updated":
             stats["updated"] += 1
+            if offer:
+                matched_offer_ids.append(offer.id)
         else:
             stats["unchanged"] += 1
 

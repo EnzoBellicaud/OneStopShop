@@ -11,6 +11,7 @@ import {
   LookupResponse,
   MatchingHit,
   MatchingHitsQueryParams,
+  Offer,
   OfferListResponse,
   OfferQueryParams,
   OrganizationLookup,
@@ -64,6 +65,10 @@ export class OssApiService {
     return this.http.get<OfferListResponse>(`${this.apiBaseUrl}/offers`, {
       params: this.buildParams(query),
     });
+  }
+
+  updateOfferStatus(offerId: string, status: 'draft' | 'published' | 'archived'): Observable<Offer> {
+    return this.http.patch<Offer>(`${this.apiBaseUrl}/offers/${offerId}`, { status });
   }
 
   getScrapingRuns(limit = 20): Observable<ScrapingRunListResponse> {

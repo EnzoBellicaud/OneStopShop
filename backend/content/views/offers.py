@@ -107,25 +107,52 @@ def offers(request):
     )
 
 
-@require_GET
 def offer_detail(request, offer_id: str):
     try:
         parsed_id = UUID(offer_id)
     except ValueError:
         return JsonResponse({"detail": "Invalid offer id."}, status=400)
 
-    offer = (
-        Offer.objects.select_related(
-            "offer_type",
-            "organization",
-            "source_type",
-            "target_profile",
+    if request.method == "GET":
+        offer = (
+            Offer.objects.select_related(
+                "offer_type", "organization", "source_type", "target_profile",
+            )
+            .prefetch_related("domains")
+            .filter(id=parsed_id)
+            .first()
         )
-        .prefetch_related("domains")
-        .filter(id=parsed_id)
-        .first()
-    )
-    if offer is None:
-        return JsonResponse({"detail": "Offer not found."}, status=404)
+        if offer is None:
+            return JsonResponse({"detail": "Offer not found."}, status=404)
+        return JsonResponse(_offer_to_dict(offer))
 
-    return JsonResponse(_offer_to_dict(offer))
+    if request.method == "PATCH":
+        import json as _json
+        from content.jwt_auth import get_user_from_token
+        user = get_user_from_token(request)
+        if not user:
+            return JsonResponse({"detail": "Unauthorized."}, status=401)
+        if user.profile != "Admin":
+            return JsonResponse({"detail": "Admin access required."}, status=403)
+        try:
+            body = _json.loads(request.body)
+        except (_json.JSONDecodeError, ValueError):
+            return JsonResponse({"detail": "Invalid JSON."}, status=400)
+        new_status = body.get("status")
+        if new_status not in ("draft", "published", "archived"):
+            return JsonResponse({"detail": "status must be draft, published, or archived."}, status=400)
+        offer = (
+            Offer.objects.select_related(
+                "offer_type", "organization", "source_type", "target_profile",
+            )
+            .prefetch_related("domains")
+            .filter(id=parsed_id)
+            .first()
+        )
+        if offer is None:
+            return JsonResponse({"detail": "Offer not found."}, status=404)
+        offer.status = new_status
+        offer.save(update_fields=["status", "updated_at"])
+        return JsonResponse(_offer_to_dict(offer))
+
+    return JsonResponse({"detail": "Method not allowed."}, status=405)

@@ -7,6 +7,7 @@ import Student from '../components/sections/Student.vue'
 import Staff from '../components/sections/Staff.vue'
 import External from '../components/sections/External.vue'
 import UserProfile from '../components/sections/UserProfile.vue'
+import Dashboard from '../Dashboard.vue'
 
 const routes = [
   { path: '/home', name: 'home', component: HomeView },
@@ -19,6 +20,12 @@ const routes = [
     path: '/user_profile',
     name: 'UserProfile',
     component: UserProfile,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/dashboard',
+    name: 'dashboard',
+    component: Dashboard,
     meta: { requiresAuth: true },
   },
 ]

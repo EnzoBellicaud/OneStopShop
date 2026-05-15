@@ -96,6 +96,16 @@
         <span *ngFor="let domainItem of offer.domains">{{ domainItem }}</span>
       </div>
       <a [href]="offer.link" target="_blank" rel="noreferrer">Open source page</a>
+      <div class="moderation-actions">
+        <button
+          *ngFor="let s of statuses"
+          type="button"
+          [class.active]="offer.status === s"
+          [disabled]="updatingOffer[offer.id]"
+          (click)="setOfferStatus(offer.id, $any(s))"
+        >{{ s }}</button>
+        <span *ngIf="updateError[offer.id]" class="mod-error">{{ updateError[offer.id] }}</span>
+      </div>
     </article>
   </section>
 
