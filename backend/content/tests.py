@@ -1774,3 +1774,238 @@ class ScrapingAnalyticsTests(TestCase):
 		# run created in setUpTestData falls within 30d too — just verify shape
 		self.assertIn("method_split", payload)
 		self.assertIn("avg_confidence_llm", payload)
+
+
+class ForumApiTests(TestCase):
+	@classmethod
+	def setUpTestData(cls):
+		cls.offer_type_thesis = OfferType.objects.create(name="thesis", description="")
+		cls.offer_type_internship = OfferType.objects.create(name="internship", description="")
+		cls.author = User.objects.create(
+			username="forum_author",
+			email="author@example.com",
+			password_hash="not-used",
+		)
+		cls.other_user = User.objects.create(
+			username="forum_other",
+			email="other@example.com",
+			password_hash="not-used",
+		)
+		cls.admin = User.objects.create(
+			username="forum_admin",
+			email="forum_admin@example.com",
+			password_hash="not-used",
+			profile=User.ProfileType.ADMIN,
+		)
+		cls.author_token = generate_tokens(cls.author.id, cls.author.username, cls.author.profile)["access_token"]
+		cls.other_token = generate_tokens(cls.other_user.id, cls.other_user.username, cls.other_user.profile)["access_token"]
+		cls.admin_token = generate_tokens(cls.admin.id, cls.admin.username, cls.admin.profile)["access_token"]
+
+	def _create_question(self, token=None, **overrides):
+		payload = {
+			"title": overrides.get("title", "How do I prepare a thesis proposal?"),
+			"body": overrides.get("body", "Looking for advice on writing a strong proposal."),
+		}
+		if "offer_type_id" in overrides:
+			payload["offer_type_id"] = overrides["offer_type_id"]
+		return self.client.post(
+			"/api/forum/questions",
+			data=json.dumps(payload),
+			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {token or self.author_token}",
+		)
+
+	def test_anonymous_list_returns_200(self):
+		response = self.client.get("/api/forum/questions")
+		self.assertEqual(response.status_code, 200)
+		payload = response.json()
+		self.assertEqual(payload["count"], 0)
+		self.assertEqual(payload["results"], [])
+		self.assertIn("page", payload)
+		self.assertIn("total_pages", payload)
+
+	def test_anonymous_create_returns_401(self):
+		response = self.client.post(
+			"/api/forum/questions",
+			data=json.dumps({"title": "Title here", "body": "Body content here."}),
+			content_type="application/json",
+		)
+		self.assertEqual(response.status_code, 401)
+
+	def test_authenticated_create_and_detail(self):
+		response = self._create_question(offer_type_id=str(self.offer_type_thesis.id))
+		self.assertEqual(response.status_code, 201, response.content)
+		question = response.json()
+		self.assertEqual(question["offer_type"], "thesis")
+		self.assertEqual(question["author"]["username"], "forum_author")
+		self.assertEqual(question["answer_count"], 0)
+
+		detail = self.client.get(f"/api/forum/questions/{question['id']}")
+		self.assertEqual(detail.status_code, 200)
+		self.assertEqual(detail.json()["answers"], [])
+
+	def test_create_rejects_short_title(self):
+		response = self.client.post(
+			"/api/forum/questions",
+			data=json.dumps({"title": "Hi", "body": "Long enough body."}),
+			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.author_token}",
+		)
+		self.assertEqual(response.status_code, 400)
+
+	def test_filter_by_offer_type_and_search(self):
+		self._create_question(title="Thesis tips please", offer_type_id=str(self.offer_type_thesis.id))
+		self._create_question(
+			title="Internship pay rates",
+			body="What is typical in this country?",
+			offer_type_id=str(self.offer_type_internship.id),
+		)
+
+		thesis = self.client.get("/api/forum/questions", {"offer_type": "thesis"}).json()
+		self.assertEqual(thesis["count"], 1)
+		self.assertEqual(thesis["results"][0]["offer_type"], "thesis")
+
+		search = self.client.get("/api/forum/questions", {"q": "pay"}).json()
+		self.assertEqual(search["count"], 1)
+		self.assertIn("Internship", search["results"][0]["title"])
+
+	def test_mine_filter_requires_auth(self):
+		self._create_question()
+		anon = self.client.get("/api/forum/questions", {"mine": "true"})
+		self.assertEqual(anon.status_code, 401)
+
+		authed = self.client.get(
+			"/api/forum/questions",
+			{"mine": "true"},
+			HTTP_AUTHORIZATION=f"Bearer {self.author_token}",
+		)
+		self.assertEqual(authed.status_code, 200)
+		self.assertEqual(authed.json()["count"], 1)
+
+		other = self.client.get(
+			"/api/forum/questions",
+			{"mine": "true"},
+			HTTP_AUTHORIZATION=f"Bearer {self.other_token}",
+		)
+		self.assertEqual(other.json()["count"], 0)
+
+	def test_pagination_metadata(self):
+		for i in range(5):
+			self._create_question(title=f"Question number {i} title")
+		page1 = self.client.get("/api/forum/questions", {"page_size": 2, "page": 1}).json()
+		self.assertEqual(page1["count"], 5)
+		self.assertEqual(page1["page_size"], 2)
+		self.assertEqual(page1["total_pages"], 3)
+		self.assertEqual(len(page1["results"]), 2)
+
+	def test_only_author_or_admin_can_edit(self):
+		created = self._create_question().json()
+		qid = created["id"]
+
+		forbidden = self.client.patch(
+			f"/api/forum/questions/{qid}",
+			data=json.dumps({"title": "Hacked title here"}),
+			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.other_token}",
+		)
+		self.assertEqual(forbidden.status_code, 403)
+
+		ok = self.client.patch(
+			f"/api/forum/questions/{qid}",
+			data=json.dumps({"title": "Updated thesis question"}),
+			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.author_token}",
+		)
+		self.assertEqual(ok.status_code, 200)
+		self.assertEqual(ok.json()["title"], "Updated thesis question")
+
+		admin_ok = self.client.patch(
+			f"/api/forum/questions/{qid}",
+			data=json.dumps({"body": "Admin-rewritten body content."}),
+			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.admin_token}",
+		)
+		self.assertEqual(admin_ok.status_code, 200)
+
+	def test_only_author_or_admin_can_delete(self):
+		created = self._create_question().json()
+		qid = created["id"]
+
+		forbidden = self.client.delete(
+			f"/api/forum/questions/{qid}",
+			HTTP_AUTHORIZATION=f"Bearer {self.other_token}",
+		)
+		self.assertEqual(forbidden.status_code, 403)
+
+		ok = self.client.delete(
+			f"/api/forum/questions/{qid}",
+			HTTP_AUTHORIZATION=f"Bearer {self.author_token}",
+		)
+		self.assertEqual(ok.status_code, 204)
+
+	def test_post_answer_and_lists_under_question(self):
+		question = self._create_question().json()
+		qid = question["id"]
+
+		anon_post = self.client.post(
+			f"/api/forum/questions/{qid}/answers",
+			data=json.dumps({"body": "Here is a useful answer."}),
+			content_type="application/json",
+		)
+		self.assertEqual(anon_post.status_code, 401)
+
+		ok = self.client.post(
+			f"/api/forum/questions/{qid}/answers",
+			data=json.dumps({"body": "Here is a useful answer."}),
+			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.other_token}",
+		)
+		self.assertEqual(ok.status_code, 201)
+		answer = ok.json()
+		self.assertEqual(answer["author"]["username"], "forum_other")
+
+		detail = self.client.get(f"/api/forum/questions/{qid}").json()
+		self.assertEqual(detail["answer_count"], 1)
+		self.assertEqual(len(detail["answers"]), 1)
+
+	def test_answer_owner_can_edit_and_delete(self):
+		question = self._create_question().json()
+		qid = question["id"]
+		posted = self.client.post(
+			f"/api/forum/questions/{qid}/answers",
+			data=json.dumps({"body": "Original answer body."}),
+			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.other_token}",
+		).json()
+		aid = posted["id"]
+
+		forbidden = self.client.patch(
+			f"/api/forum/answers/{aid}",
+			data=json.dumps({"body": "Trying to overwrite."}),
+			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.author_token}",
+		)
+		self.assertEqual(forbidden.status_code, 403)
+
+		ok = self.client.patch(
+			f"/api/forum/answers/{aid}",
+			data=json.dumps({"body": "Edited answer body."}),
+			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.other_token}",
+		)
+		self.assertEqual(ok.status_code, 200)
+		self.assertEqual(ok.json()["body"], "Edited answer body.")
+
+		deleted = self.client.delete(
+			f"/api/forum/answers/{aid}",
+			HTTP_AUTHORIZATION=f"Bearer {self.other_token}",
+		)
+		self.assertEqual(deleted.status_code, 204)
+
+	def test_question_detail_404_for_unknown_id(self):
+		response = self.client.get(f"/api/forum/questions/{uuid.uuid4()}")
+		self.assertEqual(response.status_code, 404)
+
+	def test_question_detail_400_for_invalid_id(self):
+		response = self.client.get("/api/forum/questions/not-a-uuid")
+		self.assertEqual(response.status_code, 400)

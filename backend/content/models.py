@@ -461,3 +461,51 @@ class CrawlUrl(TimeStampedModel):
 			models.Index(fields=["status", "next_check_at"], name="idx_crawlurl_status_next_check"),
 			models.Index(fields=["source_key"], name="idx_crawlurl_source"),
 		]
+
+
+class ForumQuestion(TimeStampedModel):
+	id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+	title = models.CharField(max_length=255)
+	body = models.TextField()
+	author = models.ForeignKey(
+		User,
+		on_delete=models.PROTECT,
+		related_name="forum_questions",
+	)
+	offer_type = models.ForeignKey(
+		OfferType,
+		on_delete=models.SET_NULL,
+		null=True,
+		blank=True,
+		related_name="forum_questions",
+	)
+
+	class Meta:
+		db_table = "forum_question"
+		ordering = ["-created_at"]
+		indexes = [
+			models.Index(fields=["author", "-created_at"], name="idx_forum_question_author"),
+			models.Index(fields=["offer_type", "-created_at"], name="idx_forum_question_type"),
+		]
+
+
+class ForumAnswer(TimeStampedModel):
+	id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+	question = models.ForeignKey(
+		ForumQuestion,
+		on_delete=models.CASCADE,
+		related_name="answers",
+	)
+	body = models.TextField()
+	author = models.ForeignKey(
+		User,
+		on_delete=models.PROTECT,
+		related_name="forum_answers",
+	)
+
+	class Meta:
+		db_table = "forum_answer"
+		ordering = ["created_at"]
+		indexes = [
+			models.Index(fields=["question", "created_at"], name="idx_forum_answer_question"),
+		]

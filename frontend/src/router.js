@@ -22,6 +22,22 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/forum',
+    component: () => import('./pages/ForumPage.vue'),
+    name: 'Forum',
+  },
+  {
+    path: '/forum/new',
+    component: () => import('./pages/NewQuestionPage.vue'),
+    name: 'NewQuestion',
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/forum/:id',
+    component: () => import('./pages/QuestionDetailPage.vue'),
+    name: 'QuestionDetail',
+  },
+  {
     path: '/:pathMatch(.*)*',
     component: () => import('./pages/NotFoundPage.vue'),
     name: 'NotFound',

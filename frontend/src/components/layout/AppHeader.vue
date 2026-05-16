@@ -6,6 +6,7 @@
             <li><RouterLink :to="{ name: 'Home', hash: '#about' }">About</RouterLink></li>
             <li><RouterLink :to="{ name: 'Home', hash: '#how' }">How it works</RouterLink></li>
             <li><RouterLink :to="{ name: 'Home', hash: '#contact' }">Contact</RouterLink></li>
+            <li><RouterLink :to="{ name: 'Forum' }">Forum</RouterLink></li>
         </ul>
         <div class="nav-right">
             <RouterLink class="btn-nav" :to="{ name: 'Offers' }">Browse opportunities</RouterLink>
