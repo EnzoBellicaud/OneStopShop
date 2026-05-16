@@ -3,7 +3,7 @@
 
     <!-- Left branding panel -->
     <div class="auth-brand">
-      <router-link class="brand-logo" to="/">Uni<span>Portal</span></router-link>
+      <router-link class="brand-logo" to="/">OneStop<span>Shop</span></router-link>
       <div class="brand-body">
         <h2>Your gateway to academic opportunities</h2>
         <p>Scholarships, internships, thesis projects, and research partnerships — all in one place.</p>
@@ -22,7 +22,7 @@
 
         <div class="auth-card-header">
           <h1>{{ mode === 'login' ? 'Welcome back' : 'Create account' }}</h1>
-          <p>{{ mode === 'login' ? 'Sign in to your UniPortal account' : 'Join the UniPortal network' }}</p>
+          <p>{{ mode === 'login' ? 'Sign in to your OneStopShop account' : 'Join the OneStopShop network' }}</p>
         </div>
 
         <div v-if="error" class="auth-error">{{ error }}</div>

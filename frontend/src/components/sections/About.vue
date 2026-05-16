@@ -18,9 +18,9 @@
             <span class="img-placeholder-label">About image</span>
             </div>
             <div>
-            <p class="about-eyebrow">About UniPortal</p>
+            <p class="about-eyebrow">About OneStopShop</p>
             <h2>One hub for <em>all nine</em> universities</h2>
-            <p>UniPortal brings together master thesis projects, internships, job openings, and courses from six leading Swedish universities into a single, easy-to-navigate platform.</p>
+            <p>OneStopShop brings together master thesis projects, internships, job openings, and courses from six leading Swedish universities into a single, easy-to-navigate platform.</p>
             <p>Students and faculty no longer need to visit each university's website separately. We aggregate and update listings in real time, so you always see the latest opportunities in one place.</p>
             <div class="about-features">
                 <div class="feat">

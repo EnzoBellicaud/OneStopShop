@@ -1,6 +1,6 @@
 <template>
   <nav :style="cssVars">
-    <router-link class="nav-logo" to="/">Uni<span>Portal</span></router-link>
+    <router-link class="nav-logo" to="/">OneStop<span>Shop</span></router-link>
 
     <ul class="nav-links">
       <template v-if="route.name === 'landing'">
