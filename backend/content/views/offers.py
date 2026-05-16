@@ -43,7 +43,6 @@ def offers(request):
             "target_profile",
         )
         .prefetch_related("domains")
-        .order_by("title")
     )
 
     status = request.GET.get("status")
@@ -79,6 +78,11 @@ def offers(request):
         )
 
     queryset = queryset.distinct()
+
+    ordering_param = request.GET.get("ordering", "title")
+    if ordering_param not in {"title", "-title", "created_at", "-created_at"}:
+        ordering_param = "title"
+    queryset = queryset.order_by(ordering_param)
 
     legacy_limit = request.GET.get("limit")
     page_size_param = request.GET.get("page_size")

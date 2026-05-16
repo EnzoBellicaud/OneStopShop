@@ -50,4 +50,10 @@ urlpatterns = [
     path("offers/import/confirm", views.import_confirm, name="import-confirm"),
     path("offers", views.offers, name="offers"),
     path("offers/<str:offer_id>", views.offer_detail, name="offer-detail"),
+
+    # Forum endpoints
+    path("forum/questions", views.forum_questions, name="forum-questions"),
+    path("forum/questions/<str:question_id>", views.forum_question_detail, name="forum-question-detail"),
+    path("forum/questions/<str:question_id>/answers", views.forum_answers, name="forum-answers"),
+    path("forum/answers/<str:answer_id>", views.forum_answer_detail, name="forum-answer-detail"),
 ]

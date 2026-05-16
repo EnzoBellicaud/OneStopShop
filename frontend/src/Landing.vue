@@ -11,12 +11,28 @@
 
     onMounted(() => {
         show.value = true
-    })  
+    })
 </script>
 
 <template>
-    <div class="sharedbg">
+    <div>
         <Header />
+
+        <!-- Hero -->
+        <section class="page-hero landing-hero">
+            <div class="page-hero-inner">
+                <p class="section-eyebrow">One Stop Shop</p>
+                <h1 class="page-title">Your gateway to <em>university opportunities</em></h1>
+                <p class="page-sub">
+                    Find internships, research groups, trainings, and more across our partner universities — all in one place.
+                </p>
+                <div class="hero-actions">
+                    <router-link to="/student" class="btn-primary" data-hover="Get started">Get started</router-link>
+                    <router-link to="/forum" class="btn-ghost">Visit Forum →</router-link>
+                </div>
+            </div>
+        </section>
+
         <transition name="slide">
             <ProfileSelection v-if="show" />
         </transition>
@@ -26,7 +42,8 @@
         <transition name="slide">
             <About v-if="show" />
         </transition>
-    </div>
+
         <Footer />
         <Desktop />
+    </div>
 </template>

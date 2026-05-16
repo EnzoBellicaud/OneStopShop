@@ -1,7 +1,8 @@
-import { ref, readonly } from 'vue'
+import { ref, readonly, computed } from 'vue'
 import { api } from '../services/api.js'
 
 const _user = ref(JSON.parse(localStorage.getItem('user') ?? 'null'))
+const _isLoggedIn = computed(() => !!_user.value)
 
 window.addEventListener('auth:logout', () => { _user.value = null })
 
@@ -64,6 +65,6 @@ export function useAuth() {
     login,
     register,
     logout,
-    isLoggedIn: () => !!localStorage.getItem('access_token'),
+    isLoggedIn: _isLoggedIn,
   }
 }

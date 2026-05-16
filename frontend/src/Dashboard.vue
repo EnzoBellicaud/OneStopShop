@@ -1,6 +1,13 @@
 <template>
-  <div class="sharedbg">
+  <div>
     <AppHeader />
+
+    <section class="page-hero db-page-hero">
+      <div class="page-hero-inner">
+        <p class="section-eyebrow">My Dashboard</p>
+        <h1 class="page-title">Needs · Favorites · Matches</h1>
+      </div>
+    </section>
 
     <main class="db-wrap">
       <div v-if="!user" class="db-empty">
@@ -8,11 +15,6 @@
       </div>
 
       <template v-else>
-        <header class="db-hero">
-          <h1>My Dashboard</h1>
-          <p class="db-subtitle">Needs · Favorites · Matches</p>
-        </header>
-
         <div class="db-stats">
           <div class="db-stat">
             <strong>{{ stats.active_needs_count }}</strong>
@@ -22,7 +24,7 @@
             <strong>{{ stats.total_favorites }}</strong>
             <span>Favorites</span>
           </div>
-          <div class="db-stat accent">
+          <div class="db-stat">
             <strong>{{ stats.new_matches_count }}</strong>
             <span>New matches</span>
           </div>
@@ -323,6 +325,11 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.db-page-hero {
+  padding-bottom: 0;
+  border-bottom: 1px solid var(--border);
+}
+
 .db-wrap {
   max-width: 1200px;
   margin: 0 auto;
@@ -334,17 +341,7 @@ onMounted(() => {
   padding: 4rem;
   color: var(--ink-soft);
 }
-.db-empty a { color: var(--accent-mid); }
-
-.db-hero {
-  margin-bottom: 1.5rem;
-}
-.db-hero h1 {
-  font-family: 'DM Serif Display', serif;
-  font-size: clamp(1.8rem, 3vw, 2.4rem);
-  color: var(--ink);
-}
-.db-subtitle { color: var(--ink-soft); margin-top: 0.25rem; }
+.db-empty a { color: var(--ink); font-weight: 500; }
 
 .db-stats {
   display: flex;
@@ -364,7 +361,6 @@ onMounted(() => {
 }
 .db-stat strong { font-size: 1.8rem; color: var(--ink); }
 .db-stat span { font-size: 0.8rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.05em; }
-.db-stat.accent strong { color: var(--accent-mid); }
 
 .db-panels {
   display: grid;
@@ -408,9 +404,9 @@ onMounted(() => {
   transition: all 0.15s;
 }
 .chip.active, .chip:hover {
-  background: var(--accent);
+  background: var(--ink);
   color: var(--white);
-  border-color: var(--accent);
+  border-color: var(--ink);
 }
 
 .db-select {
@@ -440,7 +436,7 @@ onMounted(() => {
   font-family: inherit;
   resize: vertical;
 }
-.db-input:focus { outline: none; border-color: var(--accent-mid); }
+.db-input:focus { outline: none; border-color: var(--ink); }
 .db-label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.85rem; color: var(--ink-soft); }
 
 .form-row { display: flex; gap: 0.5rem; }
@@ -495,17 +491,17 @@ onMounted(() => {
 }
 
 .status-tag { font-size: 0.78rem; font-weight: 500; }
-.status-new    { color: var(--accent-mid); }
+.status-new    { color: var(--ink-soft); }
 .status-interested { color: #1a6b3c; }
 .status-viewed { color: #5b2da8; }
 .status-declined { color: var(--ink-faint); }
 
-.ext-link { font-size: 0.82rem; color: var(--accent-mid); text-decoration: none; }
-.ext-link:hover { text-decoration: underline; }
+.ext-link { font-size: 0.82rem; color: var(--ink-soft); text-decoration: none; }
+.ext-link:hover { color: var(--ink); text-decoration: underline; }
 
 .btn-primary {
   padding: 0.5rem 1.1rem;
-  background: var(--accent);
+  background: var(--ink);
   color: var(--white);
   border: none;
   border-radius: var(--r);
@@ -528,9 +524,9 @@ onMounted(() => {
   transition: all 0.15s;
 }
 .btn-ghost:hover, .btn-ghost.active {
-  background: var(--accent);
+  background: var(--ink);
   color: var(--white);
-  border-color: var(--accent);
+  border-color: var(--ink);
 }
 .btn-ghost:disabled { opacity: 0.45; cursor: not-allowed; }
 
@@ -541,11 +537,11 @@ onMounted(() => {
   border-radius: var(--r);
   font-size: 0.82rem;
   cursor: pointer;
-  color: var(--accent-mid);
+  color: var(--ink-faint);
   font-family: inherit;
   transition: all 0.15s;
 }
-.btn-danger:hover { background: var(--accent-light); border-color: var(--accent-mid); }
+.btn-danger:hover { background: #fef2f2; border-color: #fca5a5; color: #b91c1c; }
 
 .db-loading { color: var(--ink-faint); font-size: 0.88rem; }
 .db-empty-state { color: var(--ink-faint); font-size: 0.88rem; text-align: center; padding: 1rem 0; }

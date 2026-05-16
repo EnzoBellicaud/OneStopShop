@@ -8,6 +8,9 @@ import Staff from '../components/sections/Staff.vue'
 import External from '../components/sections/External.vue'
 import UserProfile from '../components/sections/UserProfile.vue'
 import Dashboard from '../Dashboard.vue'
+import ForumPage from '../pages/ForumPage.vue'
+import QuestionDetailPage from '../pages/QuestionDetailPage.vue'
+import NewQuestionPage from '../pages/NewQuestionPage.vue'
 
 const routes = [
   { path: '/home', name: 'home', component: HomeView },
@@ -28,6 +31,9 @@ const routes = [
     component: Dashboard,
     meta: { requiresAuth: true },
   },
+  { path: '/forum', name: 'Forum', component: ForumPage },
+  { path: '/forum/new', name: 'NewQuestion', component: NewQuestionPage, meta: { requiresAuth: true } },
+  { path: '/forum/:id', name: 'QuestionDetail', component: QuestionDetailPage },
 ]
 
 const router = createRouter({

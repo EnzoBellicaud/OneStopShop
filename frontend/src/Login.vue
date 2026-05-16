@@ -156,7 +156,7 @@ async function submit() {
 
 /* ── Left panel ── */
 .auth-brand {
-  background: linear-gradient(140deg, #ffad27 0%, #df4a6c 100%);
+  background: var(--ink);
   display: flex;
   flex-direction: column;
   padding: 3rem;
@@ -168,8 +168,8 @@ async function submit() {
   content: '';
   position: absolute;
   inset: 0;
-  background-image: radial-gradient(rgba(255,255,255,0.12) 2px, transparent 2px);
-  background-size: 28px 28px;
+  background-image: radial-gradient(rgba(255,255,255,0.07) 1px, transparent 1px);
+  background-size: 24px 24px;
 }
 
 .brand-logo {

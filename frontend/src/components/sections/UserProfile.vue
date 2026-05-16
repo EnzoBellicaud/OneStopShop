@@ -1,84 +1,87 @@
 <template>
-  <div class="sharedbg">
+  <div>
     <AppHeader />
 
     <div v-if="!user" class="pf-empty-page">
       Please <router-link to="/login">log in</router-link> to view your profile.
     </div>
 
-    <main v-else class="pf-page">
-
-      <div class="pf-hero">
-        <div class="pf-avatar">{{ initials }}</div>
-        <div class="pf-hero-text">
-          <h1 class="pf-name">{{ fullName }}</h1>
-          <span class="pf-role-badge">{{ user.profile }}</span>
+    <template v-else>
+      <section class="page-hero pf-page-hero">
+        <div class="page-hero-inner pf-hero-inner">
+          <div class="pf-avatar">{{ initials }}</div>
+          <div class="pf-hero-text">
+            <p class="section-eyebrow">{{ user.profile }}</p>
+            <h1 class="page-title">{{ fullName }}</h1>
+          </div>
+          <router-link to="/dashboard" class="btn-nav pf-dash-btn">Dashboard</router-link>
         </div>
-        <router-link to="/dashboard" class="btn-nav">Dashboard</router-link>
-      </div>
+      </section>
 
-      <div class="pf-grid">
+      <main class="pf-page">
+        <div class="pf-grid">
 
-        <section class="pf-card">
-          <h2 class="pf-card-title">Account details</h2>
-          <div class="pf-fields">
-            <div class="pf-field">
-              <label>Full name</label>
-              <p>{{ fullName }}</p>
-            </div>
-            <div class="pf-field">
-              <label>Email</label>
-              <p>{{ user.email }}</p>
-            </div>
-            <div class="pf-field">
-              <label>Username</label>
-              <p>@{{ user.username }}</p>
-            </div>
-            <div class="pf-field">
-              <label>Role</label>
-              <p>{{ user.profile }}</p>
-            </div>
-          </div>
-
-          <div class="pf-stats">
-            <div class="pf-stat">
-              <strong>{{ favLoading ? '—' : favorites.length }}</strong>
-              <span>Saved favorites</span>
-            </div>
-          </div>
-        </section>
-
-        <section class="pf-card">
-          <h2 class="pf-card-title">Saved Favorites</h2>
-
-          <div v-if="favLoading" class="pf-loading">Loading…</div>
-
-          <p v-else-if="favorites.length === 0" class="pf-empty-state">
-            No saved favorites yet. Browse opportunities and star the ones you like.
-          </p>
-
-          <ul v-else class="pf-fav-list">
-            <li v-for="fav in favorites" :key="fav.id" class="pf-fav-item">
-              <div class="pf-fav-meta">
-                <span class="pf-fav-org">{{ fav.offer.organization }}</span>
+          <section class="pf-card">
+            <h2 class="pf-card-title">Account details</h2>
+            <div class="pf-fields">
+              <div class="pf-field">
+                <label>Full name</label>
+                <p>{{ fullName }}</p>
               </div>
-              <a
-                :href="fav.offer.link"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="pf-fav-title"
-              >{{ fav.offer.title }}</a>
-              <span class="pf-fav-hint">Open ↗</span>
-            </li>
-          </ul>
+              <div class="pf-field">
+                <label>Email</label>
+                <p>{{ user.email }}</p>
+              </div>
+              <div class="pf-field">
+                <label>Username</label>
+                <p>@{{ user.username }}</p>
+              </div>
+              <div class="pf-field">
+                <label>Role</label>
+                <p>{{ user.profile }}</p>
+              </div>
+            </div>
 
-          <router-link v-if="favorites.length > 0" to="/dashboard" class="pf-manage-link">
-            Manage all in Dashboard →
-          </router-link>
-        </section>
+            <div class="pf-stats">
+              <div class="pf-stat">
+                <strong>{{ favLoading ? '—' : favorites.length }}</strong>
+                <span>Saved favorites</span>
+              </div>
+            </div>
+          </section>
 
-      </div>
-    </main>
+          <section class="pf-card">
+            <h2 class="pf-card-title">Saved Favorites</h2>
+
+            <div v-if="favLoading" class="pf-loading">Loading…</div>
+
+            <p v-else-if="favorites.length === 0" class="pf-empty-state">
+              No saved favorites yet. Browse opportunities and star the ones you like.
+            </p>
+
+            <ul v-else class="pf-fav-list">
+              <li v-for="fav in favorites" :key="fav.id" class="pf-fav-item">
+                <div class="pf-fav-meta">
+                  <span class="pf-fav-org">{{ fav.offer.organization }}</span>
+                </div>
+                <a
+                  :href="fav.offer.link"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="pf-fav-title"
+                >{{ fav.offer.title }}</a>
+                <span class="pf-fav-hint">Open ↗</span>
+              </li>
+            </ul>
+
+            <router-link v-if="favorites.length > 0" to="/dashboard" class="pf-manage-link">
+              Manage all in Dashboard →
+            </router-link>
+          </section>
+
+        </div>
+      </main>
+    </template>
 
     <AppFooter />
   </div>
@@ -125,43 +128,38 @@ onMounted(async () => {
 
 <style scoped>
 .pf-empty-page {
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 60vh;
   font-size: 1rem;
   color: var(--ink-soft);
 }
-.pf-empty-page a { color: var(--accent-mid); }
+.pf-empty-page a { color: var(--ink); font-weight: 500; }
 
-.pf-page {
-  max-width: 1000px;
-  margin: 0 auto;
-  padding: 3rem 2rem 5rem;
+/* ── Hero ── */
+.pf-page-hero {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0;
 }
 
-/* ── Hero strip ── */
-.pf-hero {
+.pf-hero-inner {
   display: flex;
   align-items: center;
   gap: 1.5rem;
-  background: var(--white);
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  padding: 2rem 2rem;
-  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
 }
 
 .pf-avatar {
-  width: 72px;
-  height: 72px;
+  width: 64px;
+  height: 64px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #ef8023, #e62248);
+  background: var(--ink);
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.6rem;
+  font-size: 1.4rem;
   font-weight: 700;
   font-family: 'DM Serif Display', serif;
   flex-shrink: 0;
@@ -171,29 +169,26 @@ onMounted(async () => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.1rem;
 }
 
-.pf-name {
-  font-family: 'DM Serif Display', serif;
-  font-size: clamp(1.4rem, 3vw, 1.9rem);
-  color: var(--ink);
-  line-height: 1.15;
+.pf-hero-text .page-title {
+  margin: 0;
 }
 
-.pf-role-badge {
-  display: inline-block;
-  font-size: 0.72rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  padding: 3px 10px;
-  border-radius: 999px;
-  background: var(--accent-light);
-  color: var(--accent-mid);
+.pf-dash-btn {
+  flex-shrink: 0;
 }
 
-/* ── Two-column grid ── */
+/* ── Body ── */
+.pf-page {
+  flex: 1;
+  max-width: 1000px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 2rem 2rem 5rem;
+}
+
 .pf-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -322,25 +317,24 @@ onMounted(async () => {
   line-height: 1.4;
 }
 
-.pf-fav-title:hover { color: var(--accent-mid); }
+.pf-fav-title:hover { color: var(--ink-soft); }
 
 .pf-fav-hint {
   font-size: 0.75rem;
-  color: var(--accent-mid);
+  color: var(--ink-faint);
   font-weight: 500;
 }
 
 .pf-manage-link {
   font-size: 0.82rem;
-  color: var(--accent-mid);
+  color: var(--ink-soft);
   text-decoration: none;
   font-weight: 500;
   margin-top: auto;
 }
 
-.pf-manage-link:hover { text-decoration: underline; }
+.pf-manage-link:hover { color: var(--ink); text-decoration: underline; }
 
-/* re-use global nav button style */
 .btn-nav {
   flex-shrink: 0;
 }
