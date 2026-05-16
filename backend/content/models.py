@@ -172,6 +172,9 @@ class Offer(TimeStampedModel):
 	summary = models.TextField()
 	link = models.URLField(max_length=1000)
 	country = models.CharField(max_length=2)
+	deadline = models.DateField(null=True, blank=True)
+	link_errors = models.PositiveSmallIntegerField(default=0)
+	link_last_checked = models.DateTimeField(null=True, blank=True)
 	details = models.JSONField(default=dict)
 	source_type = models.ForeignKey(SourceType, on_delete=models.PROTECT, related_name="offers")
 	target_profile = models.ForeignKey(

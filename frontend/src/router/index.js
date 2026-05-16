@@ -8,6 +8,7 @@ import Staff from '../components/sections/Staff.vue'
 import External from '../components/sections/External.vue'
 import UserProfile from '../components/sections/UserProfile.vue'
 import Dashboard from '../Dashboard.vue'
+import AdminPage from '../pages/AdminPage.vue'
 import ForumPage from '../pages/ForumPage.vue'
 import QuestionDetailPage from '../pages/QuestionDetailPage.vue'
 import NewQuestionPage from '../pages/NewQuestionPage.vue'
@@ -31,6 +32,12 @@ const routes = [
     component: Dashboard,
     meta: { requiresAuth: true },
   },
+  {
+    path: '/admin',
+    name: 'admin',
+    component: AdminPage,
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
   { path: '/forum', name: 'Forum', component: ForumPage },
   { path: '/forum/new', name: 'NewQuestion', component: NewQuestionPage, meta: { requiresAuth: true } },
   { path: '/forum/:id', name: 'QuestionDetail', component: QuestionDetailPage },
@@ -42,11 +49,19 @@ const router = createRouter({
 })
 
 router.beforeEach((to, from, next) => {
-  if (to.meta.requiresAuth && !localStorage.getItem('access_token')) {
+  const token = localStorage.getItem('access_token')
+  if (to.meta.requiresAuth && !token) {
     next({ path: '/login', query: { redirect: to.fullPath } })
-  } else {
-    next()
+    return
   }
+  if (to.meta.requiresAdmin) {
+    const user = JSON.parse(localStorage.getItem('user') ?? 'null')
+    if (!user || user.profile !== 'Admin') {
+      next({ path: '/dashboard' })
+      return
+    }
+  }
+  next()
 })
 
 export default router

@@ -5,6 +5,23 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from content.scrapers.queue_service import run_crawler, run_url_scraper_batch
+from content.scrapers.link_checker import check_offer_links
+
+
+def _archive_expired_offers():
+    from django.utils import timezone as tz
+    from content.models import Offer
+    today = tz.localdate()
+    updated = (
+        Offer.objects.filter(
+            deadline__lt=today,
+            status__in=(Offer.OfferStatus.PUBLISHED, Offer.OfferStatus.DRAFT),
+        )
+        .update(status=Offer.OfferStatus.ARCHIVED)
+    )
+    if updated:
+        import logging
+        logging.getLogger(__name__).info("Archived %d expired offer(s).", updated)
 
 
 class Command(BaseCommand):
@@ -50,6 +67,24 @@ class Command(BaseCommand):
             max_instances=1,
             coalesce=True,
             misfire_grace_time=60,
+        )
+        scheduler.add_job(
+            _archive_expired_offers,
+            "cron",
+            id="archive-expired-offers",
+            hour=2,
+            minute=0,
+            max_instances=1,
+            coalesce=True,
+        )
+        scheduler.add_job(
+            check_offer_links,
+            "cron",
+            id="check-offer-links",
+            hour=3,
+            minute=0,
+            max_instances=1,
+            coalesce=True,
         )
 
         if run_on_start:
