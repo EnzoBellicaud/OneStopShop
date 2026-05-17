@@ -477,26 +477,22 @@ nav {
   align-items: center;
 }
 .about-img {
-  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
   height: 360px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
+  overflow: hidden;
 }
 .about-img-landing {
-  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
   height: 360px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
+  overflow: hidden;
+}
+.about-map-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 .about-eyebrow {
   font-size: 11px;

@@ -12,10 +12,7 @@
     <section :class="['about', { 'about-landing': isLanding }]" id="about">
         <div class="about-inner">
             <div :class="['about-img', { 'about-img-landing': isLanding }]">
-            <div class="img-icon">
-                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
-            </div>
-            <span class="img-placeholder-label">About image</span>
+              <img src="/mappa_paesi.jpg" alt="Map of partner countries" class="about-map-img" />
             </div>
             <div>
             <p class="about-eyebrow">About OneStopShop</p>
