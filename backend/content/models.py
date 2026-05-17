@@ -101,6 +101,7 @@ class User(TimeStampedModel):
 		STUDENT = "Student", "Student"
 		ACADEMIC_STAFF = "Academic staff", "Academic staff"
 		COMPANY = "Company", "Company"
+		ADMIN = "Admin", "Admin"
 
 	id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 	username = models.CharField(max_length=150, unique=True)
@@ -171,6 +172,9 @@ class Offer(TimeStampedModel):
 	summary = models.TextField()
 	link = models.URLField(max_length=1000)
 	country = models.CharField(max_length=2)
+	deadline = models.DateField(null=True, blank=True)
+	link_errors = models.PositiveSmallIntegerField(default=0)
+	link_last_checked = models.DateTimeField(null=True, blank=True)
 	details = models.JSONField(default=dict)
 	source_type = models.ForeignKey(SourceType, on_delete=models.PROTECT, related_name="offers")
 	target_profile = models.ForeignKey(
@@ -309,7 +313,7 @@ class UserProfile(TimeStampedModel):
 	# Profile preferences stay lightweight for Stage 1 so the API can expose
 	# dashboard-ready data without introducing more relational tables than needed.
 	id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-	user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
+	user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="user_profile")
 	bio = models.TextField(blank=True, default="")
 	avatar_url = models.URLField(max_length=500, blank=True, null=True)
 	preferred_domains = models.JSONField(default=list, blank=True)
@@ -334,6 +338,8 @@ class UserNeed(TimeStampedModel):
 		TargetProfile,
 		on_delete=models.PROTECT,
 		related_name="user_needs",
+		null=True,
+		blank=True,
 	)
 	status = models.CharField(
 		max_length=20,
@@ -459,4 +465,52 @@ class CrawlUrl(TimeStampedModel):
 		indexes = [
 			models.Index(fields=["status", "next_check_at"], name="idx_crawlurl_status_next_check"),
 			models.Index(fields=["source_key"], name="idx_crawlurl_source"),
+		]
+
+
+class ForumQuestion(TimeStampedModel):
+	id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+	title = models.CharField(max_length=255)
+	body = models.TextField()
+	author = models.ForeignKey(
+		User,
+		on_delete=models.PROTECT,
+		related_name="forum_questions",
+	)
+	offer_type = models.ForeignKey(
+		OfferType,
+		on_delete=models.SET_NULL,
+		null=True,
+		blank=True,
+		related_name="forum_questions",
+	)
+
+	class Meta:
+		db_table = "forum_question"
+		ordering = ["-created_at"]
+		indexes = [
+			models.Index(fields=["author", "-created_at"], name="idx_forum_question_author"),
+			models.Index(fields=["offer_type", "-created_at"], name="idx_forum_question_type"),
+		]
+
+
+class ForumAnswer(TimeStampedModel):
+	id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+	question = models.ForeignKey(
+		ForumQuestion,
+		on_delete=models.CASCADE,
+		related_name="answers",
+	)
+	body = models.TextField()
+	author = models.ForeignKey(
+		User,
+		on_delete=models.PROTECT,
+		related_name="forum_answers",
+	)
+
+	class Meta:
+		db_table = "forum_answer"
+		ordering = ["created_at"]
+		indexes = [
+			models.Index(fields=["question", "created_at"], name="idx_forum_answer_question"),
 		]

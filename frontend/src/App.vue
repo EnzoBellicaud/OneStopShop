@@ -1,9 +1,6 @@
-<script setup>
-import { useRouter } from 'vue-router'
-
-const router = useRouter()
-</script>
 
 <template>
-  <RouterView />
+  <div id="app">
+      <router-view />
+  </div>
 </template>

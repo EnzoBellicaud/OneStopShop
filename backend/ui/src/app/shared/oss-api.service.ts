@@ -11,6 +11,7 @@ import {
   LookupResponse,
   MatchingHit,
   MatchingHitsQueryParams,
+  Offer,
   OfferListResponse,
   OfferQueryParams,
   OrganizationLookup,
@@ -28,8 +29,6 @@ import {
   UserNeedCreateRequest,
   UserNeedsQueryParams,
   UserNeedUpdateRequest,
-  UserUpsertRequest,
-  UserUpsertResponse,
   SourcesHealthResponse,
 } from './api.models';
 import { environment } from '../../environments/environment';
@@ -68,6 +67,10 @@ export class OssApiService {
     });
   }
 
+  updateOfferStatus(offerId: string, status: 'draft' | 'published' | 'archived'): Observable<Offer> {
+    return this.http.patch<Offer>(`${this.apiBaseUrl}/offers/${offerId}`, { status });
+  }
+
   getScrapingRuns(limit = 20): Observable<ScrapingRunListResponse> {
     return this.http.get<ScrapingRunListResponse>(`${this.apiBaseUrl}/scraping/runs`, {
       params: this.buildParams({ limit }),
@@ -76,10 +79,6 @@ export class OssApiService {
 
   getScrapingRunDetail(runId: string): Observable<ScrapingRunDetail> {
     return this.http.get<ScrapingRunDetail>(`${this.apiBaseUrl}/scraping/runs/${runId}`);
-  }
-
-  upsertUser(payload: UserUpsertRequest): Observable<UserUpsertResponse> {
-    return this.http.post<UserUpsertResponse>(`${this.apiBaseUrl}/users`, payload);
   }
 
   getUser(userId: string): Observable<UserDetail> {
@@ -168,7 +167,14 @@ export class OssApiService {
   }
 
   getImportTemplate(): void {
-    window.open(`${this.apiBaseUrl}/offers/import/template`, '_blank');
+    this.http.get(`${this.apiBaseUrl}/offers/import/template`, { responseType: 'blob' }).subscribe(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'oss_import_template.xlsx';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
   }
 
   private buildParams(

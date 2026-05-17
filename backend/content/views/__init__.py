@@ -1,3 +1,4 @@
+from content.views.forum import forum_answer_detail, forum_answers, forum_question_detail, forum_questions
 from content.views.health import api_docs, health, openapi_schema, redoc_docs
 from content.views.imports import import_confirm, import_preview, import_template
 from content.views.lookups import countries, domains, offer_types, organizations, target_profiles
@@ -13,7 +14,7 @@ from content.views.users import (
     dashboard,
     link_user_organization,
     unlink_user_organization,
-    upsert_user,
+    users_collection,
     user_favorite_detail,
     user_favorites,
     user_matching_hit_detail,
@@ -24,6 +25,10 @@ from content.views.users import (
 )
 
 __all__ = [
+    "forum_answer_detail",
+    "forum_answers",
+    "forum_question_detail",
+    "forum_questions",
     "api_docs",
     "health",
     "openapi_schema",
@@ -46,7 +51,7 @@ __all__ = [
     "dashboard",
     "link_user_organization",
     "unlink_user_organization",
-    "upsert_user",
+    "users_collection",
     "user_favorite_detail",
     "user_favorites",
     "user_matching_hit_detail",

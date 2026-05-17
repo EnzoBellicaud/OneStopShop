@@ -47,6 +47,8 @@ export class OffersPageComponent implements OnInit, OnDestroy {
   loading = false;
   loadingLookups = false;
   errorMessage = '';
+  updatingOffer: Record<string, boolean> = {};
+  updateError: Record<string, string> = {};
 
   private readonly destroy$ = new Subject<void>();
 
@@ -165,6 +167,24 @@ export class OffersPageComponent implements OnInit, OnDestroy {
 
   trackOffer(_index: number, offer: Offer): string {
     return offer.id;
+  }
+
+  setOfferStatus(offerId: string, status: 'draft' | 'published' | 'archived'): void {
+    this.updatingOffer[offerId] = true;
+    this.updateError[offerId] = '';
+    this.api.updateOfferStatus(offerId, status)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (updated) => {
+          const idx = this.offers.findIndex(o => o.id === offerId);
+          if (idx !== -1) this.offers[idx] = updated;
+          this.updatingOffer[offerId] = false;
+        },
+        error: () => {
+          this.updateError[offerId] = 'Update failed — check admin permissions.';
+          this.updatingOffer[offerId] = false;
+        },
+      });
   }
 
   private fetchOffers(): void {

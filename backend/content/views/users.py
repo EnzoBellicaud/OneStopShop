@@ -1,13 +1,13 @@
 import json
 from uuid import UUID
 
-from django.db import IntegrityError
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
+from content.auth import require_auth
 from content.models import (
     Domain,
     MatchingHit,
@@ -22,6 +22,17 @@ from content.models import (
     UserRole,
 )
 from content.views._utils import _parse_positive_int
+
+ADMIN_PROFILE = User.ProfileType.ADMIN
+DEFAULT_ORGANIZATION_ROLE = "member"
+ADMIN_ASSIGNABLE_ORGANIZATION_ROLES = {"member", "contributor", "admin"}
+
+# Maps user profile type to the corresponding TargetProfile name in the DB
+_USER_PROFILE_TO_TARGET_PROFILE = {
+    "Student": "student",
+    "Academic staff": "researcher",
+    "Company": "company",
+}
 
 
 def _json_error(error: str, message: str, status: int) -> JsonResponse:
@@ -42,7 +53,13 @@ def _parse_uuid(value: str, field_name: str) -> UUID | None:
         return None
 
 
-def _get_user_or_response(user_id: str) -> tuple[User | None, JsonResponse | None]:
+def _get_user_or_response(user_id: str, request=None) -> tuple[User | None, JsonResponse | None]:
+    if user_id == "me":
+        auth_user = getattr(request, "auth_user", None)
+        if auth_user is None:
+            return None, _json_error("authentication_required", "Authentication required.", 401)
+        return auth_user, None
+
     parsed_id = _parse_uuid(user_id, "user_id")
     if parsed_id is None:
         return None, _json_error("validation_error", "Invalid user id.", 400)
@@ -52,6 +69,19 @@ def _get_user_or_response(user_id: str) -> tuple[User | None, JsonResponse | Non
         return None, _json_error("not_found", "User not found.", 404)
 
     return user, None
+
+
+def _is_admin(user: User) -> bool:
+    return user.profile == ADMIN_PROFILE
+
+
+def _require_self_or_admin(request, user: User) -> JsonResponse | None:
+    auth_user = getattr(request, "auth_user", None)
+    if auth_user is None:
+        return _json_error("authentication_required", "Authentication required.", 401)
+    if _is_admin(auth_user) or auth_user.id == user.id:
+        return None
+    return _json_error("forbidden", "You do not have permission to access this user resource.", 403)
 
 
 def _get_or_create_profile(user: User) -> UserProfile:
@@ -104,7 +134,7 @@ def _serialize_need(need: UserNeed) -> dict:
         "title": need.title,
         "description": need.description,
         "status": need.status,
-        "target_profile_id": str(need.target_profile_id),
+        "target_profile_id": str(need.target_profile_id) if need.target_profile_id else None,
         "domain_ids": [str(domain.id) for domain in need.domains.all()],
         "countries": need.countries,
         "matching_hits_count": getattr(need, "matching_hits_count", need.matching_hits.count()),
@@ -170,6 +200,23 @@ def _paginated_response(request, queryset, serializer, page_size: int, page: int
     )
 
 
+def _admin_user_list_response(request) -> JsonResponse:
+    page = _parse_positive_int(request.GET.get("page"), default=1, max_value=1000000)
+    page_size = _parse_positive_int(request.GET.get("page_size"), default=25, max_value=200)
+    search = str(request.GET.get("search") or "").strip()
+    status = str(request.GET.get("status") or "").strip()
+
+    queryset = User.objects.all().order_by("username")
+    if search:
+        queryset = queryset.filter(Q(username__icontains=search) | Q(email__icontains=search))
+    if status:
+        if status not in {"active", "inactive"}:
+            return _json_error("validation_error", "status must be active or inactive.", 400)
+        queryset = queryset.filter(is_active=(status == "active"))
+
+    return _paginated_response(request, queryset, _serialize_user_detail, page_size, page)
+
+
 def _normalize_countries(values) -> list[str]:
     if values is None:
         return []
@@ -208,75 +255,17 @@ def _resolve_target_profile(target_profile_id: str) -> TargetProfile:
     return target_profile
 
 
-@csrf_exempt
-@require_http_methods(["POST"])
-def upsert_user(request):
-    body = _parse_body(request)
-    if body is None:
-        return _json_error("validation_error", "Invalid JSON body.", 400)
-
-    email = str(body.get("email", "")).strip().lower()
-    username = str(body.get("username", "")).strip()
-    if not email or not username:
-        return _json_error("validation_error", "Both email and username are required.", 400)
-
-    profile_data = body.get("profile") or {}
-    if not isinstance(profile_data, dict):
-        return _json_error("validation_error", "profile must be an object.", 400)
-
-    user = User.objects.filter(email=email).first()
-    is_new = user is None
-    if is_new:
-        try:
-            user = User.objects.create(email=email, username=username, password_hash="")
-        except IntegrityError:
-            return _json_error("conflict", "A user with that email or username already exists.", 409)
-        status_code = 201
-    else:
-        if user.username != username and User.objects.exclude(id=user.id).filter(username=username).exists():
-            return _json_error("conflict", "Username is already in use.", 409)
-        user.username = username
-        user.is_active = True
-        user.save(update_fields=["username", "is_active", "updated_at"])
-        status_code = 200
-
-    profile = _get_or_create_profile(user)
-    if "bio" in profile_data:
-        profile.bio = str(profile_data.get("bio") or "")
-    if "avatar_url" in profile_data:
-        profile.avatar_url = profile_data.get("avatar_url")
-    if "preferred_domains" in profile_data:
-        profile.preferred_domains = list(profile_data.get("preferred_domains") or [])
-    if "preferred_countries" in profile_data:
-        profile.preferred_countries = [str(value).upper() for value in profile_data.get("preferred_countries") or []]
-    if "notification_enabled" in profile_data:
-        profile.notification_enabled = bool(profile_data.get("notification_enabled"))
-    profile.save()
-
-    organization_id = body.get("organization_id")
-    if organization_id:
-        parsed_org_id = _parse_uuid(str(organization_id), "organization_id")
-        if parsed_org_id is None:
-            return _json_error("validation_error", "Invalid organization id.", 400)
-        organization = Organization.objects.filter(id=parsed_org_id).first()
-        if organization is None:
-            return _json_error("not_found", "Organization not found.", 404)
-        if not UserOrganization.objects.filter(user=user, organization=organization).exists():
-            role, _ = UserRole.objects.get_or_create(
-                name="member",
-                defaults={"description": "Default member role"},
-            )
-            UserOrganization.objects.create(user=user, organization=organization, role=role)
-
-    payload = _serialize_user_detail(user)
-    payload["is_new"] = is_new
-    return JsonResponse(payload, status=status_code)
+@require_auth(roles=[ADMIN_PROFILE])
+@require_http_methods(["GET"])
+def users_collection(request):
+    return _admin_user_list_response(request)
 
 
 @csrf_exempt
+@require_auth(roles=[ADMIN_PROFILE])
 @require_http_methods(["GET", "PATCH", "DELETE"])
 def user_resource(request, user_id: str):
-    user, error_response = _get_user_or_response(user_id)
+    user, error_response = _get_user_or_response(user_id, request)
     if error_response is not None:
         return error_response
 
@@ -334,11 +323,15 @@ def user_resource(request, user_id: str):
 
 
 @csrf_exempt
+@require_auth()
 @require_http_methods(["POST"])
 def link_user_organization(request, user_id: str):
-    user, error_response = _get_user_or_response(user_id)
+    user, error_response = _get_user_or_response(user_id, request)
     if error_response is not None:
         return error_response
+    authorization_error = _require_self_or_admin(request, user)
+    if authorization_error is not None:
+        return authorization_error
 
     body = _parse_body(request)
     if body is None:
@@ -355,7 +348,15 @@ def link_user_organization(request, user_id: str):
     if UserOrganization.objects.filter(user=user, organization=organization).exists():
         return _json_error("conflict", "User is already linked to that organization.", 409)
 
-    role_name = str(body.get("role") or "member").strip() or "member"
+    requested_role = str(body.get("role") or DEFAULT_ORGANIZATION_ROLE).strip() or DEFAULT_ORGANIZATION_ROLE
+    if _is_admin(request.auth_user):
+        if requested_role not in ADMIN_ASSIGNABLE_ORGANIZATION_ROLES:
+            return _json_error("validation_error", "Invalid organization role.", 400)
+        role_name = requested_role
+    else:
+        if requested_role != DEFAULT_ORGANIZATION_ROLE:
+            return _json_error("forbidden", "Only admins can assign organization roles.", 403)
+        role_name = DEFAULT_ORGANIZATION_ROLE
     role, _ = UserRole.objects.get_or_create(
         name=role_name,
         defaults={"description": f"{role_name.title()} role"},
@@ -365,11 +366,15 @@ def link_user_organization(request, user_id: str):
 
 
 @csrf_exempt
+@require_auth()
 @require_http_methods(["DELETE"])
 def unlink_user_organization(request, user_id: str, org_id: str):
-    user, error_response = _get_user_or_response(user_id)
+    user, error_response = _get_user_or_response(user_id, request)
     if error_response is not None:
         return error_response
+    authorization_error = _require_self_or_admin(request, user)
+    if authorization_error is not None:
+        return authorization_error
 
     parsed_org_id = _parse_uuid(org_id, "org_id")
     if parsed_org_id is None:
@@ -381,11 +386,15 @@ def unlink_user_organization(request, user_id: str, org_id: str):
     return JsonResponse({}, status=204)
 
 
+@require_auth()
 @require_http_methods(["GET"])
 def dashboard(request, user_id: str):
-    user, error_response = _get_user_or_response(user_id)
+    user, error_response = _get_user_or_response(user_id, request)
     if error_response is not None:
         return error_response
+    authorization_error = _require_self_or_admin(request, user)
+    if authorization_error is not None:
+        return authorization_error
 
     favorites = list(
         user.favorites.select_related("offer__organization").order_by("-created_at")[:5]
@@ -407,11 +416,15 @@ def dashboard(request, user_id: str):
 
 
 @csrf_exempt
+@require_auth()
 @require_http_methods(["GET", "POST"])
 def user_needs(request, user_id: str):
-    user, error_response = _get_user_or_response(user_id)
+    user, error_response = _get_user_or_response(user_id, request)
     if error_response is not None:
         return error_response
+    authorization_error = _require_self_or_admin(request, user)
+    if authorization_error is not None:
+        return authorization_error
 
     if request.method == "GET":
         status_filter = request.GET.get("status", UserNeed.NeedStatus.ACTIVE)
@@ -435,7 +448,12 @@ def user_needs(request, user_id: str):
         return _json_error("validation_error", "Invalid JSON body.", 400)
 
     try:
-        target_profile = _resolve_target_profile(str(body.get("target_profile_id", "")))
+        target_profile_id_str = str(body.get("target_profile_id") or "").strip()
+        if target_profile_id_str:
+            target_profile = _resolve_target_profile(target_profile_id_str)
+        else:
+            tp_name = _USER_PROFILE_TO_TARGET_PROFILE.get(user.profile)
+            target_profile = TargetProfile.objects.filter(name=tp_name).first() if tp_name else None
         domains = _resolve_domains(body.get("domain_ids"))
         countries = _normalize_countries(body.get("countries"))
     except ValueError as exc:
@@ -445,8 +463,8 @@ def user_needs(request, user_id: str):
 
     title = str(body.get("title") or "").strip()
     description = str(body.get("description") or "").strip()
-    if not title or not description:
-        return _json_error("validation_error", "title and description are required.", 400)
+    if not title:
+        return _json_error("validation_error", "title is required.", 400)
 
     need = UserNeed.objects.create(
         user=user,
@@ -461,11 +479,15 @@ def user_needs(request, user_id: str):
 
 
 @csrf_exempt
-@require_http_methods(["PUT", "DELETE"])
+@require_auth()
+@require_http_methods(["PUT", "PATCH", "DELETE"])
 def user_need_detail(request, user_id: str, need_id: str):
-    user, error_response = _get_user_or_response(user_id)
+    user, error_response = _get_user_or_response(user_id, request)
     if error_response is not None:
         return error_response
+    authorization_error = _require_self_or_admin(request, user)
+    if authorization_error is not None:
+        return authorization_error
 
     parsed_need_id = _parse_uuid(need_id, "need_id")
     if parsed_need_id is None:
@@ -494,7 +516,11 @@ def user_need_detail(request, user_id: str, need_id: str):
         return _json_error("validation_error", "Invalid need status.", 400)
 
     try:
-        target_profile = _resolve_target_profile(str(body.get("target_profile_id", need.target_profile_id)))
+        target_profile_id_raw = body.get("target_profile_id", need.target_profile_id)
+        if target_profile_id_raw is not None:
+            target_profile = _resolve_target_profile(str(target_profile_id_raw))
+        else:
+            target_profile = None
         domains = _resolve_domains(body.get("domain_ids"))
         countries = _normalize_countries(body.get("countries"))
     except ValueError as exc:
@@ -502,10 +528,10 @@ def user_need_detail(request, user_id: str, need_id: str):
     except LookupError as exc:
         return _json_error("not_found", str(exc), 404)
 
-    title = str(body.get("title") or "").strip()
-    description = str(body.get("description") or "").strip()
-    if not title or not description:
-        return _json_error("validation_error", "title and description are required.", 400)
+    title = str(body.get("title") or need.title).strip()
+    description = str(body.get("description") if "description" in body else need.description).strip()
+    if not title:
+        return _json_error("validation_error", "title is required.", 400)
 
     need.title = title
     need.description = description
@@ -519,11 +545,15 @@ def user_need_detail(request, user_id: str, need_id: str):
 
 
 @csrf_exempt
+@require_auth()
 @require_http_methods(["GET", "POST"])
 def user_favorites(request, user_id: str):
-    user, error_response = _get_user_or_response(user_id)
+    user, error_response = _get_user_or_response(user_id, request)
     if error_response is not None:
         return error_response
+    authorization_error = _require_self_or_admin(request, user)
+    if authorization_error is not None:
+        return authorization_error
 
     if request.method == "GET":
         page = _parse_positive_int(request.GET.get("page"), default=1, max_value=1000000)
@@ -556,11 +586,15 @@ def user_favorites(request, user_id: str):
 
 
 @csrf_exempt
+@require_auth()
 @require_http_methods(["DELETE"])
 def user_favorite_detail(request, user_id: str, offer_id: str):
-    user, error_response = _get_user_or_response(user_id)
+    user, error_response = _get_user_or_response(user_id, request)
     if error_response is not None:
         return error_response
+    authorization_error = _require_self_or_admin(request, user)
+    if authorization_error is not None:
+        return authorization_error
 
     parsed_offer_id = _parse_uuid(offer_id, "offer_id")
     if parsed_offer_id is None:
@@ -572,11 +606,15 @@ def user_favorite_detail(request, user_id: str, offer_id: str):
     return JsonResponse({}, status=204)
 
 
+@require_auth()
 @require_http_methods(["GET"])
 def user_matching_hits(request, user_id: str):
-    user, error_response = _get_user_or_response(user_id)
+    user, error_response = _get_user_or_response(user_id, request)
     if error_response is not None:
         return error_response
+    authorization_error = _require_self_or_admin(request, user)
+    if authorization_error is not None:
+        return authorization_error
 
     valid_statuses = {choice for choice, _ in MatchingHit.MatchStatus.choices}
     status_filter = request.GET.get("status")
@@ -597,11 +635,15 @@ def user_matching_hits(request, user_id: str):
 
 
 @csrf_exempt
+@require_auth()
 @require_http_methods(["PATCH"])
 def user_matching_hit_detail(request, user_id: str, hit_id: str):
-    user, error_response = _get_user_or_response(user_id)
+    user, error_response = _get_user_or_response(user_id, request)
     if error_response is not None:
         return error_response
+    authorization_error = _require_self_or_admin(request, user)
+    if authorization_error is not None:
+        return authorization_error
 
     parsed_hit_id = _parse_uuid(hit_id, "hit_id")
     if parsed_hit_id is None:

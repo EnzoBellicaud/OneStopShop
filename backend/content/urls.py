@@ -10,6 +10,7 @@ urlpatterns = [
     path("auth/me", auth.get_current_user, name="get-current-user"),
     path("auth/me/update", auth.update_user_profile, name="update-user-profile"),
     path("auth/change-password", auth.change_password, name="change-password"),
+    path("auth/logout", auth.logout, name="logout"),
 
     # API documentation
     path("", views.api_docs, name="api-docs-home"),
@@ -33,7 +34,7 @@ urlpatterns = [
     path("lookups/countries", views.countries, name="countries"),
 
     # Offer endpoints
-    path("users", views.upsert_user, name="upsert-user"),
+    path("users", views.users_collection, name="users-collection"),
     path("users/<str:user_id>", views.user_resource, name="user-detail"),
     path("users/<str:user_id>/organizations", views.link_user_organization, name="link-user-organization"),
     path("users/<str:user_id>/organizations/<str:org_id>", views.unlink_user_organization, name="unlink-user-organization"),
@@ -49,4 +50,10 @@ urlpatterns = [
     path("offers/import/confirm", views.import_confirm, name="import-confirm"),
     path("offers", views.offers, name="offers"),
     path("offers/<str:offer_id>", views.offer_detail, name="offer-detail"),
+
+    # Forum endpoints
+    path("forum/questions", views.forum_questions, name="forum-questions"),
+    path("forum/questions/<str:question_id>", views.forum_question_detail, name="forum-question-detail"),
+    path("forum/questions/<str:question_id>/answers", views.forum_answers, name="forum-answers"),
+    path("forum/answers/<str:answer_id>", views.forum_answer_detail, name="forum-answer-detail"),
 ]
