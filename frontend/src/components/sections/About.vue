@@ -12,7 +12,7 @@
     <section :class="['about', { 'about-landing': isLanding }]" id="about">
         <div class="about-inner">
             <div :class="['about-img', { 'about-img-landing': isLanding }]">
-              <img src="/mappa_paesi.jpg" alt="Map of partner countries" class="about-map-img" />
+              <img src="/about-map.jpg" alt="Map of partner countries" class="about-map-img" />
             </div>
             <div>
             <p class="about-eyebrow">About OneStopShop</p>
