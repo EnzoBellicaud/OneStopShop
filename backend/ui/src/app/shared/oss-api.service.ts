@@ -136,7 +136,7 @@ export class OssApiService {
     );
   }
 
-  updateMatchingHit(userId: string, hitId: string, status: MatchingHit['status']): Observable<MatchingHit> {
+  updateMatchingHit(userId: string, hitId: string, status: 'viewed' | 'interested' | 'declined'): Observable<MatchingHit> {
     return this.http.patch<MatchingHit>(`${this.apiBaseUrl}/users/${userId}/matching-hits/${hitId}`, { status });
   }
 
