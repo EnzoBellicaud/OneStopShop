@@ -518,7 +518,8 @@ class ScrapeService:
         extracted: ExtractedPayload,
     ) -> tuple[str, tuple[str, str, str]]:
         organization = Organization.objects.get(id=uuid_from_token(source.organization_token))
-        offer_type = OfferType.objects.get(name=source.offer_type)
+        resolved_offer_type_name = extracted.offer_type or source.offer_type
+        offer_type = OfferType.objects.get(name=resolved_offer_type_name)
         target_profile = TargetProfile.objects.get(name=source.target_profile)
 
         natural_key = (source.url, str(organization.id), str(offer_type.id))
