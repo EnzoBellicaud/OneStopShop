@@ -4,11 +4,14 @@ import AppHeader from '../layout/AppHeader.vue'
 import AppFooter from '../layout/AppFooter.vue'
 
 const items = [
-  { label: 'Internship',  type: 'offer_type', value: 'internship' },
-  { label: 'Thesis',      type: 'offer_type', value: 'thesis' },
-  { label: 'Challenge',   type: 'offer_type', value: 'challenge' },
-  { label: 'Hackathon',   type: 'offer_type', value: 'hackathon' },
-  { label: 'Mobility',    type: 'domain',     value: 'Mobility' },
+  { label: 'Programs',         type: 'offer_type', value: 'training' },
+  { label: 'Thesis',           type: 'offer_type', value: 'thesis' },
+  { label: 'Expert Services',  type: 'offer_type', value: 'service' },
+  { label: 'Co-creation',      type: 'offer_type', value: 'co_creation' },
+  { label: 'Internship',       type: 'offer_type', value: 'internship' },
+  { label: 'Funding',          type: 'offer_type', value: 'funding_partner' },
+  { label: 'Research Groups',  type: 'offer_type', value: 'research_group' },
+  { label: 'Projects',         type: 'offer_type', value: 'project_opportunity' },
 ]
 </script>
 
@@ -20,7 +23,7 @@ const items = [
       description="Find internships, thesis projects, challenges, hackathons, and more across our partner universities."
       search-placeholder="Search internships, thesis topics..."
       :shortcuts="items"
-      target-profile="Student"
+      target-profile="student"
     />
     <AppFooter />
   </div>

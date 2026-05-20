@@ -30,7 +30,7 @@
       <!-- Browse: shortcut cards -->
       <div v-if="!isSearching" class="grid-profiles">
         <div
-          v-for="item in shortcuts"
+          v-for="item in validShortcuts"
           :key="itemValue(item)"
           class="shortcut-card"
           @click="applyShortcut(item)"
@@ -47,7 +47,7 @@
 
           <div class="filter-group">
             <h4>Category</h4>
-            <label v-for="cat in shortcuts" :key="itemValue(cat)" class="checkbox-item">
+            <label v-for="cat in validShortcuts" :key="itemValue(cat)" class="checkbox-item">
               <input
                 type="checkbox"
                 :checked="activeFilter === itemValue(cat)"
@@ -59,7 +59,7 @@
 
           <div class="filter-group">
             <h4>University</h4>
-            <label v-for="uni in UNIVERSITIES" :key="uni.value" class="checkbox-item">
+            <label v-for="uni in universities" :key="uni.value" class="checkbox-item">
               <input
                 type="checkbox"
                 :checked="activeUniversity === uni.value"
@@ -79,8 +79,8 @@
               />
               {{ dom.replace(/_/g, ' ') }}
             </label>
-            <button class="show-more-btn" @click="showAllDomains = !showAllDomains">
-              {{ showAllDomains ? 'Show less ↑' : `+${DOMAINS.length - DOMAIN_PREVIEW} more` }}
+            <button v-if="validDomains.length > DOMAIN_PREVIEW" class="show-more-btn" @click="showAllDomains = !showAllDomains">
+              {{ showAllDomains ? 'Show less ↑' : `+${validDomains.length - DOMAIN_PREVIEW} more` }}
             </button>
           </div>
 
@@ -159,7 +159,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { api } from '../../services/api.js'
 import { useAuth } from '../../composables/useAuth.js'
 
@@ -169,6 +169,7 @@ const props = defineProps({
   targetProfile: String,
   title: String,
   description: String,
+  skipValidation: { type: Boolean, default: false },
 })
 
 // ── Auth / Favorites ──────────────────────────────────────────────────────────
@@ -209,25 +210,67 @@ async function toggleFavorite(offer) {
   }
 }
 
-// ── Static filter data ────────────────────────────────────────────────────────
-const UNIVERSITIES = [
-  { label: 'EUC',        value: 'EUC' },
-  { label: 'UNIBZ',      value: 'UNIBZ' },
-  { label: 'IPVC',       value: 'IPVC' },
-  { label: 'MDU',        value: 'MDU' },
-  { label: 'TU Ilmenau', value: 'TU Ilmenau' },
-  { label: 'UITM',       value: 'UITM' },
-  { label: 'UNMO',       value: 'UNMO' },
-  { label: 'UNIVPM',     value: 'UNIVPM' },
-  { label: 'UTC',        value: 'UTC' },
-]
+// ── Dynamic university list ───────────────────────────────────────────────────
+const universities = ref([])
 
-const DOMAINS = [
+async function loadUniversities() {
+  const res = await api.get('/api/lookups/organizations?page_size=50')
+  if (res.ok) {
+    const data = await res.json()
+    universities.value = data.results.map(org => ({ label: org.name, value: org.name }))
+  }
+}
+
+// ── Valid shortcuts (hide zero-count categories) ──────────────────────────────
+const validShortcuts = ref(props.shortcuts ?? [])
+
+async function validateShortcuts() {
+  if (props.skipValidation || !props.shortcuts?.length) return
+  const checks = props.shortcuts.map(async (item) => {
+    const type = itemType(item)
+    const val  = itemValue(item)
+    const params = new URLSearchParams({ page_size: 1, status: 'published' })
+    if (props.targetProfile) params.set('target_profile', props.targetProfile)
+    if (type === 'offer_type') params.set('offer_type', val)
+    else if (type === 'domain') params.set('domain', val)
+    try {
+      const res = await api.get(`/api/offers?${params}`)
+      if (!res.ok) return { item, count: 0 }
+      const data = await res.json()
+      return { item, count: data.count }
+    } catch {
+      return { item, count: 0 }
+    }
+  })
+  const results = await Promise.all(checks)
+  validShortcuts.value = results.filter(r => r.count > 0).map(r => r.item)
+}
+
+const ALL_DOMAINS = [
   'AI', 'Co_creation_and_testbeds', 'Cybersecurity', 'Digitalisation',
   'Innovation_and_entrepreneurship', 'Mobility', 'Regional_development',
   'Robotics', 'STEAM_education', 'Social_transformation', 'Sustainability',
   'Technology_transfer',
 ]
+
+const validDomains = ref([])
+
+async function validateDomains() {
+  const checks = ALL_DOMAINS.map(async (domain) => {
+    const params = new URLSearchParams({ page_size: 1, status: 'published', domain })
+    if (props.targetProfile) params.set('target_profile', props.targetProfile)
+    try {
+      const res = await api.get(`/api/offers?${params}`)
+      if (!res.ok) return { domain, count: 0 }
+      const data = await res.json()
+      return { domain, count: data.count }
+    } catch {
+      return { domain, count: 0 }
+    }
+  })
+  const results = await Promise.all(checks)
+  validDomains.value = results.filter(r => r.count > 0).map(r => r.domain)
+}
 
 const SORT_OPTIONS = [
   { label: 'Name',  value: 'title' },
@@ -248,7 +291,7 @@ const sortOrder = ref('asc')
 const showAllDomains = ref(false)
 
 const visibleDomains = computed(() =>
-  showAllDomains.value ? DOMAINS : DOMAINS.slice(0, DOMAIN_PREVIEW)
+  showAllDomains.value ? validDomains.value : validDomains.value.slice(0, DOMAIN_PREVIEW)
 )
 
 // ── Results state ─────────────────────────────────────────────────────────────
@@ -376,4 +419,6 @@ watch(isSearching, (val) => {
     loadFavIds()
   }
 })
+
+onMounted(() => { loadUniversities(); validateShortcuts(); validateDomains() })
 </script>
