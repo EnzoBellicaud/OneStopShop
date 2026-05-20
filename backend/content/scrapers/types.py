@@ -29,6 +29,7 @@ class ExtractedPayload:
     details: dict = field(default_factory=dict)
     confidence: float = 0.0
     method: str = "deterministic"
+    offer_type: str | None = None  # set by LLM; None means use source default
 
 
 @dataclass

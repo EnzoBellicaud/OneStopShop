@@ -7,6 +7,7 @@ from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.http import require_GET
 
+from content.auth import require_auth
 from content.models import CrawlUrl, ScrapingRun
 from content.views._utils import _WINDOW_DELTAS, _parse_positive_int
 
@@ -28,6 +29,7 @@ def _run_summary(run: ScrapingRun) -> dict:
     }
 
 
+@require_auth(roles=['Admin'])
 @require_GET
 def scraping_runs(request):
     limit = _parse_positive_int(request.GET.get("limit"), default=20, max_value=100)
@@ -35,6 +37,7 @@ def scraping_runs(request):
     return JsonResponse({"count": len(runs), "results": [_run_summary(r) for r in runs]})
 
 
+@require_auth(roles=['Admin'])
 @require_GET
 def scraping_run_detail(request, run_id: str):
     try:
@@ -52,6 +55,7 @@ def scraping_run_detail(request, run_id: str):
     return JsonResponse(data)
 
 
+@require_auth(roles=['Admin'])
 @require_GET
 def scraping_overview(request):
     window_str = request.GET.get("window", "24h")
@@ -99,6 +103,7 @@ def scraping_overview(request):
     })
 
 
+@require_auth(roles=['Admin'])
 @require_GET
 def scraping_sources_health(request):
     rows = list(
@@ -134,6 +139,7 @@ def scraping_sources_health(request):
     return JsonResponse({"results": results})
 
 
+@require_auth(roles=['Admin'])
 @require_GET
 def scraping_llm_stats(request):
     window_str = request.GET.get("window", "24h")
