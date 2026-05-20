@@ -8,6 +8,7 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.test import Client, TestCase
 
+from content.auth import generate_tokens
 from content.models import (
 	CrawlUrl,
 	Domain,
@@ -56,6 +57,14 @@ class ReadApiTests(TestCase):
 			email="tester@example.com",
 			password_hash="not-used",
 		)
+		cls.admin_user = User.objects.create(
+			username="read_admin",
+			email="read_admin@example.com",
+			password_hash="not-used",
+			profile=User.ProfileType.ADMIN,
+		)
+		tokens = generate_tokens(cls.admin_user.id, cls.admin_user.username, cls.admin_user.profile)
+		cls.admin_token = tokens["access_token"]
 		cls.offer = Offer.objects.create(
 			id=uuid.uuid4(),
 			title="AI Master Programme",
@@ -205,20 +214,20 @@ class ReadApiTests(TestCase):
 		self.assertEqual(len(payload["results"]), 1)
 
 	def test_scraping_runs_endpoint(self):
-		response = self.client.get("/api/scraping/runs")
+		response = self.client.get("/api/scraping/runs", HTTP_AUTHORIZATION=f"Bearer {self.admin_token}")
 		payload = response.json()
 		self.assertEqual(response.status_code, 200)
 		self.assertEqual(payload["count"], 0)
 
 	def test_scraping_run_detail_endpoint(self):
-		run = ScrapingRun.objects.create(source_key="test-source", status=ScrapingRun.RunStatus.SUCCESS)
-		response = self.client.get(f"/api/scraping/runs/{run.id}")
+		scraping_run = ScrapingRun.objects.create(source_key="test-source", status=ScrapingRun.RunStatus.SUCCESS)
+		response = self.client.get(f"/api/scraping/runs/{scraping_run.id}", HTTP_AUTHORIZATION=f"Bearer {self.admin_token}")
 		payload = response.json()
 		self.assertEqual(response.status_code, 200)
-		self.assertEqual(payload["id"], str(run.id))
+		self.assertEqual(payload["id"], str(scraping_run.id))
 
 	def test_scraping_run_detail_not_found(self):
-		response = self.client.get(f"/api/scraping/runs/{uuid.uuid4()}")
+		response = self.client.get(f"/api/scraping/runs/{uuid.uuid4()}", HTTP_AUTHORIZATION=f"Bearer {self.admin_token}")
 		self.assertEqual(response.status_code, 404)
 
 	def test_offer_detail_endpoint(self):
@@ -340,14 +349,19 @@ class UserDashboardModelTests(TestCase):
 			UserNeedDomain.objects.create(user_need=need, domain=self.domain_ai)
 
 	def test_user_need_deleted_with_owner(self):
+		deletable_user = User.objects.create(
+			username="deletable-need-user",
+			email="deletable-need@example.com",
+			password_hash="not-used",
+		)
 		need = UserNeed.objects.create(
-			user=self.user,
+			user=deletable_user,
 			title="Need ownership cleanup",
 			description="Should be deleted with user",
 			target_profile=self.target_profile,
 		)
 
-		self.user.delete()
+		deletable_user.delete()
 
 		self.assertFalse(UserNeed.objects.filter(id=need.id).exists())
 
@@ -544,12 +558,41 @@ class UserCrudApiTests(TestCase):
 			email="otherstage2@example.com",
 			password_hash="secret",
 		)
+		cls.admin = User.objects.create(
+			username="stage2admin",
+			email="stage2admin@example.com",
+			password_hash="secret",
+			profile=User.ProfileType.ADMIN,
+			is_active=True,
+		)
+		cls.user_token = generate_tokens(cls.user.id, cls.user.username, cls.user.profile)["access_token"]
+		cls.other_user_token = generate_tokens(cls.other_user.id, cls.other_user.username, cls.other_user.profile)["access_token"]
+		cls.admin_token = generate_tokens(cls.admin.id, cls.admin.username, cls.admin.profile)["access_token"]
 		UserProfile.objects.create(
 			user=cls.user,
 			bio="Initial bio",
 			preferred_domains=["AI"],
 			preferred_countries=["IT"],
 		)
+
+	def test_users_collection_rejects_anonymous_access(self):
+		response = self.client.get("/api/users")
+		self.assertEqual(response.status_code, 401)
+
+	def test_users_collection_lists_users_for_admin(self):
+		response = self.client.get("/api/users", HTTP_AUTHORIZATION=f"Bearer {self.admin_token}")
+		payload = response.json()
+		self.assertEqual(response.status_code, 200)
+		self.assertGreaterEqual(payload["count"], 3)
+
+	def test_post_users_endpoint_is_removed(self):
+		response = self.client.post(
+			"/api/users",
+			data={"email": "new.user@example.com", "username": "newuser"},
+			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.admin_token}",
+		)
+		self.assertEqual(response.status_code, 405)
 
 	def test_get_user_detail_returns_profile_and_organizations(self):
 		UserOrganization.objects.create(
@@ -558,7 +601,7 @@ class UserCrudApiTests(TestCase):
 			role=self.member_role,
 		)
 
-		response = self.client.get(f"/api/users/{self.user.id}")
+		response = self.client.get(f"/api/users/{self.user.id}", HTTP_AUTHORIZATION=f"Bearer {self.admin_token}")
 		payload = response.json()
 
 		self.assertEqual(response.status_code, 200)
@@ -567,12 +610,16 @@ class UserCrudApiTests(TestCase):
 		self.assertEqual(payload["organizations"][0]["role"], "member")
 
 	def test_get_user_detail_invalid_uuid(self):
-		response = self.client.get("/api/users/not-a-uuid")
+		response = self.client.get("/api/users/not-a-uuid", HTTP_AUTHORIZATION=f"Bearer {self.admin_token}")
 		self.assertEqual(response.status_code, 400)
 
 	def test_get_user_detail_not_found(self):
-		response = self.client.get(f"/api/users/{uuid.uuid4()}")
+		response = self.client.get(f"/api/users/{uuid.uuid4()}", HTTP_AUTHORIZATION=f"Bearer {self.admin_token}")
 		self.assertEqual(response.status_code, 404)
+
+	def test_get_user_detail_rejects_non_admin(self):
+		response = self.client.get(f"/api/users/{self.user.id}", HTTP_AUTHORIZATION=f"Bearer {self.user_token}")
+		self.assertEqual(response.status_code, 403)
 
 	def test_patch_user_updates_account_and_profile(self):
 		response = self.client.patch(
@@ -586,6 +633,7 @@ class UserCrudApiTests(TestCase):
 				},
 			},
 			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.admin_token}",
 		)
 
 		payload = response.json()
@@ -599,13 +647,14 @@ class UserCrudApiTests(TestCase):
 			f"/api/users/{self.user.id}",
 			data={"email": self.other_user.email},
 			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.admin_token}",
 		)
 
 		self.assertEqual(response.status_code, 409)
 		self.assertEqual(response.json()["error"], "conflict")
 
 	def test_delete_user_soft_deletes_account(self):
-		response = self.client.delete(f"/api/users/{self.user.id}")
+		response = self.client.delete(f"/api/users/{self.user.id}", HTTP_AUTHORIZATION=f"Bearer {self.admin_token}")
 
 		self.assertEqual(response.status_code, 204)
 		self.user.refresh_from_db()
@@ -614,14 +663,34 @@ class UserCrudApiTests(TestCase):
 	def test_link_user_organization_creates_link(self):
 		response = self.client.post(
 			f"/api/users/{self.user.id}/organizations",
-			data={"organization_id": str(self.organization.id), "role": "contributor"},
+			data={"organization_id": str(self.organization.id)},
 			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.user_token}",
 		)
 
 		payload = response.json()
 		self.assertEqual(response.status_code, 201)
 		self.assertEqual(payload["name"], "Stage Two Org")
-		self.assertEqual(payload["role"], "contributor")
+		self.assertEqual(payload["role"], "member")
+
+	def test_link_user_organization_rejects_non_admin_role_assignment(self):
+		response = self.client.post(
+			f"/api/users/{self.user.id}/organizations",
+			data={"organization_id": str(self.organization.id), "role": "contributor"},
+			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.user_token}",
+		)
+		self.assertEqual(response.status_code, 403)
+
+	def test_link_user_organization_allows_admin_role_assignment(self):
+		response = self.client.post(
+			f"/api/users/{self.user.id}/organizations",
+			data={"organization_id": str(self.organization.id), "role": "contributor"},
+			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.admin_token}",
+		)
+		self.assertEqual(response.status_code, 201)
+		self.assertEqual(response.json()["role"], "contributor")
 
 	def test_link_user_organization_rejects_duplicate_org(self):
 		UserOrganization.objects.create(
@@ -634,6 +703,7 @@ class UserCrudApiTests(TestCase):
 			f"/api/users/{self.user.id}/organizations",
 			data={"organization_id": str(self.organization.id)},
 			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.user_token}",
 		)
 
 		self.assertEqual(response.status_code, 409)
@@ -647,7 +717,8 @@ class UserCrudApiTests(TestCase):
 		)
 
 		response = self.client.delete(
-			f"/api/users/{self.user.id}/organizations/{self.organization.id}"
+			f"/api/users/{self.user.id}/organizations/{self.organization.id}",
+			HTTP_AUTHORIZATION=f"Bearer {self.user_token}",
 		)
 
 		self.assertEqual(response.status_code, 204)
@@ -660,7 +731,8 @@ class UserCrudApiTests(TestCase):
 
 	def test_unlink_user_organization_returns_not_found_for_missing_link(self):
 		response = self.client.delete(
-			f"/api/users/{self.user.id}/organizations/{self.other_organization.id}"
+			f"/api/users/{self.user.id}/organizations/{self.other_organization.id}",
+			HTTP_AUTHORIZATION=f"Bearer {self.user_token}",
 		)
 
 		self.assertEqual(response.status_code, 404)
@@ -785,6 +857,25 @@ class UserContentApiTests(TestCase):
 			match_reason="Relevant robotics support",
 			status=MatchingHit.MatchStatus.VIEWED,
 		)
+		cls.admin = User.objects.create(
+			username="content_admin",
+			email="content_admin@example.com",
+			password_hash="not-used",
+			profile=User.ProfileType.ADMIN,
+		)
+		tokens = generate_tokens(cls.admin.id, cls.admin.username, cls.admin.profile)
+		cls.admin_token = tokens["access_token"]
+		cls.user_token = generate_tokens(cls.user.id, cls.user.username, cls.user.profile)["access_token"]
+
+	def setUp(self):
+		self.client.defaults["HTTP_AUTHORIZATION"] = f"Bearer {self.admin_token}"
+
+	def test_me_alias_returns_authenticated_user_dashboard(self):
+		response = self.client.get("/api/users/me/dashboard", HTTP_AUTHORIZATION=f"Bearer {self.user_token}")
+		payload = response.json()
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(payload["user"]["id"], str(self.user.id))
 
 	def test_dashboard_returns_stats_and_recent_items(self):
 		response = self.client.get(f"/api/users/{self.user.id}/dashboard")
@@ -1003,6 +1094,17 @@ class UserContentEdgeCaseTests(TestCase):
 			match_reason="Edge reason",
 			status=MatchingHit.MatchStatus.NEW,
 		)
+		cls.admin = User.objects.create(
+			username="edge_admin",
+			email="edge_admin@example.com",
+			password_hash="not-used",
+			profile=User.ProfileType.ADMIN,
+		)
+		tokens = generate_tokens(cls.admin.id, cls.admin.username, cls.admin.profile)
+		cls.admin_token = tokens["access_token"]
+
+	def setUp(self):
+		self.client.defaults["HTTP_AUTHORIZATION"] = f"Bearer {self.admin_token}"
 
 	def test_dashboard_handles_empty_lists(self):
 		response = self.client.get(f"/api/users/{self.other_user.id}/dashboard")
@@ -1165,6 +1267,17 @@ class UserIntegrationTests(TestCase):
 			updated_by=cls.user,
 			offer_type=cls.offer_type,
 		)
+		cls.admin = User.objects.create(
+			username="integration_admin",
+			email="integration_admin@example.com",
+			password_hash="not-used",
+			profile=User.ProfileType.ADMIN,
+		)
+		tokens = generate_tokens(cls.admin.id, cls.admin.username, cls.admin.profile)
+		cls.admin_token = tokens["access_token"]
+
+	def setUp(self):
+		self.client.defaults["HTTP_AUTHORIZATION"] = f"Bearer {self.admin_token}"
 
 	def test_user_journey_create_need_then_match_then_favorite(self):
 		create_response = self.client.post(
@@ -1206,28 +1319,33 @@ class UserIntegrationTests(TestCase):
 		self.assertEqual(payload["recent_matches"][0]["id"], str(match.id))
 
 	def test_model_delete_user_cascades_dashboard_entities(self):
-		UserProfile.objects.create(user=self.user, bio="Cascade profile")
-		UserOrganization.objects.create(user=self.user, organization=self.organization, role=self.role)
+		deletable_user = User.objects.create(
+			username="deletable-cascade-user",
+			email="deletable-cascade@example.com",
+			password_hash="not-used",
+		)
+		UserProfile.objects.create(user=deletable_user, bio="Cascade profile")
+		UserOrganization.objects.create(user=deletable_user, organization=self.organization, role=self.role)
 		need = UserNeed.objects.create(
-			user=self.user,
+			user=deletable_user,
 			title="Cascade need",
 			description="Cascade description",
 			target_profile=self.target_profile,
 		)
 		need.domains.set([self.domain])
-		favorite = UserFavorite.objects.create(user=self.user, offer=self.offer)
+		favorite = UserFavorite.objects.create(user=deletable_user, offer=self.offer)
 		hit = MatchingHit.objects.create(
-			user=self.user,
+			user=deletable_user,
 			need=need,
 			offer=self.offer,
 			match_score="0.7700",
 			match_reason="Cascade match",
 		)
 
-		self.user.delete()
+		deletable_user.delete()
 
-		self.assertFalse(UserProfile.objects.filter(user_id=self.user.id).exists())
-		self.assertFalse(UserOrganization.objects.filter(user_id=self.user.id).exists())
+		self.assertFalse(UserProfile.objects.filter(user_id=deletable_user.id).exists())
+		self.assertFalse(UserOrganization.objects.filter(user_id=deletable_user.id).exists())
 		self.assertFalse(UserNeed.objects.filter(id=need.id).exists())
 		self.assertFalse(UserNeedDomain.objects.filter(user_need_id=need.id).exists())
 		self.assertFalse(UserFavorite.objects.filter(id=favorite.id).exists())
@@ -1287,6 +1405,17 @@ class UserContentPerformanceTests(TestCase):
 					match_reason="Bulk match",
 					status=MatchingHit.MatchStatus.NEW if index % 2 == 0 else MatchingHit.MatchStatus.VIEWED,
 				)
+		cls.admin = User.objects.create(
+			username="perf_admin",
+			email="perf_admin@example.com",
+			password_hash="not-used",
+			profile=User.ProfileType.ADMIN,
+		)
+		tokens = generate_tokens(cls.admin.id, cls.admin.username, cls.admin.profile)
+		cls.admin_token = tokens["access_token"]
+
+	def setUp(self):
+		self.client.defaults["HTTP_AUTHORIZATION"] = f"Bearer {self.admin_token}"
 
 	def test_large_needs_query_returns_paginated_results_quickly(self):
 		start = perf_counter()
@@ -1338,6 +1467,17 @@ class ImportEndpointTests(TestCase):
 			email="tester@example.com",
 			password_hash="not-used",
 		)
+		cls.admin_user = User.objects.create(
+			username="import_admin",
+			email="import_admin@example.com",
+			password_hash="not-used",
+			profile=User.ProfileType.ADMIN,
+		)
+		tokens = generate_tokens(cls.admin_user.id, cls.admin_user.username, cls.admin_user.profile)
+		cls.admin_token = tokens["access_token"]
+
+	def setUp(self):
+		self.client.defaults["HTTP_AUTHORIZATION"] = f"Bearer {self.admin_token}"
 
 	def _csv_file(self, rows: list[dict]) -> io.BytesIO:
 		from content.ingestion.importer import ALL_COLUMNS
@@ -1524,7 +1664,15 @@ class ScrapingAnalyticsTests(TestCase):
 			email="scrape@example.com",
 			password_hash="not-used",
 		)
-		cls.run = ScrapingRun.objects.create(
+		cls.admin_user = User.objects.create(
+			username="scraping_admin",
+			email="scraping_admin@example.com",
+			password_hash="not-used",
+			profile=User.ProfileType.ADMIN,
+		)
+		tokens = generate_tokens(cls.admin_user.id, cls.admin_user.username, cls.admin_user.profile)
+		cls.admin_token = tokens["access_token"]
+		cls.scraping_run = ScrapingRun.objects.create(
 			source_key="test-source",
 			status=ScrapingRun.RunStatus.SUCCESS,
 			offers_processed=2,
@@ -1564,6 +1712,9 @@ class ScrapingAnalyticsTests(TestCase):
 			status=CrawlUrl.UrlStatus.PENDING,
 			offer=cls.offer,
 		)
+
+	def setUp(self):
+		self.client.defaults["HTTP_AUTHORIZATION"] = f"Bearer {self.admin_token}"
 
 	def test_scraping_overview_returns_shape(self):
 		response = self.client.get("/api/scraping/overview", {"window": "24h"})

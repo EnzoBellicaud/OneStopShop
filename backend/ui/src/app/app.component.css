@@ -13,6 +13,8 @@ aside {
 	color: #f5fbff;
 	padding: 1.4rem 1rem;
 	border-right: 1px solid rgba(255, 255, 255, 0.16);
+	display: flex;
+	flex-direction: column;
 }
 
 .brand {
@@ -24,6 +26,42 @@ aside {
 nav {
 	display: grid;
 	gap: 0.45rem;
+	align-content: start;
+	flex: 1;
+}
+
+.user-section {
+	margin-top: auto;
+	padding-top: 1rem;
+	border-top: 1px solid rgba(255, 255, 255, 0.16);
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.5rem;
+}
+
+.username {
+	font-size: 0.82rem;
+	color: #a8d4f5;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.logout-btn {
+	background: transparent;
+	border: 1px solid rgba(255, 255, 255, 0.3);
+	color: #d7ecff;
+	border-radius: 8px;
+	padding: 0.3rem 0.6rem;
+	font-size: 0.78rem;
+	cursor: pointer;
+	white-space: nowrap;
+	transition: background 0.15s;
+}
+
+.logout-btn:hover {
+	background: rgba(255, 255, 255, 0.1);
 }
 
 nav a {
