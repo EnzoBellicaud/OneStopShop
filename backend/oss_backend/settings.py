@@ -121,11 +121,11 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # API CORS configuration (Angular dev app calls the backend from another origin).
 CORS_ALLOWED_ORIGINS = _parse_csv_env(
     "CORS_ALLOWED_ORIGINS",
-    "http://localhost:4200,http://127.0.0.1:4200,http://localhost:5173,http://127.0.0.1:5173",
+    "http://localhost:4200,http://127.0.0.1:4200,http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174",
 )
 CSRF_TRUSTED_ORIGINS = _parse_csv_env(
     "CSRF_TRUSTED_ORIGINS",
-    "http://localhost:4200,http://127.0.0.1:4200,http://localhost:5173,http://127.0.0.1:5173",
+    "http://localhost:4200,http://127.0.0.1:4200,http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174",
 )
 CORS_ALLOW_CREDENTIALS = os.getenv("CORS_ALLOW_CREDENTIALS", "false").lower() == "true"
 
