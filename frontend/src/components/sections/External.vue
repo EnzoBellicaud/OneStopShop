@@ -21,6 +21,7 @@ const items = [
       search-placeholder="Search trainings, labs, testbeds, experts..."
       :shortcuts="items"
       target-profile="company"
+      :skip-validation="true"
     />
     <AppFooter />
   </div>

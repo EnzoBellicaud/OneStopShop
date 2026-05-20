@@ -275,7 +275,7 @@ onMounted(loadQuestion)
 
         <div class="answer-compose">
           <h3 class="compose-title">Post an answer</h3>
-          <template v-if="isLoggedIn.value">
+          <template v-if="isLoggedIn">
             <textarea
               v-model="answerDraft"
               rows="4"

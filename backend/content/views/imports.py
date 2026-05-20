@@ -5,11 +5,13 @@ from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods
 
+from content.auth import require_auth
 from content.models import Domain, OfferType, Organization
 
 logger = logging.getLogger(__name__)
 
 
+@require_auth(roles=['Admin'])
 @require_GET
 def import_template(request):
     import io  # noqa: PLC0415
@@ -154,6 +156,7 @@ def import_template(request):
 
 
 @csrf_exempt
+@require_auth(roles=['Admin'])
 @require_http_methods(["POST"])
 def import_preview(request):
     from content.ingestion.importer import ImportService  # noqa: PLC0415
@@ -175,6 +178,7 @@ def import_preview(request):
 
 
 @csrf_exempt
+@require_auth(roles=['Admin'])
 @require_http_methods(["POST"])
 def import_confirm(request):
     from content.ingestion.importer import ImportService  # noqa: PLC0415

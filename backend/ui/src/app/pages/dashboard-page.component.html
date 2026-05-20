@@ -9,13 +9,21 @@
     </div>
 
     <form class="identity-card" (ngSubmit)="saveIdentity()">
-      <h2>View user dashboard</h2>
+      <h2>Local dev identity</h2>
       <label>
-        User ID
-        <input type="text" name="userId" [(ngModel)]="userDraft.userId" placeholder="Paste a user UUID" aria-label="User ID" />
+        Email
+        <input type="email" name="userEmail" [(ngModel)]="userDraft.email" aria-label="Dashboard user email" />
+      </label>
+      <label>
+        Username
+        <input type="text" name="userName" [(ngModel)]="userDraft.username" aria-label="Dashboard user username" />
+      </label>
+      <label>
+        Bio
+        <textarea name="userBio" [(ngModel)]="userDraft.bio" rows="2" aria-label="Dashboard user bio"></textarea>
       </label>
       <button type="submit" [disabled]="savingUser">
-        {{ savingUser ? 'Loading...' : 'Load dashboard' }}
+        {{ savingUser ? 'Syncing user...' : 'Sync user' }}
       </button>
     </form>
   </header>
@@ -221,7 +229,7 @@
           <article class="list-card match-card" *ngFor="let hit of matchingHits; trackBy: trackMatch">
             <div class="top-row">
               <strong>{{ hit.offer.title }}</strong>
-              <span class="score">{{ hit.match_score | number:'1.2-2' }}</span>
+              <span class="score">{{ (hit.match_score * 100) | number:'1.0-0' }}%</span>
             </div>
             <p class="meta">{{ hit.need.title }} • {{ hit.status }}</p>
             <p>{{ hit.match_reason }}</p>

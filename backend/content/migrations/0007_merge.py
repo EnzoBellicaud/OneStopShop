@@ -5,6 +5,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("content", "0004_user_first_last_profile"),
+        ("content", "0004_user_dashboard_models"),
         ("content", "0006_merge_20260427_1731"),
     ]
 

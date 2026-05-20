@@ -4,12 +4,13 @@ import AppHeader from '../layout/AppHeader.vue'
 import AppFooter from '../layout/AppFooter.vue'
 
 const items = [
-  { label: 'Infrastructure',        type: 'offer_type', value: 'testbed' },
-  { label: 'Research Group',        type: 'offer_type', value: 'research_group' },
-  { label: 'Experts',               type: 'offer_type', value: 'service' },
-  { label: 'Events',                type: 'offer_type', value: 'training' },
-  { label: 'Demonstrators',         type: 'offer_type', value: 'co_creation' },
-  { label: 'Project Opportunities', type: 'offer_type', value: 'project_opportunity' },
+  { label: 'Research Groups',       type: 'offer_type', value: 'research_group' },
+  { label: 'Funding Partners',      type: 'offer_type', value: 'funding_partner' },
+  { label: 'Expert Services',       type: 'offer_type', value: 'service' },
+  { label: 'Thesis',                type: 'offer_type', value: 'thesis' },
+  { label: 'Labs',                  type: 'offer_type', value: 'lab' },
+  { label: 'Projects',              type: 'offer_type', value: 'project_opportunity' },
+  { label: 'Co-creation',           type: 'offer_type', value: 'co_creation' },
 ]
 </script>
 

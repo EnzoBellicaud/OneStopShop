@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { AuthService } from './shared/auth.service';
 
 @Component({
   selector: 'app-root',
@@ -10,4 +11,10 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 })
 export class AppComponent {
   title = 'SUNRISE OSS';
+
+  constructor(readonly auth: AuthService) {}
+
+  logout(): void {
+    this.auth.logout();
+  }
 }

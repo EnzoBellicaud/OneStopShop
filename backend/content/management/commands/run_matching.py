@@ -1,28 +1,48 @@
-from django.core.management.base import BaseCommand
+"""
+Management command to run the matching service.
+
+Usage:
+  # Match all published offers
+  python manage.py run_matching
+
+  # Match specific offers
+  python manage.py run_matching --offer-id <id1> --offer-id <id2>
+"""
+
+from django.core.management.base import BaseCommand, CommandError
 
 from content.matching_service import run_matching_for_offers
 from content.models import Offer
 
 
 class Command(BaseCommand):
-    help = "Run the hybrid matching engine against all published offers."
+    help = "Run the matching service to create MatchingHit records"
 
     def add_arguments(self, parser):
         parser.add_argument(
             "--offer-id",
-            nargs="*",
-            metavar="UUID",
-            help="Limit matching to specific offer UUIDs (default: all published).",
+            type=str,
+            action="append",
+            dest="offer_ids",
+            help="Specific offer ID to match (can be used multiple times)",
         )
 
     def handle(self, *args, **options):
-        offer_ids = options.get("offer_id")
+        offer_ids = options.get("offer_ids") or []
+
         if offer_ids:
-            ids = offer_ids
-            self.stdout.write(f"Running matching for {len(ids)} specified offer(s)…")
+            # Validate that provided IDs are valid UUIDs
+            try:
+                ids = [str(oid) for oid in offer_ids]
+                self.stdout.write(f"Running matching for {len(ids)} specified offer(s)…")
+            except (ValueError, TypeError) as e:
+                raise CommandError(f"Invalid offer ID format: {e}")
         else:
+            # Match all published offers
             ids = list(
-                Offer.objects.filter(status=Offer.OfferStatus.PUBLISHED).values_list("id", flat=True)
+                Offer.objects.filter(status=Offer.OfferStatus.PUBLISHED).values_list(
+                    "id", flat=True
+                )
             )
             self.stdout.write(f"Running matching for all {len(ids)} published offer(s)…")
 
@@ -31,8 +51,11 @@ class Command(BaseCommand):
             return
 
         stats = run_matching_for_offers(ids)
-        self.stdout.write(self.style.SUCCESS(
+        
+        # Format the output
+        msg = (
             f"Done. offers={stats['offers']} candidates={stats['candidates']} "
             f"created={stats['created']} skipped={stats['skipped']} "
             f"below_threshold={stats['below_threshold']}"
-        ))
+        )
+        self.stdout.write(self.style.SUCCESS(msg))
