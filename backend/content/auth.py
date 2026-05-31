@@ -14,7 +14,7 @@ from django.views.decorators.http import require_http_methods
 from django_ratelimit.decorators import ratelimit
 
 from content.emails import send_registration_pending_email
-from content.models import AllowedDomain, User, UserOrganization
+from content.models import AllowedDomain, Organization, User, UserOrganization
 
 logger = logging.getLogger(__name__)
 
@@ -139,6 +139,9 @@ def register(request):
 	first_name = (data.get('first_name') or '').strip()
 	last_name = (data.get('last_name') or '').strip()
 	profile = (data.get('profile') or User.ProfileType.STUDENT).strip()
+	company_name    = (data.get('company_name') or '').strip()
+	company_country = (data.get('company_country') or '').strip().upper()
+	company_website = (data.get('company_website') or '').strip()
 
 	if not username or len(username) < 3:
 		return JsonResponse({'detail': 'Username must be at least 3 characters'}, status=400)
@@ -152,6 +155,13 @@ def register(request):
 		return JsonResponse({'detail': 'Username already exists'}, status=409)
 	if User.objects.filter(email=email).exists():
 		return JsonResponse({'detail': 'Email already exists'}, status=409)
+
+	# Company accounts require org info
+	if profile == User.ProfileType.COMPANY:
+		if not company_name:
+			return JsonResponse({'error': 'validation_error', 'detail': 'company_name is required for Company accounts.'}, status=400)
+		if not company_country or len(company_country) != 2:
+			return JsonResponse({'error': 'validation_error', 'detail': 'company_country must be a 2-letter ISO code.'}, status=400)
 
 	# Teacher accounts require a university email domain
 	if profile == User.ProfileType.TEACHER:
@@ -184,6 +194,22 @@ def register(request):
 					organization=allowed.organization,
 					defaults={'role': researcher_role},
 				)
+
+		# Create org for Company and link immediately (user still pending approval)
+		elif profile == User.ProfileType.COMPANY:
+			from content.models import UserRole as _UserRole
+			org = Organization.objects.create(
+				name=company_name,
+				type=Organization.OrganizationType.COMPANY,
+				country=company_country,
+				website=company_website,
+			)
+			researcher_role, _ = _UserRole.objects.get_or_create(name='researcher', defaults={'description': 'Researcher'})
+			UserOrganization.objects.get_or_create(
+				user=user,
+				organization=org,
+				defaults={'role': researcher_role},
+			)
 
 		# Teacher and Company accounts require admin approval before they can log in
 		if profile in APPROVAL_REQUIRED_PROFILES:

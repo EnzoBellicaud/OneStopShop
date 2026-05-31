@@ -1811,11 +1811,35 @@ class TeacherRegistrationTests(TestCase):
 		resp = self._register({
 			"username": "acmeco", "email": "hr@acme.com",
 			"password": "pass1234", "profile": "Company",
+			"company_name": "Acme Corp", "company_country": "DE",
 		})
 		self.assertEqual(resp.status_code, 201)
 		data = resp.json()
 		self.assertEqual(data["status"], "pending_approval")
 		self.assertNotIn("tokens", data)
+		user = User.objects.get(username="acmeco")
+		link = UserOrganization.objects.filter(user=user).first()
+		self.assertIsNotNone(link)
+		self.assertEqual(link.organization.name, "Acme Corp")
+		self.assertEqual(link.organization.type, "company")
+
+	def test_company_registers_missing_company_name_returns_400(self):
+		resp = self._register({
+			"username": "acmeco2", "email": "hr2@acme.com",
+			"password": "pass1234", "profile": "Company",
+			"company_country": "DE",
+		})
+		self.assertEqual(resp.status_code, 400)
+		self.assertEqual(resp.json()["error"], "validation_error")
+
+	def test_company_registers_missing_country_returns_400(self):
+		resp = self._register({
+			"username": "acmeco3", "email": "hr3@acme.com",
+			"password": "pass1234", "profile": "Company",
+			"company_name": "Acme Corp",
+		})
+		self.assertEqual(resp.status_code, 400)
+		self.assertEqual(resp.json()["error"], "validation_error")
 
 	def test_student_registers_immediately_active(self):
 		resp = self._register({

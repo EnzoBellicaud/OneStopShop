@@ -64,6 +64,39 @@
                 ℹ Use your university email (e.g. you@mdu.se)
               </p>
             </div>
+
+            <template v-if="form.profile === 'Company'">
+              <div class="field">
+                <label for="company_name">Company Name *</label>
+                <input
+                  id="company_name"
+                  v-model="form.company_name"
+                  type="text"
+                  placeholder="Acme Corp"
+                  autocomplete="organization"
+                />
+              </div>
+              <div class="field">
+                <label for="company_country">Country (2-letter code) *</label>
+                <input
+                  id="company_country"
+                  v-model="form.company_country"
+                  type="text"
+                  maxlength="2"
+                  placeholder="DE"
+                  style="text-transform:uppercase"
+                />
+              </div>
+              <div class="field">
+                <label for="company_website">Website</label>
+                <input
+                  id="company_website"
+                  v-model="form.company_website"
+                  type="url"
+                  placeholder="https://acme.com"
+                />
+              </div>
+            </template>
           </template>
 
           <div class="field">
@@ -144,7 +177,10 @@ const roles = [
   { value: 'Company', label: 'Company',  icon: '🏢' },
 ]
 
-const form = ref({ username: '', email: '', password: '', profile: 'Student' })
+const form = ref({
+  username: '', email: '', password: '', profile: 'Student',
+  company_name: '', company_country: '', company_website: '',
+})
 
 function switchMode() {
   mode.value = mode.value === 'login' ? 'register' : 'login'
@@ -158,7 +194,24 @@ async function submit() {
     const ok = await login(form.value.username, form.value.password)
     if (ok) router.push(route.query.redirect || '/')
   } else {
-    const result = await register(form.value.username, form.value.email, form.value.password, form.value.profile)
+    if (form.value.profile === 'Company') {
+      if (!form.value.company_name.trim()) {
+        error.value = 'Company name is required.'
+        return
+      }
+      if (form.value.company_country.trim().length !== 2) {
+        error.value = 'Country must be a 2-letter code (e.g. DE, SE, IT).'
+        return
+      }
+    }
+    const extraFields = form.value.profile === 'Company'
+      ? {
+          company_name:    form.value.company_name.trim(),
+          company_country: form.value.company_country.trim().toUpperCase(),
+          company_website: form.value.company_website.trim(),
+        }
+      : {}
+    const result = await register(form.value.username, form.value.email, form.value.password, form.value.profile, extraFields)
     if (result && result.pending) {
       pendingApproval.value = true
     } else if (result === true) {
