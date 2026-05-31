@@ -131,19 +131,21 @@
             }
           </div>
           <a [href]="offer.link" target="_blank" rel="noreferrer">Open source page</a>
-          <div class="moderation-actions">
-            @for (s of statuses; track s) {
-              <button
-                type="button"
-                [class.active]="offer.status === s"
-                [disabled]="updatingOffer[offer.id]"
-                (click)="setOfferStatus(offer.id, $any(s))"
-              >{{ s }}</button>
-            }
-            @if (updateError[offer.id]) {
-              <span class="mod-error">{{ updateError[offer.id] }}</span>
-            }
-          </div>
+          @if (auth.isAdmin || auth.isOfferManager) {
+            <div class="moderation-actions">
+              @for (s of statuses; track s) {
+                <button
+                  type="button"
+                  [class.active]="offer.status === s"
+                  [disabled]="updatingOffer[offer.id]"
+                  (click)="setOfferStatus(offer.id, $any(s))"
+                >{{ s }}</button>
+              }
+              @if (updateError[offer.id]) {
+                <span class="mod-error">{{ updateError[offer.id] }}</span>
+              }
+            </div>
+          }
           @if (auth.isAdmin || auth.isOfferManager) {
             <div class="card-actions">
               <button class="btn-sm btn-outline" (click)="openEditModal(offer)">Edit</button>

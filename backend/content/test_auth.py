@@ -102,6 +102,7 @@ class AuthenticationTestCase(TestCase):
 			username='testuser',
 			email='user1@example.com',
 			password_hash=hash_password('Password123'),
+			email_verified=True,
 		)
 
 		# Try to register with same username
@@ -150,6 +151,7 @@ class AuthenticationTestCase(TestCase):
 			username='testuser',
 			email='test@example.com',
 			password_hash=hash_password('TestPassword123'),
+			email_verified=True,
 		)
 
 		response = self.client.post(
@@ -317,14 +319,14 @@ class AuthenticationTestCase(TestCase):
 		self.assertEqual(response.json()['detail'], 'Logged out successfully')
 
 	def test_logout_unauthenticated(self):
-		"""Test logout returns 401 without token."""
+		"""Test logout returns 200 even without token (stateless endpoint)."""
 		response = self.client.post(self.logout_url)
-		self.assertEqual(response.status_code, 401)
+		self.assertEqual(response.status_code, 200)
 
 	def test_logout_invalid_token(self):
-		"""Test logout returns 401 with invalid token."""
+		"""Test logout returns 200 even with invalid token (stateless endpoint)."""
 		response = self.client.post(self.logout_url, HTTP_AUTHORIZATION='Bearer invalidtoken')
-		self.assertEqual(response.status_code, 401)
+		self.assertEqual(response.status_code, 200)
 
 
 class PasswordHashingTestCase(TestCase):

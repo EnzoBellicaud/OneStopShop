@@ -297,7 +297,7 @@ export class DashboardPageComponent implements OnInit, OnDestroy {
             totalUsers:      users.count,
             pendingApprovals: pending.count,
             totalOffers:     offers.count,
-            totalOrgs:       orgs.results.length,
+            totalOrgs:       orgs.count,
           };
           this.statsLoading = false;
         },

@@ -8,6 +8,7 @@ from functools import wraps
 
 import jwt
 from django.conf import settings
+from django.db import transaction
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
@@ -200,12 +201,15 @@ def register(request):
 		# Create org for Company and link immediately (user still pending approval)
 		elif profile == User.ProfileType.COMPANY:
 			from content.models import UserRole as _UserRole
-			org = Organization.objects.create(
-				name=company_name,
-				type=Organization.OrganizationType.COMPANY,
-				country=company_country,
-				website=company_website,
-			)
+			with transaction.atomic():
+				org = Organization.objects.filter(name__iexact=company_name).first()
+				if org is None:
+					org = Organization.objects.create(
+						name=company_name,
+						type=Organization.OrganizationType.COMPANY,
+						country=company_country,
+						website=company_website,
+					)
 			researcher_role, _ = _UserRole.objects.get_or_create(name='researcher', defaults={'description': 'Researcher'})
 			UserOrganization.objects.get_or_create(
 				user=user,
@@ -356,7 +360,6 @@ def change_password(request):
 
 
 @csrf_exempt
-@require_auth()
 @require_http_methods(["POST"])
 def logout(request):
 	return JsonResponse({'detail': 'Logged out successfully'}, status=200)

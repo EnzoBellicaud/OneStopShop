@@ -77,15 +77,11 @@
                 />
               </div>
               <div class="field">
-                <label for="company_country">Country (2-letter code) *</label>
-                <input
-                  id="company_country"
-                  v-model="form.company_country"
-                  type="text"
-                  maxlength="2"
-                  placeholder="DE"
-                  style="text-transform:uppercase"
-                />
+                <label for="company_country">Country *</label>
+                <select id="company_country" v-model="form.company_country">
+                  <option value="">Select country…</option>
+                  <option v-for="c in ALL_COUNTRIES" :key="c.code" :value="c.code">{{ c.name }}</option>
+                </select>
               </div>
               <div class="field">
                 <label for="company_website">Website</label>
@@ -162,6 +158,7 @@
 import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuth } from './composables/useAuth.js'
+import { ALL_COUNTRIES } from './data/countries.js'
 
 const router = useRouter()
 const route = useRoute()
@@ -200,8 +197,8 @@ async function submit() {
         error.value = 'Company name is required.'
         return
       }
-      if (form.value.company_country.trim().length !== 2) {
-        error.value = 'Country must be a 2-letter code (e.g. DE, SE, IT).'
+      if (!form.value.company_country) {
+        error.value = 'Please select a country.'
         return
       }
     }
