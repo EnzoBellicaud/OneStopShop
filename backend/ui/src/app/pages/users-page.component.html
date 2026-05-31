@@ -42,6 +42,7 @@
   @if (loading()) {
     <p class="loading-msg">Loading…</p>
   } @else {
+    <div class="table-card">
     <table class="data-table">
       <thead>
         <tr>
@@ -109,6 +110,8 @@
         }
       </tbody>
     </table>
+
+    </div><!-- /table-card -->
 
     <div class="pagination">
       <button class="btn-outline btn-sm" (click)="prevPage()" [disabled]="(filters.page ?? 1) <= 1">← Prev</button>

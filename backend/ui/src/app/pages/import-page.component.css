@@ -8,24 +8,25 @@
 
 /* ── Header ── */
 header {
-  background: linear-gradient(140deg, #fff8e6, #ecf7f2);
-  border-radius: 16px;
-  border: 1px solid #e7ddbe;
-  padding: 1.2rem;
+  background: #fff;
+  border-radius: var(--r-lg, 12px);
+  border: 1px solid var(--border, #e4e4e0);
+  padding: 1.25rem 1.4rem;
 }
 
 .eyebrow {
   margin: 0;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-size: 0.75rem;
-  color: #7a5a13;
+  letter-spacing: 0.1em;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #888;
+  font-family: 'DM Sans', sans-serif;
 }
 
 header h1 {
   margin: 0.3rem 0 0.4rem;
-  font-family: 'Fraunces', serif;
-  color: #223241;
+  color: var(--ink, #111110);
 }
 
 .lead { margin: 0; color: #3d505d; }
@@ -33,7 +34,7 @@ header h1 {
 /* ── Step card ── */
 .step-card {
   background: #fff;
-  border: 1px solid #d6e4ef;
+  border: 1px solid var(--border, #e4e4e0);
   border-radius: 14px;
   padding: 1.2rem 1.4rem;
   display: grid;
@@ -49,7 +50,7 @@ header h1 {
 
 .step-badge {
   background: #e0f0fa;
-  color: #1a4d73;
+  color: var(--ink, #111110);
   border-radius: 20px;
   padding: 0.1rem 0.6rem;
   font-size: 0.74rem;
@@ -73,7 +74,7 @@ header h1 {
   flex-wrap: wrap;
   gap: 0.5rem;
   background: #f8fbff;
-  border: 1px solid #d6e4ef;
+  border: 1px solid var(--border, #e4e4e0);
   border-radius: 10px;
   padding: 0.7rem 0.9rem;
 }
@@ -82,7 +83,7 @@ header h1 {
 
 /* ── Upload zone ── */
 .upload-zone {
-  border: 2px dashed #b6c8d8;
+  border: 2px dashed var(--border, #e4e4e0);
   border-radius: 12px;
   background: #f8fbff;
   cursor: pointer;
@@ -90,7 +91,7 @@ header h1 {
 }
 
 .upload-zone:hover,
-.upload-zone.has-file { border-color: #23638f; background: #eef6fd; }
+.upload-zone.has-file { border-color: var(--ink, #111110); background: #eef6fd; }
 
 .file-input-hidden {
   position: absolute;
@@ -117,11 +118,11 @@ header h1 {
   text-align: center;
 }
 
-.file-name { color: #1a4d73; font-weight: 600; }
+.file-name { color: var(--ink, #111110); font-weight: 600; }
 
 /* ── Column reference ── */
 .columns-reference {
-  border: 1px solid #d6e4ef;
+  border: 1px solid var(--border, #e4e4e0);
   border-radius: 10px;
 }
 
@@ -141,7 +142,7 @@ header h1 {
   padding: 0.1rem 0.3rem;
   border-radius: 4px;
   font-size: 0.8rem;
-  color: #1a4d73;
+  color: var(--ink, #111110);
 }
 
 /* ── Preview summary pills ── */
@@ -162,13 +163,13 @@ header h1 {
 .pill-ok { background: #e7f4ea; color: #1d7347; }
 .pill-error { background: #ffe4e4; color: #9e2a2a; }
 .pill-warn { background: #fff3cd; color: #856404; }
-.pill-new { background: #e0f0fa; color: #1a4d73; }
+.pill-new { background: #e0f0fa; color: var(--ink, #111110); }
 
 /* ── Tab bar ── */
 .tab-bar {
   display: flex;
   gap: 0;
-  border-bottom: 2px solid #d6e4ef;
+  border-bottom: 2px solid var(--border, #e4e4e0);
   margin-bottom: 0.75rem;
 }
 
@@ -188,12 +189,12 @@ header h1 {
   gap: 0.4rem;
 }
 
-.tab-btn:hover { color: #23638f; }
-.tab-btn.active { color: #23638f; border-bottom-color: #23638f; }
+.tab-btn:hover { color: var(--ink, #111110); }
+.tab-btn.active { color: var(--ink, #111110); border-bottom-color: var(--ink, #111110); }
 
 .tab-count {
   background: #e0f0fa;
-  color: #1a4d73;
+  color: var(--ink, #111110);
   border-radius: 20px;
   padding: 0.05rem 0.45rem;
   font-size: 0.74rem;
@@ -208,7 +209,7 @@ header h1 {
   font-family: inherit;
   font-size: 0.78rem;
   padding: 0.15rem 0.3rem;
-  border: 1px solid #b6c8d8;
+  border: 1px solid var(--border, #e4e4e0);
   border-radius: 6px;
   background: #fff;
   color: #1f3041;
@@ -219,7 +220,7 @@ header h1 {
 .table-wrap {
   overflow-x: auto;
   border-radius: 10px;
-  border: 1px solid #d6e4ef;
+  border: 1px solid var(--border, #e4e4e0);
 }
 
 .data-table {
@@ -232,7 +233,7 @@ header h1 {
   text-align: left;
   padding: 0.45rem 0.6rem;
   background: #f4f8fb;
-  border-bottom: 2px solid #d6e4ef;
+  border-bottom: 2px solid var(--border, #e4e4e0);
   font-size: 0.75rem;
   font-weight: 600;
   color: #4a5c6f;
@@ -295,31 +296,35 @@ header h1 {
 
 /* ── Buttons ── */
 .btn-primary {
-  padding: 0.4rem 1rem;
+  padding: 0.45rem 1rem;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--r, 6px);
   cursor: pointer;
-  background: #23638f;
+  background: var(--ink, #111110);
   color: #fff;
-  font-family: inherit;
-  font-size: 0.86rem;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.875rem;
   font-weight: 600;
+  transition: opacity 0.15s;
 }
 
-.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-primary:hover { opacity: 0.85; }
+.btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .btn-ghost {
-  padding: 0.35rem 0.8rem;
-  border: 1px solid #b6c8d8;
-  border-radius: 8px;
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--border, #e4e4e0);
+  border-radius: var(--r, 6px);
   cursor: pointer;
   background: #fff;
-  font-family: inherit;
-  font-size: 0.84rem;
-  color: #23638f;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.85rem;
+  color: var(--ink, #111110);
+  transition: background 0.12s;
 }
 
-.btn-ghost:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-ghost:hover { background: #f5f5f3; }
+.btn-ghost:disabled { opacity: 0.45; cursor: not-allowed; }
 .btn-ghost.small { padding: 0.2rem 0.55rem; font-size: 0.78rem; }
 
 /* ── Section title ── */
