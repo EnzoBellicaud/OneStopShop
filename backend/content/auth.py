@@ -173,6 +173,7 @@ def register(request):
 			)
 
 	try:
+		needs_approval = profile in APPROVAL_REQUIRED_PROFILES
 		user = User.objects.create(
 			username=username,
 			email=email,
@@ -180,6 +181,7 @@ def register(request):
 			first_name=first_name,
 			last_name=last_name,
 			profile=profile,
+			email_verified=not needs_approval,
 		)
 
 		# Auto-link Teacher to their university org via AllowedDomain
@@ -212,7 +214,7 @@ def register(request):
 			)
 
 		# Teacher and Company accounts require admin approval before they can log in
-		if profile in APPROVAL_REQUIRED_PROFILES:
+		if needs_approval:
 			user.is_active = False
 			user.approval_status = User.ApprovalStatus.PENDING
 			user.save(update_fields=['is_active', 'approval_status'])
@@ -259,6 +261,8 @@ def login(request):
 		)
 	if not user.is_active:
 		return JsonResponse({'error': 'inactive', 'detail': 'Account is inactive.'}, status=403)
+	if not user.email_verified:
+		return JsonResponse({'error': 'email_not_verified', 'detail': 'Your email address has not been verified yet.'}, status=403)
 
 	return JsonResponse({'user': _user_dict(user), 'tokens': generate_tokens(user.id, user.username, user.profile)}, status=200)
 

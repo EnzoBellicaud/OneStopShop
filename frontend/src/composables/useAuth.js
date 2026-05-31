@@ -33,6 +33,8 @@ export function useAuth() {
           error.value = 'Your account registration was rejected.'
         } else if (data.error === 'inactive') {
           error.value = 'Your account has been deactivated.'
+        } else if (data.error === 'email_not_verified') {
+          error.value = 'Your email address has not been verified yet. Contact an admin.'
         } else {
           error.value = data.detail ?? 'Login failed'
         }

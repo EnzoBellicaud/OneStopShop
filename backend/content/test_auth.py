@@ -124,6 +124,7 @@ class AuthenticationTestCase(TestCase):
 			first_name='Test',
 			last_name='User',
 			profile='Student',
+			email_verified=True,
 		)
 
 		response = self.client.post(
@@ -173,6 +174,7 @@ class AuthenticationTestCase(TestCase):
 			first_name='Test',
 			last_name='User',
 			profile='Student',
+			email_verified=True,
 		)
 
 		# Get tokens
@@ -210,6 +212,7 @@ class AuthenticationTestCase(TestCase):
 			first_name='Test',
 			last_name='User',
 			profile='Student',
+			email_verified=True,
 		)
 
 		# Get token
@@ -250,6 +253,7 @@ class AuthenticationTestCase(TestCase):
 			username='testuser',
 			email='test@example.com',
 			password_hash=hash_password('OldPassword123'),
+			email_verified=True,
 		)
 
 		# Get token

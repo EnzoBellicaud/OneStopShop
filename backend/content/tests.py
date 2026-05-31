@@ -1955,7 +1955,7 @@ class UserApprovalTests(TestCase):
 
 	def test_approved_teacher_can_login(self):
 		User.objects.filter(id=self.teacher.id).update(
-			is_active=True, approval_status=User.ApprovalStatus.APPROVED,
+			is_active=True, approval_status=User.ApprovalStatus.APPROVED, email_verified=True,
 		)
 		resp = self.client.post(
 			"/api/auth/login",
@@ -1964,6 +1964,18 @@ class UserApprovalTests(TestCase):
 		)
 		self.assertEqual(resp.status_code, 200)
 		self.assertIn("tokens", resp.json())
+
+	def test_approved_but_unverified_email_cannot_login(self):
+		User.objects.filter(id=self.teacher.id).update(
+			is_active=True, approval_status=User.ApprovalStatus.APPROVED, email_verified=False,
+		)
+		resp = self.client.post(
+			"/api/auth/login",
+			data=json.dumps({"username": "pendteacher", "password": "pass1234"}),
+			content_type="application/json",
+		)
+		self.assertEqual(resp.status_code, 403)
+		self.assertEqual(resp.json()["error"], "email_not_verified")
 
 
 class UserRoleTests(TestCase):

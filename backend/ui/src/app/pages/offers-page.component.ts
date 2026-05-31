@@ -326,7 +326,7 @@ export class OffersPageComponent implements OnInit, OnDestroy {
           this.domains = domains.results;
           this.organizations = organizations.results;
           this.countries = countries.results;
-          this.targetProfiles = targetProfiles.results;
+          this.targetProfiles = targetProfiles.results.filter(p => p.name !== 'company');
           this.loadingLookups = false;
         },
         error: () => { this.loadingLookups = false; },

@@ -1,33 +1,91 @@
 <section class="dashboard-page">
-  <header class="hero">
-    <div>
-      <p class="eyebrow">SUNRISE User Workspace</p>
-      <h1>Dashboard Studio</h1>
-      <p class="lead">
-        One page to shape needs, save favorites, and triage matching recommendations.
-      </p>
+
+  @if (isAdmin) {
+    <header class="role-hero">
+      <div>
+        <p class="eyebrow">Admin</p>
+        <h1>Overview</h1>
+      </div>
+    </header>
+    <div class="stat-cards">
+      <div class="stat-card">
+        <span class="stat-value">{{ statsLoading ? '—' : adminStats.totalUsers }}</span>
+        <span class="stat-label">Total Users</span>
+      </div>
+      <div class="stat-card" [class.stat-card--warn]="adminStats.pendingApprovals > 0">
+        <span class="stat-value">{{ statsLoading ? '—' : adminStats.pendingApprovals }}</span>
+        <span class="stat-label">Pending Approvals</span>
+        @if (adminStats.pendingApprovals > 0) {
+          <a routerLink="/admin/users" class="stat-action">Review →</a>
+        }
+      </div>
+      <div class="stat-card">
+        <span class="stat-value">{{ statsLoading ? '—' : adminStats.totalOffers }}</span>
+        <span class="stat-label">Total Offers</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value">{{ statsLoading ? '—' : adminStats.totalOrgs }}</span>
+        <span class="stat-label">Organizations</span>
+      </div>
     </div>
+  }
 
-    <form class="identity-card" (ngSubmit)="saveIdentity()">
-      <h2>Local dev identity</h2>
-      <label>
-        Email
-        <input type="email" name="userEmail" [(ngModel)]="userDraft.email" aria-label="Dashboard user email" />
-      </label>
-      <label>
-        Username
-        <input type="text" name="userName" [(ngModel)]="userDraft.username" aria-label="Dashboard user username" />
-      </label>
-      <label>
-        Bio
-        <textarea name="userBio" [(ngModel)]="userDraft.bio" rows="2" aria-label="Dashboard user bio"></textarea>
-      </label>
-      <button type="submit" [disabled]="savingUser">
-        {{ savingUser ? 'Syncing user...' : 'Sync user' }}
-      </button>
-    </form>
-  </header>
+  @if (isOfferManager) {
+    <header class="role-hero">
+      <div>
+        <p class="eyebrow">Your Organization</p>
+        <h1>Offers Overview</h1>
+      </div>
+      <a routerLink="/offers" class="btn-new-offer">+ New Offer</a>
+    </header>
+    <div class="stat-cards">
+      <div class="stat-card">
+        <span class="stat-value">{{ statsLoading ? '—' : managerStats.totalOffers }}</span>
+        <span class="stat-label">Total Offers</span>
+      </div>
+      <div class="stat-card stat-card--green">
+        <span class="stat-value">{{ statsLoading ? '—' : managerStats.published }}</span>
+        <span class="stat-label">Published</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-value">{{ statsLoading ? '—' : managerStats.drafts }}</span>
+        <span class="stat-label">Drafts</span>
+      </div>
+    </div>
+  }
 
+  @if (!isAdmin && !isOfferManager) {
+    <header class="hero">
+      <div>
+        <p class="eyebrow">SUNRISE User Workspace</p>
+        <h1>Dashboard Studio</h1>
+        <p class="lead">
+          One page to shape needs, save favorites, and triage matching recommendations.
+        </p>
+      </div>
+
+      <form class="identity-card" (ngSubmit)="saveIdentity()">
+        <h2>Local dev identity</h2>
+        <label>
+          Email
+          <input type="email" name="userEmail" [(ngModel)]="userDraft.email" aria-label="Dashboard user email" />
+        </label>
+        <label>
+          Username
+          <input type="text" name="userName" [(ngModel)]="userDraft.username" aria-label="Dashboard user username" />
+        </label>
+        <label>
+          Bio
+          <textarea name="userBio" [(ngModel)]="userDraft.bio" rows="2" aria-label="Dashboard user bio"></textarea>
+        </label>
+        <button type="submit" [disabled]="savingUser">
+          {{ savingUser ? 'Syncing user...' : 'Sync user' }}
+        </button>
+      </form>
+    </header>
+  }
+
+  @if (!isAdmin && !isOfferManager) {
   <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
   <p *ngIf="loading" class="hint">Loading dashboard data...</p>
 
@@ -252,4 +310,5 @@
       </article>
     </section>
   </ng-container>
+  } <!-- end @if (!isAdmin && !isOfferManager) -->
 </section>

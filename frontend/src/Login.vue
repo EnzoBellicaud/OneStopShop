@@ -172,9 +172,10 @@ const showPassword = ref(false)
 const pendingApproval = ref(false)
 
 const roles = [
-  { value: 'Student', label: 'Student',  icon: '🎓' },
-  { value: 'Teacher', label: 'Teacher',  icon: '📚' },
-  { value: 'Company', label: 'Company',  icon: '🏢' },
+  { value: 'Student',        label: 'Student',    icon: '🎓' },
+  { value: 'Academic staff', label: 'Researcher', icon: '🔬' },
+  { value: 'Teacher',        label: 'Teacher',    icon: '📚' },
+  { value: 'Company',        label: 'Company',    icon: '🏢' },
 ]
 
 const form = ref({

@@ -78,20 +78,24 @@
                 <button class="btn-sm btn-success" (click)="approve(user)">Approve</button>
                 <button class="btn-sm btn-danger" (click)="openReject(user)">Reject</button>
               }
-              @if (user.is_active) {
-                <button class="btn-sm btn-outline" (click)="toggleActive(user)">Deactivate</button>
-              } @else {
-                <button class="btn-sm btn-outline" (click)="toggleActive(user)">Reactivate</button>
-              }
-              <select
-                class="role-select"
-                [ngModel]="user.profile"
-                (ngModelChange)="changeRole(user, $event)"
-              >
-                @for (p of profiles; track p) {
-                  <option [value]="p">{{ p }}</option>
+              @if (user.username !== 'admin') {
+                @if (user.is_active) {
+                  <button class="btn-sm btn-outline" (click)="toggleActive(user)">Deactivate</button>
+                } @else {
+                  <button class="btn-sm btn-outline" (click)="toggleActive(user)">Reactivate</button>
                 }
-              </select>
+              }
+              @if (user.username !== 'admin') {
+                <select
+                  class="role-select"
+                  [ngModel]="user.profile"
+                  (ngModelChange)="changeRole(user, $event)"
+                >
+                  @for (p of profiles; track p) {
+                    <option [value]="p">{{ p }}</option>
+                  }
+                </select>
+              }
               @if (['Teacher', 'Company'].includes(user.profile)) {
                 <button class="btn-sm btn-outline" [title]="user.organization_name ?? 'No org'" (click)="openAssignOrg(user)">
                   {{ user.organization_name ? '🏢 ' + user.organization_name : '⚠ Assign Org' }}
