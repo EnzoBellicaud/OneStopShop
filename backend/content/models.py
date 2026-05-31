@@ -100,8 +100,14 @@ class User(TimeStampedModel):
 	class ProfileType(models.TextChoices):
 		STUDENT = "Student", "Student"
 		ACADEMIC_STAFF = "Academic staff", "Academic staff"
+		TEACHER = "Teacher", "Teacher"
 		COMPANY = "Company", "Company"
 		ADMIN = "Admin", "Admin"
+
+	class ApprovalStatus(models.TextChoices):
+		PENDING = "pending", "Pending"
+		APPROVED = "approved", "Approved"
+		REJECTED = "rejected", "Rejected"
 
 	id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 	username = models.CharField(max_length=150, unique=True)
@@ -115,6 +121,20 @@ class User(TimeStampedModel):
 		default=ProfileType.STUDENT,
 	)
 	is_active = models.BooleanField(default=True)
+	approval_status = models.CharField(
+		max_length=20,
+		choices=ApprovalStatus.choices,
+		default=ApprovalStatus.APPROVED,
+	)
+	email_verified = models.BooleanField(default=False)
+	approved_by = models.ForeignKey(
+		"self",
+		null=True,
+		blank=True,
+		on_delete=models.SET_NULL,
+		related_name="approved_users",
+	)
+	approval_notes = models.TextField(blank=True, default="")
 
 	class Meta:
 		db_table = "oss_user"
@@ -139,6 +159,21 @@ class UserOrganization(models.Model):
 				name="uniq_user_org_role",
 			),
 		]
+
+
+class AllowedDomain(TimeStampedModel):
+	id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+	domain = models.CharField(max_length=255, unique=True)
+	organization = models.ForeignKey(
+		Organization,
+		on_delete=models.CASCADE,
+		related_name="allowed_domains",
+	)
+	description = models.CharField(max_length=255, blank=True)
+
+	class Meta:
+		db_table = "allowed_domain"
+		ordering = ["domain"]
 
 
 class Contact(TimeStampedModel):

@@ -4,9 +4,18 @@
     <h1>Offer Explorer</h1>
     <p class="lead">
       Search, filter, and review opportunities as cards.
-      <span *ngIf="!loading">Showing {{ offers.length }} of {{ totalCount }} total.</span>
+      @if (!loading) {<span>Showing {{ offers.length }} of {{ totalCount }} total.</span>}
     </p>
   </header>
+
+  @if (auth.isAdmin || auth.isOfferManager) {
+    <div class="offers-toolbar">
+      <button class="btn-primary" (click)="openCreateModal()">+ New Offer</button>
+      @if (noOrgError) {
+        <span class="error-inline">No organization linked to your account. Contact an admin.</span>
+      }
+    </div>
+  }
 
   <form class="filters" (ngSubmit)="onApplyFilters()">
     <label>
@@ -18,23 +27,31 @@
       Offer type
       <select name="offerType" [(ngModel)]="offerType">
         <option value="">All</option>
-        <option *ngFor="let type of offerTypes" [value]="type.name">{{ type.name }}</option>
+        @for (type of offerTypes; track type.name) {
+          <option [value]="type.name">{{ type.name }}</option>
+        }
       </select>
     </label>
 
-    <label>
-      Organization
-      <select name="organization" [(ngModel)]="organization">
-        <option value="">All</option>
-        <option *ngFor="let item of organizations" [value]="item.name">{{ item.name }}</option>
-      </select>
-    </label>
+    @if (!auth.isOfferManager) {
+      <label>
+        Organization
+        <select name="organization" [(ngModel)]="organization">
+          <option value="">All</option>
+          @for (item of organizations; track item.name) {
+            <option [value]="item.name">{{ item.name }}</option>
+          }
+        </select>
+      </label>
+    }
 
     <label>
       Target profile
       <select name="targetProfile" [(ngModel)]="targetProfile">
         <option value="">All</option>
-        <option *ngFor="let profile of targetProfiles" [value]="profile">{{ profile }}</option>
+        @for (profile of targetProfiles; track profile.name) {
+          <option [value]="profile.name">{{ profile.name }}</option>
+        }
       </select>
     </label>
 
@@ -42,7 +59,9 @@
       Status
       <select name="status" [(ngModel)]="status">
         <option value="">All</option>
-        <option *ngFor="let item of statuses" [value]="item">{{ item }}</option>
+        @for (item of statuses; track item) {
+          <option [value]="item">{{ item }}</option>
+        }
       </select>
     </label>
 
@@ -50,7 +69,9 @@
       Domain
       <select name="domain" [(ngModel)]="domain">
         <option value="">All</option>
-        <option *ngFor="let item of domains" [value]="item.name">{{ item.name }}</option>
+        @for (item of domains; track item.name) {
+          <option [value]="item.name">{{ item.name }}</option>
+        }
       </select>
     </label>
 
@@ -58,14 +79,18 @@
       Country
       <select name="country" [(ngModel)]="country">
         <option value="">All</option>
-        <option *ngFor="let item of countries" [value]="item.code">{{ item.code }}</option>
+        @for (item of countries; track item.code) {
+          <option [value]="item.code">{{ item.code }}</option>
+        }
       </select>
     </label>
 
     <label>
       Page size
       <select name="pageSize" [(ngModel)]="pageSize" (change)="onPageSizeChange()">
-        <option *ngFor="let option of pageSizeOptions" [value]="option">{{ option }}</option>
+        @for (option of pageSizeOptions; track option) {
+          <option [value]="option">{{ option }}</option>
+        }
       </select>
     </label>
 
@@ -75,57 +100,157 @@
     </div>
   </form>
 
-  <p *ngIf="loadingLookups" class="hint">Loading filter values...</p>
-  <p *ngIf="errorMessage" class="error">{{ errorMessage }}</p>
-  <p *ngIf="loading" class="hint">Loading offers...</p>
+  @if (loadingLookups) {
+    <p class="hint">Loading filter values...</p>
+  }
+  @if (errorMessage) {
+    <p class="error">{{ errorMessage }}</p>
+  }
+  @if (loading) {
+    <p class="hint">Loading offers...</p>
+  }
 
-  <section class="cards" *ngIf="!loading && !errorMessage && offers.length > 0">
-    <article class="offer-card" *ngFor="let offer of offers; trackBy: trackOffer">
-      <div class="top-row">
-        <span class="pill">{{ offer.offer_type }}</span>
-        <span class="pill muted">{{ offer.status }}</span>
-      </div>
-      <h2>{{ offer.title }}</h2>
-      <p>{{ offer.summary }}</p>
-      <ul>
-        <li><strong>Organization:</strong> {{ offer.organization.name }}</li>
-        <li><strong>Target:</strong> {{ offer.target_profile }}</li>
-        <li><strong>Country:</strong> {{ offer.country }}</li>
-      </ul>
-      <div class="domains">
-        <span *ngFor="let domainItem of offer.domains">{{ domainItem }}</span>
-      </div>
-      <a [href]="offer.link" target="_blank" rel="noreferrer">Open source page</a>
-      <div class="moderation-actions">
-        <button
-          *ngFor="let s of statuses"
-          type="button"
-          [class.active]="offer.status === s"
-          [disabled]="updatingOffer[offer.id]"
-          (click)="setOfferStatus(offer.id, $any(s))"
-        >{{ s }}</button>
-        <span *ngIf="updateError[offer.id]" class="mod-error">{{ updateError[offer.id] }}</span>
-      </div>
-    </article>
-  </section>
+  @if (!loading && !errorMessage && offers.length > 0) {
+    <section class="cards">
+      @for (offer of offers; track offer.id) {
+        <article class="offer-card">
+          <div class="top-row">
+            <span class="pill">{{ offer.offer_type }}</span>
+            <span class="pill muted">{{ offer.status }}</span>
+          </div>
+          <h2>{{ offer.title }}</h2>
+          <p>{{ offer.summary }}</p>
+          <ul>
+            <li><strong>Organization:</strong> {{ offer.organization.name }}</li>
+            <li><strong>Target:</strong> {{ offer.target_profile }}</li>
+            <li><strong>Country:</strong> {{ offer.country }}</li>
+          </ul>
+          <div class="domains">
+            @for (domainItem of offer.domains; track domainItem) {
+              <span>{{ domainItem }}</span>
+            }
+          </div>
+          <a [href]="offer.link" target="_blank" rel="noreferrer">Open source page</a>
+          <div class="moderation-actions">
+            @for (s of statuses; track s) {
+              <button
+                type="button"
+                [class.active]="offer.status === s"
+                [disabled]="updatingOffer[offer.id]"
+                (click)="setOfferStatus(offer.id, $any(s))"
+              >{{ s }}</button>
+            }
+            @if (updateError[offer.id]) {
+              <span class="mod-error">{{ updateError[offer.id] }}</span>
+            }
+          </div>
+          @if (auth.isAdmin || auth.isOfferManager) {
+            <div class="card-actions">
+              <button class="btn-sm btn-outline" (click)="openEditModal(offer)">Edit</button>
+              <button class="btn-sm btn-danger-outline" (click)="confirmDeleteOffer(offer.id)">Delete</button>
+            </div>
+          }
+        </article>
+      }
+    </section>
+  }
 
-  <p *ngIf="!loading && !errorMessage && offers.length === 0" class="hint">
-    No offers match the selected filters.
-  </p>
+  @if (!loading && !errorMessage && offers.length === 0) {
+    <p class="hint">No offers match the selected filters.</p>
+  }
 
-  <nav class="pagination" *ngIf="!loading && totalPages > 1" aria-label="Offer pages">
-    <button (click)="onPageChange(1)" [disabled]="page === 1">First</button>
-    <button (click)="onPageChange(page - 1)" [disabled]="page === 1">Prev</button>
-
-    <button
-      *ngFor="let pageNumber of pageNumbers()"
-      [class.active]="pageNumber === page"
-      (click)="onPageChange(pageNumber)"
-    >
-      {{ pageNumber }}
-    </button>
-
-    <button (click)="onPageChange(page + 1)" [disabled]="page === totalPages">Next</button>
-    <button (click)="onPageChange(totalPages)" [disabled]="page === totalPages">Last</button>
-  </nav>
+  @if (!loading && totalPages > 1) {
+    <nav class="pagination" aria-label="Offer pages">
+      <button (click)="onPageChange(1)" [disabled]="page === 1">First</button>
+      <button (click)="onPageChange(page - 1)" [disabled]="page === 1">Prev</button>
+      @for (pageNumber of pageNumbers(); track pageNumber) {
+        <button [class.active]="pageNumber === page" (click)="onPageChange(pageNumber)">
+          {{ pageNumber }}
+        </button>
+      }
+      <button (click)="onPageChange(page + 1)" [disabled]="page === totalPages">Next</button>
+      <button (click)="onPageChange(totalPages)" [disabled]="page === totalPages">Last</button>
+    </nav>
+  }
 </section>
+
+<!-- Create/Edit offer modal -->
+@if (showOfferModal) {
+  <div class="modal-backdrop" (click)="showOfferModal = false">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <h2>{{ editTargetId ? 'Edit Offer' : 'New Offer' }}</h2>
+      @if (offerFormError) {
+        <p class="error-inline">{{ offerFormError }}</p>
+      }
+      <label>Title *
+        <input type="text" [(ngModel)]="offerForm.title" class="modal-input" />
+      </label>
+      <label>Summary *
+        <textarea [(ngModel)]="offerForm.summary" class="modal-input" rows="3"></textarea>
+      </label>
+      <label>Link *
+        <input type="url" [(ngModel)]="offerForm.link" class="modal-input" placeholder="https://…" />
+      </label>
+      <label>Country *
+        <select [(ngModel)]="offerForm.country" class="modal-input">
+          <option value="">Select country…</option>
+          @for (c of countries; track c.code) {
+            <option [value]="c.code">{{ c.code }}</option>
+          }
+        </select>
+      </label>
+      <label>Offer Type *
+        <select [(ngModel)]="offerForm.offer_type" class="modal-input">
+          <option value="">Select type…</option>
+          @for (t of offerTypes; track t.name) {
+            <option [value]="t.name">{{ t.name }}</option>
+          }
+        </select>
+      </label>
+      <label>Target Profile *
+        <select [(ngModel)]="offerForm.target_profile" class="modal-input">
+          <option value="">Select profile…</option>
+          @for (p of targetProfiles; track p.name) {
+            <option [value]="p.name">{{ p.name }}</option>
+          }
+        </select>
+      </label>
+      <label>Status
+        <select [(ngModel)]="offerForm.status" class="modal-input">
+          <option value="draft">Draft</option>
+          <option value="published">Published</option>
+          <option value="archived">Archived</option>
+        </select>
+      </label>
+      @if (auth.isAdmin) {
+        <label>Organization
+          <select [(ngModel)]="offerForm.organization_id" class="modal-input">
+            <option value="">Select organization…</option>
+            @for (o of organizations; track o.id) {
+              <option [value]="o.id">{{ o.name }}</option>
+            }
+          </select>
+        </label>
+      }
+      <div class="modal-actions">
+        <button class="btn-outline" (click)="showOfferModal = false">Cancel</button>
+        <button class="btn-primary" (click)="saveOffer()" [disabled]="savingOffer">
+          {{ savingOffer ? 'Saving…' : 'Save' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Delete confirm -->
+@if (deleteTargetId) {
+  <div class="modal-backdrop" (click)="deleteTargetId = null">
+    <div class="modal modal-sm" (click)="$event.stopPropagation()">
+      <p>Delete this offer? This cannot be undone.</p>
+      <div class="modal-actions">
+        <button class="btn-outline" (click)="deleteTargetId = null">Cancel</button>
+        <button class="btn-danger" (click)="doDeleteOffer()">Delete</button>
+      </div>
+    </div>
+  </div>
+}

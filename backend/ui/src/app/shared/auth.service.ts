@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable, tap } from 'rxjs';
+import { HttpBackend, HttpClient, HttpHeaders } from '@angular/common/http';
+import { Observable, map, tap } from 'rxjs';
 import { Router } from '@angular/router';
 import { environment } from '../../environments/environment';
 
@@ -18,7 +18,11 @@ export class AuthService {
   currentUser: { username: string; email: string; profile: string } | null = this.getUser();
   loggedIn = !!localStorage.getItem(this.TOKEN_KEY);
 
-  constructor(private readonly http: HttpClient, private readonly router: Router) {}
+  constructor(
+    private readonly http: HttpClient,
+    private readonly httpBackend: HttpBackend,
+    private readonly router: Router,
+  ) {}
 
   login(username: string, password: string): Observable<LoginResponse> {
     return this.http
@@ -35,6 +39,39 @@ export class AuthService {
   forceLogout(): void {
     this.clearSession();
     this.router.navigate(['/login']);
+  }
+
+  get profile(): string | null {
+    return this.getUser()?.profile ?? null;
+  }
+
+  get isAdmin(): boolean {
+    return this.profile === 'Admin';
+  }
+
+  get isOfferManager(): boolean {
+    return ['Teacher', 'Company'].includes(this.profile ?? '');
+  }
+
+  loginWithToken(ssoToken: string): Observable<void> {
+    // Use HttpBackend directly to bypass all interceptors — ensures the SSO token
+    // is used unmodified, not overridden by the auth interceptor's localStorage read.
+    const http = new HttpClient(this.httpBackend);
+    return http
+      .get<{ user: { id: string; username: string; email: string; profile: string } }>(
+        `${environment.apiBaseUrl}/auth/me`,
+        { headers: new HttpHeaders({ Authorization: `Bearer ${ssoToken}` }) }
+      )
+      .pipe(
+        tap(res => {
+          const user = res.user;
+          localStorage.setItem(this.TOKEN_KEY, ssoToken);
+          localStorage.setItem(this.USER_KEY, JSON.stringify(user));
+          this.currentUser = user;
+          this.loggedIn = true;
+        }),
+        map(() => undefined as void)
+      );
   }
 
   isLoggedIn(): boolean {

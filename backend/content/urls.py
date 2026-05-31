@@ -1,6 +1,7 @@
 from django.urls import path
 
 from content import views, auth
+from content.views import admin_orgs as admin_orgs_views
 
 urlpatterns = [
     # Auth endpoints
@@ -11,6 +12,7 @@ urlpatterns = [
     path("auth/me/update", auth.update_user_profile, name="update-user-profile"),
     path("auth/change-password", auth.change_password, name="change-password"),
     path("auth/logout", auth.logout, name="logout"),
+    path("auth/verify-email", views.verify_email, name="verify-email"),
 
     # API documentation
     path("", views.api_docs, name="api-docs-home"),
@@ -33,9 +35,11 @@ urlpatterns = [
     path("lookups/target-profiles", views.target_profiles, name="target-profiles"),
     path("lookups/countries", views.countries, name="countries"),
 
-    # Offer endpoints
+    # User management endpoints
     path("users", views.users_collection, name="users-collection"),
     path("users/<str:user_id>", views.user_resource, name="user-detail"),
+    path("users/<str:user_id>/approval", views.user_approval, name="user-approval"),
+    path("users/<str:user_id>/role", views.user_role, name="user-role"),
     path("users/<str:user_id>/organizations", views.link_user_organization, name="link-user-organization"),
     path("users/<str:user_id>/organizations/<str:org_id>", views.unlink_user_organization, name="unlink-user-organization"),
     path("users/<str:user_id>/dashboard", views.dashboard, name="user-dashboard"),
@@ -45,6 +49,13 @@ urlpatterns = [
     path("users/<str:user_id>/favorites/<str:offer_id>", views.user_favorite_detail, name="user-favorite-detail"),
     path("users/<str:user_id>/matching-hits", views.user_matching_hits, name="user-matching-hits"),
     path("users/<str:user_id>/matching-hits/<str:hit_id>", views.user_matching_hit_detail, name="user-matching-hit-detail"),
+    # Admin endpoints
+    path("admin/users", views.admin_user_collection, name="admin-user-collection"),
+    path("admin/organizations", admin_orgs_views.admin_organization_collection, name="admin-organization-collection"),
+    path("admin/allowed-domains", views.allowed_domains_collection, name="allowed-domains"),
+    path("admin/allowed-domains/<str:domain_id>", views.allowed_domain_resource, name="allowed-domain-resource"),
+
+    # Offer endpoints
     path("offers/import/template", views.import_template, name="import-template"),
     path("offers/import/preview", views.import_preview, name="import-preview"),
     path("offers/import/confirm", views.import_confirm, name="import-confirm"),

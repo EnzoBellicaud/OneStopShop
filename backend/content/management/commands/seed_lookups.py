@@ -1,7 +1,9 @@
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
+from content.auth import hash_password
 from content.models import (
+    AllowedDomain,
     ContactRole,
     Domain,
     OfferType,
@@ -164,6 +166,53 @@ class Command(BaseCommand):
                     user=user,
                     organization=organization_map[row["org_token"]],
                     role=admin_role,
+                )
+
+        # Seeded admin user (idempotent — credentials: admin / passw0rd)
+        admin_user, created = User.objects.get_or_create(
+            username="admin",
+            defaults={
+                "email": "admin@sunrise-oss.local",
+                "password_hash": hash_password("passw0rd"),
+                "profile": User.ProfileType.ADMIN,
+                "is_active": True,
+                "approval_status": User.ApprovalStatus.APPROVED,
+                "email_verified": True,
+            },
+        )
+        if not created:
+            # Ensure existing admin has correct profile/status regardless of prior state
+            update_fields = []
+            if admin_user.profile != User.ProfileType.ADMIN:
+                admin_user.profile = User.ProfileType.ADMIN
+                update_fields.append("profile")
+            if not admin_user.is_active:
+                admin_user.is_active = True
+                update_fields.append("is_active")
+            if admin_user.approval_status != User.ApprovalStatus.APPROVED:
+                admin_user.approval_status = User.ApprovalStatus.APPROVED
+                update_fields.append("approval_status")
+            if update_fields:
+                admin_user.save(update_fields=update_fields)
+
+        # AllowedDomain seeds (teacher email domain whitelist)
+        allowed_domain_seeds = [
+            ("unibz.it", "unibz"),
+            ("mdu.se", "mdu"),
+            ("tu-ilmenau.de", "tu_ilmenau"),
+            ("utc.fr", "utc"),
+            ("euc.ac.cy", "euc"),
+            ("uitm.edu.my", "uitm"),
+            ("univpm.it", "univpm"),
+            ("unmo.ac.me", "unmo"),
+            ("ipvc.pt", "ipvc"),
+        ]
+        for domain_str, org_token in allowed_domain_seeds:
+            org = organization_map.get(org_token)
+            if org:
+                AllowedDomain.objects.get_or_create(
+                    domain=domain_str,
+                    defaults={"organization": org, "description": f"Staff email domain for {org.name}"},
                 )
 
         # Remove deprecated types. Safe: scraper no longer assigns these;

@@ -68,7 +68,7 @@
 
       <template v-if="user">
         <span class="nav-username">{{ user.first_name || user.username }}</span>
-        <router-link v-if="user.profile === 'Admin'" to="/admin" class="btn-nav btn-admin">Admin</router-link>
+        <a v-if="['Admin','Teacher','Company'].includes(user.profile)" :href="adminPortalUrlWithSso" target="_blank" class="btn-nav btn-portal">Admin Panel ↗</a>
         <router-link to="/dashboard" class="btn-nav">Dashboard</router-link>
         <router-link to="/user_profile" class="btn-nav">Profile</router-link>
         <button class="btn-nav btn-logout" @click="handleLogout">Log out</button>
@@ -88,8 +88,15 @@ import { useLocale } from '../../composables/useLocale.js'
 
 const router = useRouter()
 const route = useRoute()
-const { user, logout } = useAuth()
+const { user, token, logout } = useAuth()
 const { current, languages, setLocale } = useLocale()
+
+const adminPortalUrl = import.meta.env.VITE_ADMIN_URL || 'http://localhost:4200'
+const adminPortalUrlWithSso = computed(() =>
+  token.value
+    ? `${adminPortalUrl}?sso_token=${encodeURIComponent(token.value)}`
+    : adminPortalUrl
+)
 
 const langOpen = ref(false)
 const langPickerRef = ref(null)
@@ -194,5 +201,11 @@ const cssVars = computed(() => ({
 .btn-admin {
   background: var(--accent-mid, #9b2020) !important;
   color: #fff !important;
+}
+
+.btn-portal {
+  font-size: 0.78rem;
+  opacity: 0.85;
+  text-decoration: none;
 }
 </style>

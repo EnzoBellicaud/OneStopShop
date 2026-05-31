@@ -240,7 +240,8 @@ class AuthenticationTestCase(TestCase):
 		data = json.loads(response.content)
 
 		self.assertEqual(data['user']['first_name'], 'Updated')
-		self.assertEqual(data['user']['profile'], 'Academic staff')
+		# Profile changes are not permitted via /me/update — profile stays unchanged
+		self.assertEqual(data['user']['profile'], 'Student')
 
 	def test_change_password_success(self):
 		"""Test successful password change."""

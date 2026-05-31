@@ -6,10 +6,11 @@ from time import perf_counter
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 
-from content.auth import generate_tokens
+from content.auth import generate_tokens, hash_password
 from content.models import (
+	AllowedDomain,
 	CrawlUrl,
 	Domain,
 	MatchingHit,
@@ -606,8 +607,10 @@ class UserCrudApiTests(TestCase):
 
 		self.assertEqual(response.status_code, 200)
 		self.assertEqual(payload["email"], "stage2@example.com")
-		self.assertEqual(payload["profile"]["bio"], "Initial bio")
-		self.assertEqual(payload["organizations"][0]["role"], "member")
+		# GET /api/users/<id> now returns flat admin format (profile is ProfileType string)
+		self.assertIn("approval_status", payload)
+		self.assertIn("email_verified", payload)
+		self.assertIsInstance(payload["profile"], str)
 
 	def test_get_user_detail_invalid_uuid(self):
 		response = self.client.get("/api/users/not-a-uuid", HTTP_AUTHORIZATION=f"Bearer {self.admin_token}")
@@ -626,6 +629,7 @@ class UserCrudApiTests(TestCase):
 			f"/api/users/{self.user.id}",
 			data={
 				"username": "patched-user",
+				"is_active": True,
 				"profile": {
 					"bio": "Updated bio",
 					"preferred_domains": ["AI", "ML"],
@@ -639,8 +643,9 @@ class UserCrudApiTests(TestCase):
 		payload = response.json()
 		self.assertEqual(response.status_code, 200)
 		self.assertEqual(payload["username"], "patched-user")
-		self.assertEqual(payload["profile"]["bio"], "Updated bio")
-		self.assertFalse(payload["profile"]["notification_enabled"])
+		# Response is now admin flat format — verify admin fields are present
+		self.assertIn("approval_status", payload)
+		self.assertIsInstance(payload["profile"], str)
 
 	def test_patch_user_rejects_duplicate_email(self):
 		response = self.client.patch(
@@ -1761,3 +1766,548 @@ class ScrapingAnalyticsTests(TestCase):
 		# run created in setUpTestData falls within 30d too — just verify shape
 		self.assertIn("method_split", payload)
 		self.assertIn("avg_confidence_llm", payload)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Teacher / Company registration + approval flow tests
+# ──────────────────────────────────────────────────────────────────────────────
+
+@override_settings(RATELIMIT_ENABLE=False)
+class TeacherRegistrationTests(TestCase):
+	@classmethod
+	def setUpTestData(cls):
+		cls.org = Organization.objects.create(
+			name="MDU", type=Organization.OrganizationType.UNIVERSITY, country="SE",
+		)
+		cls.allowed_domain = AllowedDomain.objects.create(domain="mdu.se", organization=cls.org)
+
+	def _register(self, payload):
+		return self.client.post(
+			"/api/auth/register",
+			data=json.dumps(payload),
+			content_type="application/json",
+		)
+
+	def test_teacher_registers_with_valid_domain(self):
+		resp = self._register({
+			"username": "teach1", "email": "teach1@mdu.se",
+			"password": "pass1234", "profile": "Teacher",
+		})
+		self.assertEqual(resp.status_code, 201)
+		data = resp.json()
+		self.assertEqual(data["status"], "pending_approval")
+		self.assertNotIn("tokens", data)
+		self.assertEqual(data["user"]["approval_status"], "pending")
+
+	def test_teacher_registers_with_invalid_domain(self):
+		resp = self._register({
+			"username": "teach2", "email": "teach2@gmail.com",
+			"password": "pass1234", "profile": "Teacher",
+		})
+		self.assertEqual(resp.status_code, 400)
+		self.assertEqual(resp.json()["error"], "invalid_domain")
+
+	def test_company_registers_no_domain_check(self):
+		resp = self._register({
+			"username": "acmeco", "email": "hr@acme.com",
+			"password": "pass1234", "profile": "Company",
+		})
+		self.assertEqual(resp.status_code, 201)
+		data = resp.json()
+		self.assertEqual(data["status"], "pending_approval")
+		self.assertNotIn("tokens", data)
+
+	def test_student_registers_immediately_active(self):
+		resp = self._register({
+			"username": "stud1", "email": "stud1@anywhere.com",
+			"password": "pass1234", "profile": "Student",
+		})
+		self.assertEqual(resp.status_code, 201)
+		data = resp.json()
+		self.assertIn("tokens", data)
+		self.assertNotEqual(data.get("status"), "pending_approval")
+
+	def test_register_does_not_allow_admin_profile(self):
+		resp = self._register({
+			"username": "sneaky", "email": "sneaky@example.com",
+			"password": "pass1234", "profile": "Admin",
+		})
+		self.assertEqual(resp.status_code, 400)
+
+	def test_pending_user_cannot_login(self):
+		self._register({
+			"username": "teach3", "email": "teach3@mdu.se",
+			"password": "pass1234", "profile": "Teacher",
+		})
+		resp = self.client.post(
+			"/api/auth/login",
+			data=json.dumps({"username": "teach3", "password": "pass1234"}),
+			content_type="application/json",
+		)
+		self.assertEqual(resp.status_code, 403)
+		self.assertEqual(resp.json()["error"], "pending_approval")
+
+	def test_rejected_user_cannot_login(self):
+		self._register({
+			"username": "teach4", "email": "teach4@mdu.se",
+			"password": "pass1234", "profile": "Teacher",
+		})
+		user = User.objects.get(username="teach4")
+		user.approval_status = User.ApprovalStatus.REJECTED
+		user.save(update_fields=["approval_status"])
+		resp = self.client.post(
+			"/api/auth/login",
+			data=json.dumps({"username": "teach4", "password": "pass1234"}),
+			content_type="application/json",
+		)
+		self.assertEqual(resp.status_code, 403)
+		self.assertEqual(resp.json()["error"], "account_rejected")
+
+
+@override_settings(RATELIMIT_ENABLE=False)
+class UserApprovalTests(TestCase):
+	@classmethod
+	def setUpTestData(cls):
+		cls.admin = User.objects.create(
+			username="approvadmin", email="approvadmin@x.com",
+			password_hash=hash_password("admin1234"), profile=User.ProfileType.ADMIN,
+			is_active=True, approval_status=User.ApprovalStatus.APPROVED,
+		)
+		cls.admin_token = generate_tokens(cls.admin.id, cls.admin.username, cls.admin.profile)["access_token"]
+
+		cls.org = Organization.objects.create(
+			name="ApprovalOrg", type=Organization.OrganizationType.UNIVERSITY, country="IT",
+		)
+		AllowedDomain.objects.create(domain="approvalorg.edu", organization=cls.org)
+		cls.teacher = User.objects.create(
+			username="pendteacher", email="pt@approvalorg.edu",
+			password_hash=hash_password("pass1234"), profile=User.ProfileType.TEACHER,
+			is_active=False, approval_status=User.ApprovalStatus.PENDING,
+		)
+
+	def _patch_approval(self, user_id, payload, token=None):
+		tok = token or self.admin_token
+		return self.client.patch(
+			f"/api/users/{user_id}/approval",
+			data=json.dumps(payload),
+			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {tok}",
+		)
+
+	def test_admin_approves_pending_teacher(self):
+		resp = self._patch_approval(self.teacher.id, {"action": "approve"})
+		self.assertEqual(resp.status_code, 200)
+		data = resp.json()
+		self.assertEqual(data["approval_status"], "approved")
+		self.assertTrue(data["is_active"])
+		# Undo for other tests
+		self.teacher.is_active = False
+		self.teacher.approval_status = User.ApprovalStatus.PENDING
+		self.teacher.save(update_fields=["is_active", "approval_status"])
+
+	def test_admin_rejects_teacher_with_notes(self):
+		resp = self._patch_approval(self.teacher.id, {"action": "reject", "notes": "Fake domain"})
+		self.assertEqual(resp.status_code, 200)
+		data = resp.json()
+		self.assertEqual(data["approval_status"], "rejected")
+		self.assertFalse(data["is_active"])
+		self.teacher.approval_status = User.ApprovalStatus.PENDING
+		self.teacher.is_active = False
+		self.teacher.save(update_fields=["approval_status", "is_active"])
+
+	def test_admin_marks_email_verified(self):
+		resp = self._patch_approval(self.teacher.id, {"email_verified": True})
+		self.assertEqual(resp.status_code, 200)
+		self.assertTrue(resp.json()["email_verified"])
+
+	def test_non_admin_cannot_approve(self):
+		other = User.objects.create(
+			username="nonadmin_approval", email="na@example.com",
+			password_hash="x", profile=User.ProfileType.STUDENT, is_active=True,
+		)
+		tok = generate_tokens(other.id, other.username, other.profile)["access_token"]
+		resp = self._patch_approval(self.teacher.id, {"action": "approve"}, token=tok)
+		self.assertEqual(resp.status_code, 403)
+
+	def test_approved_teacher_can_login(self):
+		User.objects.filter(id=self.teacher.id).update(
+			is_active=True, approval_status=User.ApprovalStatus.APPROVED,
+		)
+		resp = self.client.post(
+			"/api/auth/login",
+			data=json.dumps({"username": "pendteacher", "password": "pass1234"}),
+			content_type="application/json",
+		)
+		self.assertEqual(resp.status_code, 200)
+		self.assertIn("tokens", resp.json())
+
+
+class UserRoleTests(TestCase):
+	@classmethod
+	def setUpTestData(cls):
+		cls.admin = User.objects.create(
+			username="roleadmin", email="roleadmin@x.com",
+			password_hash="x", profile=User.ProfileType.ADMIN, is_active=True,
+		)
+		cls.admin_token = generate_tokens(cls.admin.id, cls.admin.username, cls.admin.profile)["access_token"]
+		cls.target_user = User.objects.create(
+			username="roletarget", email="roletarget@x.com",
+			password_hash="x", profile=User.ProfileType.STUDENT, is_active=True,
+		)
+
+	def _patch_role(self, user_id, profile, token=None):
+		tok = token or self.admin_token
+		return self.client.patch(
+			f"/api/users/{user_id}/role",
+			data=json.dumps({"profile": profile}),
+			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {tok}",
+		)
+
+	def test_admin_promotes_user_to_admin(self):
+		resp = self._patch_role(self.target_user.id, "Admin")
+		self.assertEqual(resp.status_code, 200)
+		self.assertEqual(resp.json()["profile"], "Admin")
+		self.target_user.profile = User.ProfileType.STUDENT
+		self.target_user.save(update_fields=["profile"])
+
+	def test_admin_changes_role_to_teacher(self):
+		resp = self._patch_role(self.target_user.id, "Teacher")
+		self.assertEqual(resp.status_code, 200)
+		self.assertEqual(resp.json()["profile"], "Teacher")
+		self.target_user.profile = User.ProfileType.STUDENT
+		self.target_user.save(update_fields=["profile"])
+
+	def test_invalid_profile_rejected(self):
+		resp = self._patch_role(self.target_user.id, "Wizard")
+		self.assertEqual(resp.status_code, 400)
+
+	def test_non_admin_cannot_change_role(self):
+		other = User.objects.create(
+			username="nonadmin_role", email="nr@example.com",
+			password_hash="x", profile=User.ProfileType.STUDENT, is_active=True,
+		)
+		tok = generate_tokens(other.id, other.username, other.profile)["access_token"]
+		resp = self._patch_role(self.target_user.id, "Admin", token=tok)
+		self.assertEqual(resp.status_code, 403)
+
+	def test_admin_creates_user_directly(self):
+		resp = self.client.post(
+			"/api/admin/users",
+			data=json.dumps({
+				"username": "directuser", "email": "direct@x.com",
+				"password": "pass1234", "profile": "Admin",
+			}),
+			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.admin_token}",
+		)
+		self.assertEqual(resp.status_code, 201)
+		data = resp.json()
+		self.assertEqual(data["profile"], "Admin")
+		self.assertEqual(data["approval_status"], "approved")
+		self.assertTrue(data["email_verified"])
+
+
+class AllowedDomainTests(TestCase):
+	@classmethod
+	def setUpTestData(cls):
+		cls.admin = User.objects.create(
+			username="domainadmin", email="domainadmin@x.com",
+			password_hash="x", profile=User.ProfileType.ADMIN, is_active=True,
+		)
+		cls.admin_token = generate_tokens(cls.admin.id, cls.admin.username, cls.admin.profile)["access_token"]
+		cls.org = Organization.objects.create(
+			name="DomainOrg", type=Organization.OrganizationType.UNIVERSITY, country="IT",
+		)
+		cls.non_admin = User.objects.create(
+			username="domainnonadmin", email="domainnonadmin@x.com",
+			password_hash="x", profile=User.ProfileType.STUDENT, is_active=True,
+		)
+		cls.non_admin_token = generate_tokens(cls.non_admin.id, cls.non_admin.username, cls.non_admin.profile)["access_token"]
+
+	def _auth(self, token=None):
+		return {"HTTP_AUTHORIZATION": f"Bearer {token or self.admin_token}"}
+
+	def test_admin_lists_allowed_domains(self):
+		AllowedDomain.objects.create(domain="listed.edu", organization=self.org)
+		resp = self.client.get("/api/admin/allowed-domains", **self._auth())
+		self.assertEqual(resp.status_code, 200)
+		domains = [d["domain"] for d in resp.json()["results"]]
+		self.assertIn("listed.edu", domains)
+
+	def test_admin_creates_allowed_domain(self):
+		resp = self.client.post(
+			"/api/admin/allowed-domains",
+			data=json.dumps({"domain": "newuni.ac.uk", "organization_id": str(self.org.id)}),
+			content_type="application/json",
+			**self._auth(),
+		)
+		self.assertEqual(resp.status_code, 201)
+		self.assertEqual(resp.json()["domain"], "newuni.ac.uk")
+
+	def test_admin_updates_allowed_domain(self):
+		dom = AllowedDomain.objects.create(domain="update-me.edu", organization=self.org)
+		resp = self.client.patch(
+			f"/api/admin/allowed-domains/{dom.id}",
+			data=json.dumps({"description": "Updated desc"}),
+			content_type="application/json",
+			**self._auth(),
+		)
+		self.assertEqual(resp.status_code, 200)
+		self.assertEqual(resp.json()["description"], "Updated desc")
+
+	def test_admin_deletes_allowed_domain(self):
+		dom = AllowedDomain.objects.create(domain="delete-me.edu", organization=self.org)
+		resp = self.client.delete(f"/api/admin/allowed-domains/{dom.id}", **self._auth())
+		self.assertEqual(resp.status_code, 204)
+		self.assertFalse(AllowedDomain.objects.filter(id=dom.id).exists())
+
+	def test_non_admin_cannot_access_domains(self):
+		resp = self.client.get("/api/admin/allowed-domains", **self._auth(self.non_admin_token))
+		self.assertEqual(resp.status_code, 403)
+
+	def test_domain_must_not_have_at_sign(self):
+		resp = self.client.post(
+			"/api/admin/allowed-domains",
+			data=json.dumps({"domain": "@bad.edu", "organization_id": str(self.org.id)}),
+			content_type="application/json",
+			**self._auth(),
+		)
+		self.assertEqual(resp.status_code, 400)
+
+	def test_domain_conflict(self):
+		AllowedDomain.objects.create(domain="dupe.edu", organization=self.org)
+		resp = self.client.post(
+			"/api/admin/allowed-domains",
+			data=json.dumps({"domain": "dupe.edu", "organization_id": str(self.org.id)}),
+			content_type="application/json",
+			**self._auth(),
+		)
+		self.assertEqual(resp.status_code, 409)
+
+
+class OfferPermissionTests(TestCase):
+	@classmethod
+	def setUpTestData(cls):
+		cls.source_type = SourceType.objects.create(name="manual", description="")
+		cls.offer_type = OfferType.objects.create(name="scholarship", description="")
+		cls.target_profile = TargetProfile.objects.create(name="student", description="")
+
+		cls.org_a = Organization.objects.create(
+			name="OrgA", type=Organization.OrganizationType.UNIVERSITY, country="SE",
+		)
+		cls.org_b = Organization.objects.create(
+			name="OrgB", type=Organization.OrganizationType.COMPANY, country="DE",
+		)
+		cls.admin = User.objects.create(
+			username="offer_admin", email="offer_admin@x.com", password_hash="x",
+			profile=User.ProfileType.ADMIN, is_active=True,
+		)
+		cls.admin_token = generate_tokens(cls.admin.id, cls.admin.username, cls.admin.profile)["access_token"]
+
+		cls.teacher = User.objects.create(
+			username="offer_teacher", email="offer_teacher@orga.edu", password_hash="x",
+			profile=User.ProfileType.TEACHER, is_active=True,
+			approval_status=User.ApprovalStatus.APPROVED,
+		)
+		cls.teacher_token = generate_tokens(cls.teacher.id, cls.teacher.username, cls.teacher.profile)["access_token"]
+		role, _ = UserRole.objects.get_or_create(name="member", defaults={"description": "member"})
+		UserOrganization.objects.create(user=cls.teacher, organization=cls.org_a, role=role)
+
+		cls.teacher_no_org = User.objects.create(
+			username="offer_teach_noorg", email="noorg@example.com", password_hash="x",
+			profile=User.ProfileType.TEACHER, is_active=True,
+			approval_status=User.ApprovalStatus.APPROVED,
+		)
+		cls.teacher_no_org_token = generate_tokens(
+			cls.teacher_no_org.id, cls.teacher_no_org.username, cls.teacher_no_org.profile,
+		)["access_token"]
+
+		cls.company = User.objects.create(
+			username="offer_company", email="hr@orgb.com", password_hash="x",
+			profile=User.ProfileType.COMPANY, is_active=True,
+			approval_status=User.ApprovalStatus.APPROVED,
+		)
+		cls.company_token = generate_tokens(cls.company.id, cls.company.username, cls.company.profile)["access_token"]
+		UserOrganization.objects.create(user=cls.company, organization=cls.org_b, role=role)
+
+		cls.student = User.objects.create(
+			username="offer_student", email="student@x.com", password_hash="x",
+			profile=User.ProfileType.STUDENT, is_active=True,
+		)
+		cls.student_token = generate_tokens(cls.student.id, cls.student.username, cls.student.profile)["access_token"]
+
+		cls.offer_org_a = Offer.objects.create(
+			title="OrgA Offer", summary="s", link="https://a.com", country="SE",
+			offer_type=cls.offer_type, organization=cls.org_a, source_type=cls.source_type,
+			target_profile=cls.target_profile, created_by=cls.admin, updated_by=cls.admin, details={},
+		)
+		cls.offer_org_b = Offer.objects.create(
+			title="OrgB Offer", summary="s", link="https://b.com", country="DE",
+			offer_type=cls.offer_type, organization=cls.org_b, source_type=cls.source_type,
+			target_profile=cls.target_profile, created_by=cls.admin, updated_by=cls.admin, details={},
+		)
+
+	def _post_offer(self, token, payload):
+		return self.client.post(
+			"/api/offers",
+			data=json.dumps(payload),
+			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {token}",
+		)
+
+	def _base_offer_payload(self, **overrides):
+		payload = {
+			"title": "Test Offer", "summary": "desc",
+			"link": "https://example.com", "country": "SE",
+			"offer_type": "scholarship", "target_profile": "student",
+		}
+		payload.update(overrides)
+		return payload
+
+	# ── GET scoping ──────────────────────────────────────────────────────────
+
+	def test_unauthenticated_get_offers_returns_all(self):
+		resp = self.client.get("/api/offers")
+		self.assertEqual(resp.status_code, 200)
+		self.assertGreaterEqual(resp.json()["count"], 2)
+
+	def test_admin_get_offers_returns_all(self):
+		resp = self.client.get("/api/offers", HTTP_AUTHORIZATION=f"Bearer {self.admin_token}")
+		self.assertEqual(resp.status_code, 200)
+		self.assertGreaterEqual(resp.json()["count"], 2)
+
+	def test_teacher_get_offers_scoped_to_own_org(self):
+		resp = self.client.get("/api/offers", HTTP_AUTHORIZATION=f"Bearer {self.teacher_token}")
+		self.assertEqual(resp.status_code, 200)
+		titles = [o["title"] for o in resp.json()["results"]]
+		self.assertIn("OrgA Offer", titles)
+		self.assertNotIn("OrgB Offer", titles)
+
+	# ── POST ─────────────────────────────────────────────────────────────────
+
+	def test_teacher_creates_offer_linked_to_own_org(self):
+		resp = self._post_offer(self.teacher_token, self._base_offer_payload())
+		self.assertEqual(resp.status_code, 201)
+		self.assertEqual(resp.json()["organization"]["name"], "OrgA")
+
+	def test_teacher_cannot_override_org_in_body(self):
+		resp = self._post_offer(
+			self.teacher_token,
+			self._base_offer_payload(organization_id=str(self.org_b.id)),
+		)
+		self.assertEqual(resp.status_code, 201)
+		# org_b id in body is ignored — org_a is used
+		self.assertEqual(resp.json()["organization"]["name"], "OrgA")
+
+	def test_teacher_without_org_cannot_create_offer(self):
+		resp = self._post_offer(self.teacher_no_org_token, self._base_offer_payload())
+		self.assertEqual(resp.status_code, 403)
+		self.assertEqual(resp.json()["error"], "no_org")
+
+	def test_company_creates_offer_linked_to_own_org(self):
+		resp = self._post_offer(self.company_token, self._base_offer_payload(country="DE"))
+		self.assertEqual(resp.status_code, 201)
+		self.assertEqual(resp.json()["organization"]["name"], "OrgB")
+
+	def test_student_cannot_create_offer(self):
+		resp = self._post_offer(self.student_token, self._base_offer_payload())
+		self.assertEqual(resp.status_code, 403)
+
+	def test_unauthenticated_cannot_create_offer(self):
+		resp = self.client.post(
+			"/api/offers",
+			data=json.dumps(self._base_offer_payload()),
+			content_type="application/json",
+		)
+		self.assertEqual(resp.status_code, 401)
+
+	# ── PATCH ────────────────────────────────────────────────────────────────
+
+	def test_teacher_updates_own_org_offer(self):
+		resp = self.client.patch(
+			f"/api/offers/{self.offer_org_a.id}",
+			data=json.dumps({"title": "Updated OrgA Offer"}),
+			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.teacher_token}",
+		)
+		self.assertEqual(resp.status_code, 200)
+		self.assertEqual(resp.json()["title"], "Updated OrgA Offer")
+		self.offer_org_a.title = "OrgA Offer"
+		self.offer_org_a.save(update_fields=["title"])
+
+	def test_teacher_cannot_update_other_org_offer(self):
+		resp = self.client.patch(
+			f"/api/offers/{self.offer_org_b.id}",
+			data=json.dumps({"title": "Hack"}),
+			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.teacher_token}",
+		)
+		self.assertEqual(resp.status_code, 403)
+
+	def test_admin_updates_any_offer(self):
+		resp = self.client.patch(
+			f"/api/offers/{self.offer_org_b.id}",
+			data=json.dumps({"status": "published"}),
+			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.admin_token}",
+		)
+		self.assertEqual(resp.status_code, 200)
+		self.assertEqual(resp.json()["status"], "published")
+
+	# ── DELETE ───────────────────────────────────────────────────────────────
+
+	def test_teacher_deletes_own_org_offer(self):
+		offer = Offer.objects.create(
+			title="ToDelete", summary="s", link="https://del.com", country="SE",
+			offer_type=self.offer_type, organization=self.org_a, source_type=self.source_type,
+			target_profile=self.target_profile, created_by=self.admin, updated_by=self.admin, details={},
+		)
+		resp = self.client.delete(
+			f"/api/offers/{offer.id}",
+			HTTP_AUTHORIZATION=f"Bearer {self.teacher_token}",
+		)
+		self.assertEqual(resp.status_code, 204)
+
+	def test_teacher_cannot_delete_other_org_offer(self):
+		resp = self.client.delete(
+			f"/api/offers/{self.offer_org_b.id}",
+			HTTP_AUTHORIZATION=f"Bearer {self.teacher_token}",
+		)
+		self.assertEqual(resp.status_code, 403)
+
+	def test_admin_deletes_any_offer(self):
+		offer = Offer.objects.create(
+			title="AdminDel", summary="s", link="https://admindel.com", country="IT",
+			offer_type=self.offer_type, organization=self.org_b, source_type=self.source_type,
+			target_profile=self.target_profile, created_by=self.admin, updated_by=self.admin, details={},
+		)
+		resp = self.client.delete(
+			f"/api/offers/{offer.id}",
+			HTTP_AUTHORIZATION=f"Bearer {self.admin_token}",
+		)
+		self.assertEqual(resp.status_code, 204)
+
+	# ── Email placeholder tests ───────────────────────────────────────────────
+
+	def test_verify_email_endpoint_returns_501(self):
+		resp = self.client.get("/api/auth/verify-email")
+		self.assertEqual(resp.status_code, 501)
+		self.assertEqual(resp.json()["error"], "not_configured")
+
+	def test_registration_pending_email_logged(self):
+		import logging
+		org = Organization.objects.create(
+			name="EmailTestOrg", type=Organization.OrganizationType.UNIVERSITY, country="DE",
+		)
+		AllowedDomain.objects.create(domain="emailtest.de", organization=org)
+		with self.assertLogs("content", level=logging.INFO) as cm:
+			self.client.post(
+				"/api/auth/register",
+				data=json.dumps({
+					"username": "emailtestteach", "email": "et@emailtest.de",
+					"password": "pass1234", "profile": "Teacher",
+				}),
+				content_type="application/json",
+			)
+		self.assertTrue(any("EMAIL PLACEHOLDER" in line for line in cm.output))

@@ -1,0 +1,224 @@
+<div class="page">
+  <div class="page-header">
+    <h1>User Management</h1>
+    <button class="btn-primary" (click)="openCreateModal()">+ Create User</button>
+  </div>
+
+  <div class="filters">
+    <input
+      type="text"
+      placeholder="Search username or email…"
+      [(ngModel)]="searchInput"
+      (keyup.enter)="applySearch()"
+      class="filter-input"
+    />
+    <button class="btn-outline" (click)="applySearch()">Search</button>
+
+    <select (change)="setFilter('profile', $any($event.target).value)" class="filter-select">
+      <option value="">All profiles</option>
+      @for (p of profiles; track p) {
+        <option [value]="p">{{ p }}</option>
+      }
+    </select>
+
+    <select (change)="setFilter('approval_status', $any($event.target).value)" class="filter-select">
+      <option value="">All statuses</option>
+      <option value="pending">Pending</option>
+      <option value="approved">Approved</option>
+      <option value="rejected">Rejected</option>
+    </select>
+
+    <select (change)="setFilter('status', $any($event.target).value)" class="filter-select">
+      <option value="">Active & inactive</option>
+      <option value="active">Active only</option>
+      <option value="inactive">Inactive only</option>
+    </select>
+  </div>
+
+  @if (error()) {
+    <p class="error-msg">{{ error() }}</p>
+  }
+
+  @if (loading()) {
+    <p class="loading-msg">Loading…</p>
+  } @else {
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Username</th>
+          <th>Email</th>
+          <th>Profile</th>
+          <th>Approval</th>
+          <th>Email verified</th>
+          <th>Active</th>
+          <th>Joined</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (user of users; track user.id) {
+          <tr>
+            <td>{{ user.username }}</td>
+            <td class="email-cell">{{ user.email }}</td>
+            <td>{{ user.profile }}</td>
+            <td>
+              <span [class]="'pill pill-' + user.approval_status">{{ user.approval_status }}</span>
+            </td>
+            <td>
+              <button
+                class="btn-icon"
+                [title]="user.email_verified ? 'Mark unverified' : 'Mark verified'"
+                (click)="toggleEmailVerified(user)"
+              >{{ user.email_verified ? '✔' : '✗' }}</button>
+            </td>
+            <td>{{ user.is_active ? 'Yes' : 'No' }}</td>
+            <td class="date-cell">{{ user.created_at | date:'yyyy-MM-dd' }}</td>
+            <td class="actions-cell">
+              @if (user.approval_status === 'pending') {
+                <button class="btn-sm btn-success" (click)="approve(user)">Approve</button>
+                <button class="btn-sm btn-danger" (click)="openReject(user)">Reject</button>
+              }
+              @if (user.is_active) {
+                <button class="btn-sm btn-outline" (click)="toggleActive(user)">Deactivate</button>
+              } @else {
+                <button class="btn-sm btn-outline" (click)="toggleActive(user)">Reactivate</button>
+              }
+              <select
+                class="role-select"
+                [ngModel]="user.profile"
+                (ngModelChange)="changeRole(user, $event)"
+              >
+                @for (p of profiles; track p) {
+                  <option [value]="p">{{ p }}</option>
+                }
+              </select>
+              @if (['Teacher', 'Company'].includes(user.profile)) {
+                <button class="btn-sm btn-outline" [title]="user.organization_name ?? 'No org'" (click)="openAssignOrg(user)">
+                  {{ user.organization_name ? '🏢 ' + user.organization_name : '⚠ Assign Org' }}
+                </button>
+              }
+            </td>
+          </tr>
+        }
+        @if (users.length === 0) {
+          <tr><td colspan="8" class="empty-row">No users found.</td></tr>
+        }
+      </tbody>
+    </table>
+
+    <div class="pagination">
+      <button class="btn-outline btn-sm" (click)="prevPage()" [disabled]="(filters.page ?? 1) <= 1">← Prev</button>
+      <span>Page {{ filters.page ?? 1 }} · {{ total }} total</span>
+      <button class="btn-outline btn-sm" (click)="nextPage()" [disabled]="(filters.page ?? 1) * (filters.page_size ?? 20) >= total">Next →</button>
+    </div>
+  }
+</div>
+
+<!-- Reject modal -->
+@if (rejectTarget) {
+  <div class="modal-backdrop" (click)="rejectTarget = null">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <h2>Reject {{ rejectTarget.username }}?</h2>
+      <textarea [(ngModel)]="rejectNotes" placeholder="Reason (optional)" rows="3" class="modal-textarea"></textarea>
+      <div class="modal-actions">
+        <button class="btn-outline" (click)="rejectTarget = null">Cancel</button>
+        <button class="btn-danger" (click)="confirmReject()">Confirm Reject</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Assign org modal -->
+@if (assignOrgTarget) {
+  <div class="modal-backdrop" (click)="assignOrgTarget = null">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <h2>Assign Organization — {{ assignOrgTarget.username }}</h2>
+      @if (!showNewOrgForm) {
+        <div class="form-group">
+          <label>Organization</label>
+          <select [(ngModel)]="assignOrgId" class="modal-input">
+            <option value="">— select existing —</option>
+            @for (org of organizations; track org.id) {
+              <option [value]="org.id">{{ org.name }} ({{ org.type }})</option>
+            }
+          </select>
+        </div>
+        <button class="btn-sm btn-outline" (click)="showNewOrgForm = true">+ Create new organization</button>
+        <div class="modal-actions">
+          <button class="btn-outline" (click)="assignOrgTarget = null">Cancel</button>
+          <button class="btn-primary" [disabled]="!assignOrgId" (click)="confirmAssignOrg()">Assign</button>
+        </div>
+      } @else {
+        <div class="form-group">
+          <label>Company / Org Name *</label>
+          <input type="text" [(ngModel)]="newOrgForm.name" class="modal-input" placeholder="Acme Corp" />
+        </div>
+        <div class="form-group">
+          <label>Type *</label>
+          <select [(ngModel)]="newOrgForm.type" class="modal-input">
+            <option value="company">Company</option>
+            <option value="university">University</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Country (2-letter code) *</label>
+          <input type="text" [(ngModel)]="newOrgForm.country" class="modal-input" maxlength="2" placeholder="DE" />
+        </div>
+        <div class="form-group">
+          <label>Website</label>
+          <input type="url" [(ngModel)]="newOrgForm.website" class="modal-input" placeholder="https://example.com" />
+        </div>
+        <div class="modal-actions">
+          <button class="btn-outline" (click)="showNewOrgForm = false">← Back</button>
+          <button class="btn-primary" [disabled]="!newOrgForm.name || !newOrgForm.country || creatingOrg()" (click)="createAndSelectOrg()">
+            {{ creatingOrg() ? 'Creating…' : 'Create & Select' }}
+          </button>
+        </div>
+      }
+    </div>
+  </div>
+}
+
+<!-- Create user modal -->
+@if (showCreateModal) {
+  <div class="modal-backdrop" (click)="showCreateModal = false">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <h2>Create User</h2>
+      @if (createError()) {
+        <p class="error-msg">{{ createError() }}</p>
+      }
+      @if (createSuccess()) {
+        <p class="success-msg">{{ createSuccess() }}</p>
+      }
+      <label>Username
+        <input type="text" [(ngModel)]="createForm.username" class="modal-input" />
+      </label>
+      <label>Email
+        <input type="email" [(ngModel)]="createForm.email" class="modal-input" />
+      </label>
+      <label>Password
+        <input type="password" [(ngModel)]="createForm.password" class="modal-input" />
+      </label>
+      <label>Profile
+        <select [(ngModel)]="createForm.profile" class="modal-input">
+          @for (p of profiles; track p) {
+            <option [value]="p">{{ p }}</option>
+          }
+        </select>
+      </label>
+      <label>First name
+        <input type="text" [(ngModel)]="createForm.first_name" class="modal-input" />
+      </label>
+      <label>Last name
+        <input type="text" [(ngModel)]="createForm.last_name" class="modal-input" />
+      </label>
+      <div class="modal-actions">
+        <button class="btn-outline" (click)="showCreateModal = false">Cancel</button>
+        <button class="btn-primary" (click)="submitCreate()" [disabled]="creatingUser()">
+          {{ creatingUser() ? 'Creating…' : 'Create' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
