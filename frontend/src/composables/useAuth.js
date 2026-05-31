@@ -75,6 +75,7 @@ export function useAuth() {
   }
 
   function logout() {
+    api.post('/api/auth/logout', {}).catch(() => {})
     localStorage.removeItem('access_token')
     localStorage.removeItem('refresh_token')
     localStorage.removeItem('user')

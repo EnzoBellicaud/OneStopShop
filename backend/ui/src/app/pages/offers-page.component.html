@@ -194,8 +194,8 @@
       <label>Country *
         <select [(ngModel)]="offerForm.country" class="modal-input">
           <option value="">Select country…</option>
-          @for (c of countries; track c.code) {
-            <option [value]="c.code">{{ c.code }}</option>
+          @for (c of allCountries; track c.code) {
+            <option [value]="c.code">{{ c.name }}</option>
           }
         </select>
       </label>
@@ -232,6 +232,21 @@
           </select>
         </label>
       }
+      <fieldset class="modal-fieldset">
+        <legend>Domains</legend>
+        <div class="chip-grid">
+          @for (d of domains; track d.id) {
+            <label class="check-chip">
+              <input
+                type="checkbox"
+                [checked]="(offerForm.domains ?? []).includes(d.name)"
+                (change)="toggleOfferDomain(d.name, $any($event.target).checked)"
+              />
+              <span>{{ d.name }}</span>
+            </label>
+          }
+        </div>
+      </fieldset>
       <div class="modal-actions">
         <button class="btn-outline" (click)="showOfferModal = false">Cancel</button>
         <button class="btn-primary" (click)="saveOffer()" [disabled]="savingOffer">

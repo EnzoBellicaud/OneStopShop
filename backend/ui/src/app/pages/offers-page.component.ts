@@ -14,6 +14,7 @@ import {
   TargetProfileLookup,
 } from '../shared/api.models';
 import { AuthService } from '../shared/auth.service';
+import { ALL_COUNTRIES, Country } from '../shared/countries';
 import { OssApiService } from '../shared/oss-api.service';
 
 @Component({
@@ -26,6 +27,7 @@ import { OssApiService } from '../shared/oss-api.service';
 export class OffersPageComponent implements OnInit, OnDestroy {
   readonly statuses = ['draft', 'published', 'archived'];
   readonly pageSizeOptions = [6, 12, 24, 50];
+  readonly allCountries: Country[] = ALL_COUNTRIES;
 
   offerTypes: OfferTypeLookup[] = [];
   domains: DomainLookup[] = [];
@@ -261,6 +263,16 @@ export class OffersPageComponent implements OnInit, OnDestroy {
         this.errorMessage = 'Delete failed.';
       },
     });
+  }
+
+  toggleOfferDomain(domainName: string, checked: boolean): void {
+    const names = new Set(this.offerForm.domains ?? []);
+    if (checked) {
+      names.add(domainName);
+    } else {
+      names.delete(domainName);
+    }
+    this.offerForm.domains = Array.from(names);
   }
 
   private emptyForm(): OfferCreateRequest {

@@ -356,3 +356,40 @@
     transform: translateY(0);
   }
 }
+
+.modal-fieldset {
+  border: 1px solid #e3d7be;
+  border-radius: 12px;
+  padding: 0.75rem;
+  margin: 0;
+}
+
+.modal-fieldset legend {
+  padding: 0 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #314252;
+}
+
+.chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+}
+
+.check-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 999px;
+  background: #f5efe3;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.check-chip input {
+  margin: 0;
+  width: auto;
+}
