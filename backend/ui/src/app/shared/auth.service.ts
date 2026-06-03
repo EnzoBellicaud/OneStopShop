@@ -42,7 +42,7 @@ export class AuthService {
   }
 
   get profile(): string | null {
-    return this.getUser()?.profile ?? null;
+    return this.currentUser?.profile ?? null;
   }
 
   get isAdmin(): boolean {
