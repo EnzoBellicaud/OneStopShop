@@ -4,7 +4,10 @@ import { ImportPageComponent } from './pages/import-page.component';
 import { LoginPageComponent } from './pages/login-page.component';
 import { OffersPageComponent } from './pages/offers-page.component';
 import { ScrapperAdminPageComponent } from './pages/scrapper-admin-page.component';
+import { UsersPageComponent } from './pages/users-page.component';
+import { DomainsPageComponent } from './pages/domains-page.component';
 import { authGuard } from './shared/auth.guard';
+import { adminGuard } from './shared/admin.guard';
 import { guestGuard } from './shared/guest.guard';
 
 export const routes: Routes = [
@@ -27,6 +30,16 @@ export const routes: Routes = [
 		path: 'offers',
 		component: OffersPageComponent,
 		canActivate: [authGuard],
+	},
+	{
+		path: 'admin/users',
+		component: UsersPageComponent,
+		canActivate: [adminGuard],
+	},
+	{
+		path: 'admin/domains',
+		component: DomainsPageComponent,
+		canActivate: [adminGuard],
 	},
 	{
 		path: 'admin/scrapper',

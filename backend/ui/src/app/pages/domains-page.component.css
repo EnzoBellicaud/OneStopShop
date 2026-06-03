@@ -1,0 +1,151 @@
+.page {
+	max-width: 900px;
+}
+
+.page-header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	margin-bottom: 1.5rem;
+	gap: 1rem;
+}
+
+.page-header h1 {
+	font-size: 1.75rem;
+	color: var(--ink, #111110);
+}
+
+/* ── Table card ──────────────────────────────────────────────────────────*/
+.table-card {
+	background: #fff;
+	border: 1px solid var(--border, #e4e4e0);
+	border-radius: var(--r-lg, 12px);
+	overflow: hidden;
+}
+
+.data-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 0.875rem;
+}
+
+.data-table th {
+	text-align: left;
+	padding: 0.6rem 0.85rem;
+	border-bottom: 1px solid var(--border, #e4e4e0);
+	color: #888;
+	font-size: 0.7rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	background: var(--surface, #fafaf8);
+	font-family: 'DM Sans', sans-serif;
+}
+
+.data-table td {
+	padding: 0.7rem 0.85rem;
+	border-bottom: 1px solid #f4f4f2;
+	vertical-align: middle;
+}
+
+.data-table tr:last-child td {
+	border-bottom: none;
+}
+
+.data-table tr:hover td {
+	background: #fafaf8;
+}
+
+.data-table code {
+	font-family: 'Courier New', monospace;
+	font-size: 0.82rem;
+	background: #f3f4f0;
+	border: 1px solid var(--border, #e4e4e0);
+	border-radius: 4px;
+	padding: 0.15rem 0.4rem;
+	color: var(--ink, #111110);
+}
+
+.desc-cell {
+	color: #777;
+	font-size: 0.85rem;
+}
+
+.date-cell {
+	color: #aaa;
+	font-size: 0.8rem;
+	white-space: nowrap;
+}
+
+.actions-cell {
+	display: flex;
+	gap: 0.35rem;
+}
+
+.empty-row td {
+	text-align: center;
+	color: #aaa;
+	padding: 2.5rem;
+}
+
+/* ── Modal ───────────────────────────────────────────────────────────────*/
+.modal-backdrop {
+	position: fixed;
+	inset: 0;
+	background: rgba(17, 17, 16, 0.45);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 100;
+}
+
+.modal {
+	background: #fff;
+	border-radius: var(--r-lg, 12px);
+	border: 1px solid var(--border, #e4e4e0);
+	padding: 1.75rem;
+	width: 100%;
+	max-width: 440px;
+	display: flex;
+	flex-direction: column;
+	gap: 0.85rem;
+}
+
+.modal-sm {
+	max-width: 340px;
+}
+
+.modal h2 {
+	font-size: 1.3rem;
+	margin: 0 0 0.25rem;
+}
+
+.modal-input {
+	width: 100%;
+	padding: 0.45rem 0.6rem;
+	border: 1px solid var(--border, #e4e4e0);
+	border-radius: var(--r, 6px);
+	font-size: 0.875rem;
+	font-family: 'DM Sans', sans-serif;
+	background: #fff;
+	color: var(--ink, #111110);
+}
+
+.modal label {
+	display: flex;
+	flex-direction: column;
+	gap: 0.3rem;
+	font-size: 0.82rem;
+	font-weight: 500;
+	color: #444;
+}
+
+.modal-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 0.6rem;
+	margin-top: 0.25rem;
+}
+
+.error-msg { color: var(--accent-mid, #9b2020); font-size: 0.85rem; }
+.loading-msg { color: #888; font-size: 0.875rem; }

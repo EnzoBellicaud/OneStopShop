@@ -64,6 +64,20 @@ services:
     ports:
       - "${UI_PORT:-4200}:80"
 
+  vue-frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: ${API_URL:-http://localhost:8000}
+        VITE_ADMIN_URL: ${ADMIN_URL:-http://localhost:4200}
+    container_name: oss-vue
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${VUE_PORT:-5173}:80"
+
   scraper-worker:
     build:
       context: ./backend

@@ -27,7 +27,15 @@
 
         <div v-if="error" class="auth-error">{{ error }}</div>
 
-        <form @submit.prevent="submit" class="auth-form">
+        <!-- Pending approval success card — shown instead of form after Teacher/Company registers -->
+        <div v-if="pendingApproval" class="pending-card">
+          <div class="pending-icon">✓</div>
+          <h3>Registration submitted</h3>
+          <p>Your account is pending admin approval. You will be able to log in once an admin activates your account.</p>
+          <button class="switch-btn" @click="switchMode">Back to login</button>
+        </div>
+
+        <form v-if="!pendingApproval" @submit.prevent="submit" class="auth-form">
 
           <div class="field">
             <label for="username">Username</label>
@@ -52,7 +60,39 @@
                 required
                 autocomplete="email"
               />
+              <p v-if="form.profile === 'Teacher'" class="field-hint">
+                ℹ Use your university email (e.g. you@mdu.se)
+              </p>
             </div>
+
+            <template v-if="form.profile === 'Company'">
+              <div class="field">
+                <label for="company_name">Company Name *</label>
+                <input
+                  id="company_name"
+                  v-model="form.company_name"
+                  type="text"
+                  placeholder="Acme Corp"
+                  autocomplete="organization"
+                />
+              </div>
+              <div class="field">
+                <label for="company_country">Country *</label>
+                <select id="company_country" v-model="form.company_country">
+                  <option value="">Select country…</option>
+                  <option v-for="c in ALL_COUNTRIES" :key="c.code" :value="c.code">{{ c.name }}</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="company_website">Website</label>
+                <input
+                  id="company_website"
+                  v-model="form.company_website"
+                  type="url"
+                  placeholder="https://acme.com"
+                />
+              </div>
+            </template>
           </template>
 
           <div class="field">
@@ -90,6 +130,10 @@
             </div>
           </template>
 
+          <p v-if="mode === 'register' && (form.profile === 'Teacher' || form.profile === 'Company')" class="approval-note">
+            ℹ Teacher and Company accounts require admin approval before you can log in.
+          </p>
+
           <button type="submit" class="auth-submit" :disabled="loading">
             <span v-if="loading" class="spinner"></span>
             {{ loading ? 'Please wait…' : (mode === 'login' ? 'Log in' : 'Create account') }}
@@ -114,6 +158,7 @@
 import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuth } from './composables/useAuth.js'
+import { ALL_COUNTRIES } from './data/countries.js'
 
 const router = useRouter()
 const route = useRoute()
@@ -121,29 +166,56 @@ const { login, register, loading, error } = useAuth()
 
 const mode = ref('login')
 const showPassword = ref(false)
+const pendingApproval = ref(false)
 
 const roles = [
-  { value: 'Student',        label: 'Student',        icon: '🎓' },
-  { value: 'Academic staff', label: 'Academic staff', icon: '🔬' },
-  { value: 'Company',        label: 'Company',        icon: '🏢' },
+  { value: 'Student',        label: 'Student',    icon: '🎓' },
+  { value: 'Academic staff', label: 'Researcher', icon: '🔬' },
+  { value: 'Teacher',        label: 'Teacher',    icon: '📚' },
+  { value: 'Company',        label: 'Company',    icon: '🏢' },
 ]
 
-const form = ref({ username: '', email: '', password: '', profile: 'Student' })
+const form = ref({
+  username: '', email: '', password: '', profile: 'Student',
+  company_name: '', company_country: '', company_website: '',
+})
 
 function switchMode() {
   mode.value = mode.value === 'login' ? 'register' : 'login'
   showPassword.value = false
+  pendingApproval.value = false
   error.value = null
 }
 
 async function submit() {
-  let ok
   if (mode.value === 'login') {
-    ok = await login(form.value.username, form.value.password)
+    const ok = await login(form.value.username, form.value.password)
+    if (ok) router.push(route.query.redirect || '/')
   } else {
-    ok = await register(form.value.username, form.value.email, form.value.password, form.value.profile)
+    if (form.value.profile === 'Company') {
+      if (!form.value.company_name.trim()) {
+        error.value = 'Company name is required.'
+        return
+      }
+      if (!form.value.company_country) {
+        error.value = 'Please select a country.'
+        return
+      }
+    }
+    const extraFields = form.value.profile === 'Company'
+      ? {
+          company_name:    form.value.company_name.trim(),
+          company_country: form.value.company_country.trim().toUpperCase(),
+          company_website: form.value.company_website.trim(),
+        }
+      : {}
+    const result = await register(form.value.username, form.value.email, form.value.password, form.value.profile, extraFields)
+    if (result && result.pending) {
+      pendingApproval.value = true
+    } else if (result === true) {
+      router.push(route.query.redirect || '/')
+    }
   }
-  if (ok) router.push(route.query.redirect || '/')
 }
 </script>
 
@@ -435,4 +507,61 @@ async function submit() {
 }
 
 .switch-btn:hover { text-decoration: underline; }
+
+/* ── Field hint ── */
+.field-hint {
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  margin: 0;
+}
+
+/* ── Approval note ── */
+.approval-note {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  background: #f0f4ff;
+  border-left: 3px solid #6b8ccc;
+  border-radius: 4px;
+  padding: 0.5rem 0.75rem;
+  margin: 0;
+}
+
+/* ── Pending approval card ── */
+.pending-card {
+  text-align: center;
+  padding: 1.5rem 1rem;
+  background: #f0fff4;
+  border: 1.5px solid #86efac;
+  border-radius: var(--r);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.pending-icon {
+  width: 44px;
+  height: 44px;
+  background: #22c55e;
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.pending-card h3 {
+  font-size: 1.1rem;
+  color: var(--ink);
+  margin: 0;
+}
+
+.pending-card p {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  margin: 0;
+  line-height: 1.6;
+}
 </style>

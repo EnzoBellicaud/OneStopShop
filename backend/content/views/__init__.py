@@ -10,10 +10,15 @@ from content.views.scraping import (
     scraping_runs,
     scraping_sources_health,
 )
+from content.views.admin_users import admin_user_collection
+from content.views.allowed_domains import allowed_domain_resource, allowed_domains_collection
+from content.views.email_verify import verify_email
 from content.views.users import (
     dashboard,
     link_user_organization,
     unlink_user_organization,
+    user_approval,
+    user_role,
     users_collection,
     user_favorite_detail,
     user_favorites,
@@ -48,9 +53,15 @@ __all__ = [
     "scraping_run_detail",
     "scraping_runs",
     "scraping_sources_health",
+    "admin_user_collection",
+    "allowed_domain_resource",
+    "allowed_domains_collection",
+    "verify_email",
     "dashboard",
     "link_user_organization",
     "unlink_user_organization",
+    "user_approval",
+    "user_role",
     "users_collection",
     "user_favorite_detail",
     "user_favorites",

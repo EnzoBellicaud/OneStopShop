@@ -256,7 +256,6 @@ export interface AdminAccountStats {
 }
 
 export interface AdminUserDetail extends UserDetail {
-  password_hash: string;
   account_stats: AdminAccountStats;
 }
 
@@ -271,7 +270,7 @@ export interface AdminUsersQueryParams {
   page?: number;
   page_size?: number;
   created_after?: string;
-  status?: 'active' | 'inactive' | 'deleted';
+  status?: 'active' | 'inactive';
 }
 
 export interface AdminUserNeed {
@@ -448,3 +447,93 @@ export interface ConfirmResult {
   drafts: number;
   published: number;
 }
+
+// ── User management ────────────────────────────────────────────────────────
+
+export interface UserManagementSummary {
+  id: string;
+  username: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  profile: string;
+  is_active: boolean;
+  approval_status: 'pending' | 'approved' | 'rejected';
+  email_verified: boolean;
+  approved_by: string | null;
+  approval_notes: string;
+  organization_id: string | null;
+  organization_name: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminUsersListQueryParams {
+  search?: string;
+  profile?: string;
+  approval_status?: 'pending' | 'approved' | 'rejected';
+  status?: 'active' | 'inactive';
+  page?: number;
+  page_size?: number;
+}
+
+export interface UserApprovalRequest {
+  action?: 'approve' | 'reject';
+  notes?: string;
+  email_verified?: boolean;
+}
+
+export interface UserRoleRequest {
+  profile: string;
+}
+
+export interface AdminCreateUserRequest {
+  username: string;
+  email: string;
+  password: string;
+  profile: string;
+  first_name?: string;
+  last_name?: string;
+  organization_id?: string;
+}
+
+export interface AdminCreateOrgRequest {
+  name: string;
+  type: 'university' | 'company' | 'other';
+  country: string;
+  website?: string;
+}
+
+// ── Allowed domains ────────────────────────────────────────────────────────
+
+export interface AllowedDomainItem {
+  id: string;
+  domain: string;
+  organization: string;
+  organization_id: string;
+  description: string;
+  created_at: string;
+}
+
+export interface AllowedDomainCreateRequest {
+  domain: string;
+  organization_id: string;
+  description?: string;
+}
+
+// ── Offer write ────────────────────────────────────────────────────────────
+
+export interface OfferCreateRequest {
+  title: string;
+  summary: string;
+  link: string;
+  country: string;
+  offer_type: string;
+  target_profile: string;
+  deadline?: string;
+  status?: 'draft' | 'published' | 'archived';
+  domains?: string[];
+  organization_id?: string;
+}
+
+export type OfferUpdateRequest = Partial<OfferCreateRequest>;

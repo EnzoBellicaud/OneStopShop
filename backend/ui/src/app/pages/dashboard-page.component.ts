@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterModule } from '@angular/router';
 import { Subject, forkJoin, takeUntil } from 'rxjs';
 import {
   DashboardResponse,
@@ -20,7 +21,7 @@ import { AuthService } from '../shared/auth.service';
 @Component({
   selector: 'app-dashboard-page',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './dashboard-page.component.html',
   styleUrl: './dashboard-page.component.css',
 })
@@ -51,6 +52,14 @@ export class DashboardPageComponent implements OnInit, OnDestroy {
   errorMessage = '';
   userReady = false;
 
+  // Role-specific stats
+  statsLoading = false;
+  adminStats = { totalUsers: 0, pendingApprovals: 0, totalOffers: 0, totalOrgs: 0 };
+  managerStats = { totalOffers: 0, published: 0, drafts: 0 };
+
+  get isAdmin(): boolean { return this.auth.isAdmin; }
+  get isOfferManager(): boolean { return this.auth.isOfferManager; }
+
   editingNeedId: string | null = null;
   needForm: UserNeedUpdateRequest = this.emptyNeedForm();
   favoriteForm = {
@@ -68,6 +77,7 @@ export class DashboardPageComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.bootstrapUserAndLoad();
+    this.loadRoleStats();
   }
 
   ngOnDestroy(): void {
@@ -271,6 +281,46 @@ export class DashboardPageComponent implements OnInit, OnDestroy {
 
   countryValue(): string {
     return this.needForm.countries.join(', ');
+  }
+
+  private loadRoleStats(): void {
+    if (this.isAdmin) {
+      this.statsLoading = true;
+      forkJoin({
+        users:   this.api.getUsers({ page_size: 1 }),
+        pending: this.api.getUsers({ approval_status: 'pending', page_size: 1 }),
+        offers:  this.api.getOffers({ page_size: 1 }),
+        orgs:    this.api.getOrganizations(),
+      }).pipe(takeUntil(this.destroy$)).subscribe({
+        next: ({ users, pending, offers, orgs }) => {
+          this.adminStats = {
+            totalUsers:      users.count,
+            pendingApprovals: pending.count,
+            totalOffers:     offers.count,
+            totalOrgs:       orgs.count,
+          };
+          this.statsLoading = false;
+        },
+        error: () => { this.statsLoading = false; },
+      });
+    } else if (this.isOfferManager) {
+      this.statsLoading = true;
+      forkJoin({
+        total:     this.api.getOffers({ page_size: 1 }),
+        published: this.api.getOffers({ status: 'published', page_size: 1 }),
+        drafts:    this.api.getOffers({ status: 'draft', page_size: 1 }),
+      }).pipe(takeUntil(this.destroy$)).subscribe({
+        next: ({ total, published, drafts }) => {
+          this.managerStats = {
+            totalOffers: total.count,
+            published:   published.count,
+            drafts:      drafts.count,
+          };
+          this.statsLoading = false;
+        },
+        error: () => { this.statsLoading = false; },
+      });
+    }
   }
 
   private bootstrapUserAndLoad(): void {

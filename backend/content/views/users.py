@@ -8,7 +8,9 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from content.auth import require_auth
+from content.emails import send_approval_email, send_rejection_email
 from content.models import (
+    AllowedDomain,
     Domain,
     MatchingHit,
     Offer,
@@ -128,6 +130,28 @@ def _serialize_user_detail(user: User) -> dict:
     }
 
 
+def _serialize_user_admin(user: User) -> dict:
+    """Flat serialization for admin user management — includes approval fields."""
+    org_link = UserOrganization.objects.filter(user=user).select_related("organization").first()
+    return {
+        "id": str(user.id),
+        "username": user.username,
+        "email": user.email,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "profile": user.profile,
+        "is_active": user.is_active,
+        "approval_status": user.approval_status,
+        "email_verified": user.email_verified,
+        "approved_by": user.approved_by.username if user.approved_by_id else None,
+        "approval_notes": user.approval_notes,
+        "organization_id": str(org_link.organization.id) if org_link else None,
+        "organization_name": org_link.organization.name if org_link else None,
+        "created_at": user.created_at.isoformat(),
+        "updated_at": user.updated_at.isoformat(),
+    }
+
+
 def _serialize_need(need: UserNeed) -> dict:
     return {
         "id": str(need.id),
@@ -205,6 +229,8 @@ def _admin_user_list_response(request) -> JsonResponse:
     page_size = _parse_positive_int(request.GET.get("page_size"), default=25, max_value=200)
     search = str(request.GET.get("search") or "").strip()
     status = str(request.GET.get("status") or "").strip()
+    approval_status = str(request.GET.get("approval_status") or "").strip()
+    profile_filter = str(request.GET.get("profile") or "").strip()
 
     queryset = User.objects.all().order_by("username")
     if search:
@@ -213,8 +239,18 @@ def _admin_user_list_response(request) -> JsonResponse:
         if status not in {"active", "inactive"}:
             return _json_error("validation_error", "status must be active or inactive.", 400)
         queryset = queryset.filter(is_active=(status == "active"))
+    if approval_status:
+        valid_approval = {s for s, _ in User.ApprovalStatus.choices}
+        if approval_status not in valid_approval:
+            return _json_error("validation_error", f"approval_status must be one of: {', '.join(valid_approval)}.", 400)
+        queryset = queryset.filter(approval_status=approval_status)
+    if profile_filter:
+        valid_profiles = {p for p, _ in User.ProfileType.choices}
+        if profile_filter not in valid_profiles:
+            return _json_error("validation_error", f"profile must be one of: {', '.join(valid_profiles)}.", 400)
+        queryset = queryset.filter(profile=profile_filter)
 
-    return _paginated_response(request, queryset, _serialize_user_detail, page_size, page)
+    return _paginated_response(request, queryset, _serialize_user_admin, page_size, page)
 
 
 def _normalize_countries(values) -> list[str]:
@@ -270,7 +306,7 @@ def user_resource(request, user_id: str):
         return error_response
 
     if request.method == "GET":
-        return JsonResponse(_serialize_user_detail(user))
+        return JsonResponse(_serialize_user_admin(user))
 
     if request.method == "DELETE":
         user.is_active = False
@@ -283,6 +319,7 @@ def user_resource(request, user_id: str):
 
     email = body.get("email")
     username = body.get("username")
+    is_active = body.get("is_active")
     profile_data = body.get("profile")
 
     if email is not None:
@@ -300,6 +337,9 @@ def user_resource(request, user_id: str):
         if User.objects.exclude(id=user.id).filter(username=normalized_username).exists():
             return _json_error("conflict", "Username is already in use.", 409)
         user.username = normalized_username
+
+    if is_active is not None:
+        user.is_active = bool(is_active)
 
     user.save()
 
@@ -319,7 +359,79 @@ def user_resource(request, user_id: str):
             profile.notification_enabled = bool(profile_data.get("notification_enabled"))
         profile.save()
 
-    return JsonResponse(_serialize_user_detail(user))
+    return JsonResponse(_serialize_user_admin(user))
+
+
+@csrf_exempt
+@require_auth(roles=[ADMIN_PROFILE])
+@require_http_methods(["PATCH"])
+def user_approval(request, user_id: str):
+    user, error_response = _get_user_or_response(user_id, request)
+    if error_response is not None:
+        return error_response
+
+    body = _parse_body(request)
+    if body is None:
+        return _json_error("validation_error", "Invalid JSON body.", 400)
+
+    action = body.get("action")
+    notes = str(body.get("notes") or "").strip()
+    email_verified = body.get("email_verified")
+
+    if action == "approve":
+        user.is_active = True
+        user.approval_status = User.ApprovalStatus.APPROVED
+        user.approved_by = request.auth_user
+        user.approval_notes = notes
+        user.save(update_fields=["is_active", "approval_status", "approved_by", "approval_notes", "updated_at"])
+        # Auto-link Teacher to org via AllowedDomain if not already linked
+        if user.profile == User.ProfileType.TEACHER:
+            domain = user.email.split('@')[-1].lower()
+            allowed = AllowedDomain.objects.filter(domain=domain).select_related('organization').first()
+            if allowed and not UserOrganization.objects.filter(user=user).exists():
+                researcher_role, _ = UserRole.objects.get_or_create(name='researcher', defaults={'description': 'Researcher'})
+                UserOrganization.objects.create(user=user, organization=allowed.organization, role=researcher_role)
+        send_approval_email(user)
+    elif action == "reject":
+        user.is_active = False
+        user.approval_status = User.ApprovalStatus.REJECTED
+        user.approved_by = request.auth_user
+        user.approval_notes = notes
+        user.save(update_fields=["is_active", "approval_status", "approved_by", "approval_notes", "updated_at"])
+        send_rejection_email(user, notes)
+    elif action is not None:
+        return _json_error("validation_error", "action must be 'approve' or 'reject'.", 400)
+
+    if email_verified is not None:
+        user.email_verified = bool(email_verified)
+        user.save(update_fields=["email_verified", "updated_at"])
+
+    if action is None and email_verified is None:
+        return _json_error("validation_error", "Provide 'action' or 'email_verified'.", 400)
+
+    return JsonResponse(_serialize_user_admin(user))
+
+
+@csrf_exempt
+@require_auth(roles=[ADMIN_PROFILE])
+@require_http_methods(["PATCH"])
+def user_role(request, user_id: str):
+    user, error_response = _get_user_or_response(user_id, request)
+    if error_response is not None:
+        return error_response
+
+    body = _parse_body(request)
+    if body is None:
+        return _json_error("validation_error", "Invalid JSON body.", 400)
+
+    new_profile = str(body.get("profile") or "").strip()
+    valid_profiles = {p for p, _ in User.ProfileType.choices}
+    if not new_profile or new_profile not in valid_profiles:
+        return _json_error("validation_error", f"profile must be one of: {', '.join(sorted(valid_profiles))}.", 400)
+
+    user.profile = new_profile
+    user.save(update_fields=["profile", "updated_at"])
+    return JsonResponse(_serialize_user_admin(user))
 
 
 @csrf_exempt

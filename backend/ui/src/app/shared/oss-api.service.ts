@@ -2,6 +2,13 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import {
+  AdminCreateOrgRequest,
+  AdminCreateUserRequest,
+  AllowedDomainCreateRequest,
+  AllowedDomainItem,
+  AdminUsersListQueryParams,
+  UserApprovalRequest,
+  UserManagementSummary,
   DashboardResponse,
   ConfirmResult,
   CountryLookup,
@@ -12,10 +19,13 @@ import {
   MatchingHit,
   MatchingHitsQueryParams,
   Offer,
+  OfferCreateRequest,
   OfferListResponse,
   OfferQueryParams,
+  OfferUpdateRequest,
   OrganizationLookup,
   OfferTypeLookup,
+  PaginatedResponse,
   PreviewResult,
   ScrapingOverview,
   ScrapingRunDetail,
@@ -164,6 +174,73 @@ export class OssApiService {
 
   confirmImport(rows: (ImportValidRow & { status: 'draft' | 'published' })[]): Observable<ConfirmResult> {
     return this.http.post<ConfirmResult>(`${this.apiBaseUrl}/offers/import/confirm`, { rows });
+  }
+
+  // ── User management ──────────────────────────────────────────────────────
+
+  getUsers(params?: Partial<AdminUsersListQueryParams>): Observable<PaginatedResponse<UserManagementSummary>> {
+    return this.http.get<PaginatedResponse<UserManagementSummary>>(`${this.apiBaseUrl}/users`, {
+      params: this.buildParams(params ?? {}),
+    });
+  }
+
+  approveUser(userId: string, payload: UserApprovalRequest): Observable<UserManagementSummary> {
+    return this.http.patch<UserManagementSummary>(`${this.apiBaseUrl}/users/${userId}/approval`, payload);
+  }
+
+  changeUserRole(userId: string, profile: string): Observable<UserManagementSummary> {
+    return this.http.patch<UserManagementSummary>(`${this.apiBaseUrl}/users/${userId}/role`, { profile });
+  }
+
+  updateUser(userId: string, payload: { is_active?: boolean }): Observable<UserManagementSummary> {
+    return this.http.patch<UserManagementSummary>(`${this.apiBaseUrl}/users/${userId}`, payload);
+  }
+
+  createAdminUser(payload: AdminCreateUserRequest): Observable<UserManagementSummary> {
+    return this.http.post<UserManagementSummary>(`${this.apiBaseUrl}/admin/users`, payload);
+  }
+
+  linkUserOrganization(userId: string, organizationId: string): Observable<{ id: string; name: string; role: string }> {
+    return this.http.post<{ id: string; name: string; role: string }>(
+      `${this.apiBaseUrl}/users/${userId}/organizations`,
+      { organization_id: organizationId }
+    );
+  }
+
+  createOrganization(payload: AdminCreateOrgRequest): Observable<OrganizationLookup> {
+    return this.http.post<OrganizationLookup>(`${this.apiBaseUrl}/admin/organizations`, payload);
+  }
+
+  // ── Allowed domains ───────────────────────────────────────────────────────
+
+  getAllowedDomains(): Observable<LookupResponse<AllowedDomainItem>> {
+    return this.http.get<LookupResponse<AllowedDomainItem>>(`${this.apiBaseUrl}/admin/allowed-domains`);
+  }
+
+  createAllowedDomain(payload: AllowedDomainCreateRequest): Observable<AllowedDomainItem> {
+    return this.http.post<AllowedDomainItem>(`${this.apiBaseUrl}/admin/allowed-domains`, payload);
+  }
+
+  updateAllowedDomain(id: string, payload: Partial<AllowedDomainCreateRequest>): Observable<AllowedDomainItem> {
+    return this.http.patch<AllowedDomainItem>(`${this.apiBaseUrl}/admin/allowed-domains/${id}`, payload);
+  }
+
+  deleteAllowedDomain(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiBaseUrl}/admin/allowed-domains/${id}`);
+  }
+
+  // ── Offer write ───────────────────────────────────────────────────────────
+
+  createOffer(payload: OfferCreateRequest): Observable<Offer> {
+    return this.http.post<Offer>(`${this.apiBaseUrl}/offers`, payload);
+  }
+
+  updateOffer(offerId: string, payload: OfferUpdateRequest): Observable<Offer> {
+    return this.http.patch<Offer>(`${this.apiBaseUrl}/offers/${offerId}`, payload);
+  }
+
+  deleteOffer(offerId: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiBaseUrl}/offers/${offerId}`);
   }
 
   getImportTemplate(): void {

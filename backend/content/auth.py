@@ -8,18 +8,26 @@ from functools import wraps
 
 import jwt
 from django.conf import settings
+from django.db import transaction
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django_ratelimit.decorators import ratelimit
 
-from content.models import User
+from content.emails import send_registration_pending_email
+from content.models import AllowedDomain, Organization, User, UserOrganization
 
 logger = logging.getLogger(__name__)
 
 REGISTERABLE_PROFILES = [
 	User.ProfileType.STUDENT,
 	User.ProfileType.ACADEMIC_STAFF,
+	User.ProfileType.TEACHER,
+	User.ProfileType.COMPANY,
+]
+
+APPROVAL_REQUIRED_PROFILES = [
+	User.ProfileType.TEACHER,
 	User.ProfileType.COMPANY,
 ]
 
@@ -112,6 +120,8 @@ def _user_dict(user: User) -> dict:
 		'last_name': user.last_name,
 		'profile': user.profile,
 		'is_active': user.is_active,
+		'approval_status': user.approval_status,
+		'email_verified': user.email_verified,
 	}
 
 
@@ -130,6 +140,9 @@ def register(request):
 	first_name = (data.get('first_name') or '').strip()
 	last_name = (data.get('last_name') or '').strip()
 	profile = (data.get('profile') or User.ProfileType.STUDENT).strip()
+	company_name    = (data.get('company_name') or '').strip()
+	company_country = (data.get('company_country') or '').strip().upper()
+	company_website = (data.get('company_website') or '').strip()
 
 	if not username or len(username) < 3:
 		return JsonResponse({'detail': 'Username must be at least 3 characters'}, status=400)
@@ -144,7 +157,24 @@ def register(request):
 	if User.objects.filter(email=email).exists():
 		return JsonResponse({'detail': 'Email already exists'}, status=409)
 
+	# Company accounts require org info
+	if profile == User.ProfileType.COMPANY:
+		if not company_name:
+			return JsonResponse({'error': 'validation_error', 'detail': 'company_name is required for Company accounts.'}, status=400)
+		if not company_country or len(company_country) != 2:
+			return JsonResponse({'error': 'validation_error', 'detail': 'company_country must be a 2-letter ISO code.'}, status=400)
+
+	# Teacher accounts require a university email domain
+	if profile == User.ProfileType.TEACHER:
+		domain = email.split('@')[-1].lower()
+		if not AllowedDomain.objects.filter(domain=domain).exists():
+			return JsonResponse(
+				{'error': 'invalid_domain', 'detail': f"Email domain '{domain}' is not registered for teacher accounts."},
+				status=400,
+			)
+
 	try:
+		needs_approval = profile in APPROVAL_REQUIRED_PROFILES
 		user = User.objects.create(
 			username=username,
 			email=email,
@@ -152,7 +182,52 @@ def register(request):
 			first_name=first_name,
 			last_name=last_name,
 			profile=profile,
+			email_verified=not needs_approval,
 		)
+
+		# Auto-link Teacher to their university org via AllowedDomain
+		if profile == User.ProfileType.TEACHER:
+			from content.models import UserRole as _UserRole
+			domain = email.split('@')[-1].lower()
+			allowed = AllowedDomain.objects.filter(domain=domain).select_related('organization').first()
+			if allowed:
+				researcher_role, _ = _UserRole.objects.get_or_create(name='researcher', defaults={'description': 'Researcher'})
+				UserOrganization.objects.get_or_create(
+					user=user,
+					organization=allowed.organization,
+					defaults={'role': researcher_role},
+				)
+
+		# Create org for Company and link immediately (user still pending approval)
+		elif profile == User.ProfileType.COMPANY:
+			from content.models import UserRole as _UserRole
+			with transaction.atomic():
+				org = Organization.objects.filter(name__iexact=company_name).first()
+				if org is None:
+					org = Organization.objects.create(
+						name=company_name,
+						type=Organization.OrganizationType.COMPANY,
+						country=company_country,
+						website=company_website,
+					)
+			researcher_role, _ = _UserRole.objects.get_or_create(name='researcher', defaults={'description': 'Researcher'})
+			UserOrganization.objects.get_or_create(
+				user=user,
+				organization=org,
+				defaults={'role': researcher_role},
+			)
+
+		# Teacher and Company accounts require admin approval before they can log in
+		if needs_approval:
+			user.is_active = False
+			user.approval_status = User.ApprovalStatus.PENDING
+			user.save(update_fields=['is_active', 'approval_status'])
+			# TODO (email verification): when token model is ready, generate token and call
+			#   send_email_verification_email(user, token) here.
+			#   For now admin sets email_verified manually via PATCH /api/users/<id>/approval.
+			send_registration_pending_email(user)
+			return JsonResponse({'status': 'pending_approval', 'user': _user_dict(user)}, status=201)
+
 		return JsonResponse({'user': _user_dict(user), 'tokens': generate_tokens(user.id, user.username, user.profile)}, status=201)
 	except Exception:
 		logger.exception("User registration failed")
@@ -177,8 +252,21 @@ def login(request):
 	user = User.objects.filter(username=username).first()
 	if not user or not verify_password(password, user.password_hash):
 		return JsonResponse({'detail': 'Invalid credentials'}, status=401)
+
+	if user.approval_status == User.ApprovalStatus.PENDING:
+		return JsonResponse(
+			{'error': 'pending_approval', 'detail': 'Your account is awaiting admin approval.'},
+			status=403,
+		)
+	if user.approval_status == User.ApprovalStatus.REJECTED:
+		return JsonResponse(
+			{'error': 'account_rejected', 'detail': 'Your account registration was not approved.'},
+			status=403,
+		)
 	if not user.is_active:
-		return JsonResponse({'detail': 'Account is inactive'}, status=401)
+		return JsonResponse({'error': 'inactive', 'detail': 'Account is inactive.'}, status=403)
+	if not user.email_verified:
+		return JsonResponse({'error': 'email_not_verified', 'detail': 'Your email address has not been verified yet.'}, status=403)
 
 	return JsonResponse({'user': _user_dict(user), 'tokens': generate_tokens(user.id, user.username, user.profile)}, status=200)
 
@@ -238,13 +326,7 @@ def update_user_profile(request):
 		if not isinstance(data['last_name'], str):
 			return JsonResponse({'detail': "'last_name' must be a string."}, status=400)
 		user.last_name = data['last_name'].strip()
-	if 'profile' in data:
-		if not isinstance(data['profile'], str):
-			return JsonResponse({'detail': "'profile' must be a string."}, status=400)
-		new_profile = data['profile'].strip()
-		if new_profile not in REGISTERABLE_PROFILES:
-			return JsonResponse({'detail': f'Profile must be one of: {", ".join(REGISTERABLE_PROFILES)}'}, status=400)
-		user.profile = new_profile
+	# Profile changes are not permitted here — use PATCH /api/users/<id>/role (admin only)
 
 	user.save()
 	return JsonResponse({'user': _user_dict(user)}, status=200)
@@ -278,7 +360,6 @@ def change_password(request):
 
 
 @csrf_exempt
-@require_auth()
 @require_http_methods(["POST"])
 def logout(request):
 	return JsonResponse({'detail': 'Logged out successfully'}, status=200)
