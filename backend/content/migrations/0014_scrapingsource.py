@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
                 ("name", models.CharField(max_length=255)),
                 ("url", models.URLField(max_length=500)),
                 ("organization_token", models.CharField(max_length=100)),
-                ("offer_type", models.CharField(max_length=100)),
+                ("offer_type", models.CharField(max_length=100, default="")),
                 ("target_profile", models.CharField(max_length=100)),
                 ("country", models.CharField(max_length=10)),
                 ("domain_names", models.JSONField(default=list)),

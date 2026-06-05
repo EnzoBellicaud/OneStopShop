@@ -478,20 +478,20 @@ export class ScrapperAdminPageComponent implements OnInit, OnDestroy {
         this.showSourceModal = false;
         this.loadManagedSources();
       },
-      error: () => { this.savingSource.set(false); },
+      error: () => { this.savingSource.set(false); this.errorMessage = 'Failed to save source. Check all required fields.'; },
     });
   }
 
   toggleLlmFallback(key: string, enabled: boolean): void {
     this.api.patchScrapingSource(key, { llm_fallback_enabled: enabled })
       .pipe(takeUntil(this.destroy$))
-      .subscribe({ next: (s) => { const idx = this.managedSources.findIndex(x => x.key === key); if (idx >= 0) this.managedSources[idx] = s; } });
+      .subscribe({ next: (s) => { this.managedSources = this.managedSources.map(x => x.key === key ? s : x); } });
   }
 
   toggleSourceEnabled(key: string, enabled: boolean): void {
     this.api.patchScrapingSource(key, { enabled })
       .pipe(takeUntil(this.destroy$))
-      .subscribe({ next: (s) => { const idx = this.managedSources.findIndex(x => x.key === key); if (idx >= 0) this.managedSources[idx] = s; } });
+      .subscribe({ next: (s) => { this.managedSources = this.managedSources.map(x => x.key === key ? s : x); } });
   }
 
   deleteSource(key: string): void {
@@ -502,7 +502,7 @@ export class ScrapperAdminPageComponent implements OnInit, OnDestroy {
         this.deletingSource.set(null);
         this.managedSources = this.managedSources.filter(s => s.key !== key);
       },
-      error: () => { this.deletingSource.set(null); },
+      error: () => { this.deletingSource.set(null); this.errorMessage = `Failed to delete source "${key}".`; },
     });
   }
 

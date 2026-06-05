@@ -1,12 +1,5 @@
 import { CommonModule } from '@angular/common';
 import { Component, inject, OnInit, signal } from '@angular/core';
-
-function generatePassword(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%^&*';
-  const buf = new Uint8Array(16);
-  crypto.getRandomValues(buf);
-  return Array.from(buf, (b) => chars[b % chars.length]).join('');
-}
 import { FormsModule } from '@angular/forms';
 import {
   AdminCreateOrgRequest,
@@ -17,6 +10,13 @@ import {
   UserManagementSummary,
 } from '../shared/api.models';
 import { OssApiService } from '../shared/oss-api.service';
+
+function generatePassword(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%^&*';
+  const buf = new Uint8Array(16);
+  crypto.getRandomValues(buf);
+  return Array.from(buf, (b) => chars[b % chars.length]).join('');
+}
 
 @Component({
   selector: 'app-users-page',

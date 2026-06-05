@@ -52,8 +52,8 @@ def _serialize(s: ScrapingSource) -> dict:
 @require_http_methods(["GET", "POST"])
 def admin_sources_collection(request):
     if request.method == "GET":
-        sources = ScrapingSource.objects.all()
-        return JsonResponse({"count": sources.count(), "results": [_serialize(s) for s in sources]})
+        sources = ScrapingSource.objects.all().order_by("key")
+        return JsonResponse({"count": sources.count(), "results": [_serialize(s) for s in sources[:500]]})
 
     # POST — create
     body = _parse_body(request)

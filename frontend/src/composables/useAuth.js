@@ -80,8 +80,9 @@ export function useAuth() {
       new_password: newPassword,
     })
     if (!res.ok) {
-      const data = await res.json()
-      throw new Error(data.detail ?? 'Password change failed')
+      let detail = 'Password change failed'
+      try { detail = (await res.json()).detail ?? detail } catch {}
+      throw new Error(detail)
     }
   }
 

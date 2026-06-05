@@ -537,7 +537,10 @@ class ScrapeService:
                 LOGGER.info("[%s] No offer type determined — discarding", source.key)
                 return "skipped", None, None
 
-        offer_type = OfferType.objects.get(name=resolved_offer_type_name)
+        offer_type = OfferType.objects.filter(name=resolved_offer_type_name).first()
+        if offer_type is None:
+            LOGGER.warning("[%s] offer_type %r not found in DB — discarding", source.key, resolved_offer_type_name)
+            return "skipped", None, None
         target_profile = TargetProfile.objects.get(name=source.target_profile)
 
         natural_key = (source.url, str(organization.id), str(offer_type.id))
