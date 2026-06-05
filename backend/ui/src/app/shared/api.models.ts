@@ -504,6 +504,37 @@ export interface AdminCreateOrgRequest {
   website?: string;
 }
 
+// ── Scraping sources ───────────────────────────────────────────────────────
+
+export interface ScrapingSource {
+  key: string;
+  name: string;
+  url: string;
+  organization_token: string;
+  target_profile: string;
+  country: string;
+  domain_names: string[];
+  interval_minutes: number;
+  llm_fallback_enabled: boolean;
+  enabled: boolean;
+  quality: string;
+  crawl_enabled: boolean;
+  crawl_depth: number;
+  crawl_max_pages: number;
+  crawl_match_patterns: string[];
+  crawl_exclude_patterns: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ScrapingSourceListResponse {
+  count: number;
+  results: ScrapingSource[];
+}
+
+export type ScrapingSourceCreateRequest = Omit<ScrapingSource, 'created_at' | 'updated_at'>;
+export type ScrapingSourcePatchRequest = Partial<ScrapingSourceCreateRequest>;
+
 // ── Allowed domains ────────────────────────────────────────────────────────
 
 export interface AllowedDomainItem {

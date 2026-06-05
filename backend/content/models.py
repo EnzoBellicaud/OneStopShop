@@ -549,3 +549,28 @@ class ForumAnswer(TimeStampedModel):
 		indexes = [
 			models.Index(fields=["question", "created_at"], name="idx_forum_answer_question"),
 		]
+
+
+class ScrapingSource(models.Model):
+	key                    = models.CharField(max_length=100, primary_key=True)
+	name                   = models.CharField(max_length=255)
+	url                    = models.URLField(max_length=500)
+	organization_token     = models.CharField(max_length=100)
+	target_profile         = models.CharField(max_length=100)
+	country                = models.CharField(max_length=10)
+	domain_names           = models.JSONField(default=list)
+	interval_minutes       = models.IntegerField(default=360)
+	llm_fallback_enabled   = models.BooleanField(default=True)
+	enabled                = models.BooleanField(default=True)
+	quality                = models.CharField(max_length=50, default="real")
+	crawl_enabled          = models.BooleanField(default=False)
+	crawl_depth            = models.IntegerField(default=1)
+	crawl_max_pages        = models.IntegerField(default=25)
+	crawl_match_patterns   = models.JSONField(default=list)
+	crawl_exclude_patterns = models.JSONField(default=list)
+	created_at             = models.DateTimeField(auto_now_add=True)
+	updated_at             = models.DateTimeField(auto_now=True)
+
+	class Meta:
+		db_table = "content_scrapingsource"
+		ordering = ["key"]

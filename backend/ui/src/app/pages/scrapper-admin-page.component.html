@@ -317,4 +317,139 @@
     </ng-container>
   </div>
 
+  <!-- ───────────────────── MANAGE SOURCES TAB ───────────────────── -->
+  <div *ngIf="activeTab() === 'manage'" class="tab-content">
+    <div class="tab-toolbar">
+      <span class="section-title">Scraping Sources</span>
+      <div class="toolbar-actions">
+        <button class="btn-primary" (click)="openCreateSource()">+ Add Source</button>
+        <button class="btn-ghost" (click)="loadManagedSources()">Refresh</button>
+      </div>
+    </div>
+
+    <p class="hint" *ngIf="loadingManagedSources">Loading sources…</p>
+
+    <div class="url-table-wrap" *ngIf="!loadingManagedSources">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Key</th>
+            <th>Name</th>
+            <th>Country</th>
+            <th>LLM fallback</th>
+            <th>Enabled</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let s of managedSources">
+            <td class="small mono">{{ s.key }}</td>
+            <td>{{ s.name }}</td>
+            <td class="small">{{ s.country || '—' }}</td>
+            <td class="center">
+              <input type="checkbox" [checked]="s.llm_fallback_enabled"
+                (change)="toggleLlmFallback(s.key, $any($event.target).checked)" />
+            </td>
+            <td class="center">
+              <input type="checkbox" [checked]="s.enabled"
+                (change)="toggleSourceEnabled(s.key, $any($event.target).checked)" />
+            </td>
+            <td>
+              <button class="btn-ghost small" (click)="openEditSource(s)">Edit</button>
+              <button class="btn-ghost small danger" (click)="deleteSource(s.key)"
+                [disabled]="deletingSource() === s.key">
+                {{ deletingSource() === s.key ? '…' : 'Delete' }}
+              </button>
+            </td>
+          </tr>
+          <tr *ngIf="managedSources.length === 0">
+            <td colspan="6" class="hint">No sources configured.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Source modal -->
+  <div class="modal-backdrop" *ngIf="showSourceModal" (click)="closeSourceModal()">
+    <div class="modal modal-lg" (click)="$event.stopPropagation()">
+      <h2>{{ sourceModalTarget ? 'Edit Source' : 'Add Source' }}</h2>
+
+      <div class="form-grid">
+        <label class="form-field" *ngIf="!sourceModalTarget">
+          Key
+          <input type="text" [(ngModel)]="sourceForm.key" placeholder="e.g. unibz_erasmus" />
+        </label>
+        <label class="form-field">
+          Name
+          <input type="text" [(ngModel)]="sourceForm.name" />
+        </label>
+        <label class="form-field full">
+          URL
+          <input type="url" [(ngModel)]="sourceForm.url" />
+        </label>
+        <label class="form-field">
+          Organization token
+          <input type="text" [(ngModel)]="sourceForm.organization_token" />
+        </label>
+        <label class="form-field">
+          Country (ISO code)
+          <input type="text" [(ngModel)]="sourceForm.country" maxlength="10" />
+        </label>
+        <label class="form-field">
+          Offer type
+          <input type="text" [(ngModel)]="sourceForm.offer_type" />
+        </label>
+        <label class="form-field">
+          Target profile
+          <input type="text" [(ngModel)]="sourceForm.target_profile" />
+        </label>
+        <label class="form-field">
+          Interval (minutes)
+          <input type="number" [(ngModel)]="sourceForm.interval_minutes" min="1" />
+        </label>
+        <label class="form-field">
+          Quality
+          <select [(ngModel)]="sourceForm.quality">
+            <option value="real">real</option>
+            <option value="test">test</option>
+          </select>
+        </label>
+        <label class="form-field toggle-row">
+          LLM fallback enabled
+          <input type="checkbox" [(ngModel)]="sourceForm.llm_fallback_enabled" />
+        </label>
+        <label class="form-field toggle-row">
+          Enabled
+          <input type="checkbox" [(ngModel)]="sourceForm.enabled" />
+        </label>
+      </div>
+
+      <fieldset class="crawl-group">
+        <legend>Crawl settings</legend>
+        <div class="form-grid">
+          <label class="form-field toggle-row">
+            Crawl enabled
+            <input type="checkbox" [(ngModel)]="sourceForm.crawl_enabled" />
+          </label>
+          <label class="form-field">
+            Crawl depth
+            <input type="number" [(ngModel)]="sourceForm.crawl_depth" min="1" />
+          </label>
+          <label class="form-field">
+            Max pages
+            <input type="number" [(ngModel)]="sourceForm.crawl_max_pages" min="1" />
+          </label>
+        </div>
+      </fieldset>
+
+      <div class="modal-actions">
+        <button class="btn-ghost" (click)="closeSourceModal()">Cancel</button>
+        <button class="btn-primary" (click)="saveSource()" [disabled]="savingSource()">
+          {{ savingSource() ? 'Saving…' : (sourceModalTarget ? 'Save Changes' : 'Create Source') }}
+        </button>
+      </div>
+    </div>
+  </div>
+
 </section>

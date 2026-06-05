@@ -189,43 +189,61 @@
 
 <!-- Create user modal -->
 @if (showCreateModal) {
-  <div class="modal-backdrop" (click)="showCreateModal = false">
+  <div class="modal-backdrop" (click)="closeCreateModal()">
     <div class="modal" (click)="$event.stopPropagation()">
-      <h2>Create User</h2>
-      @if (createError()) {
-        <p class="error-msg">{{ createError() }}</p>
+      @if (createdUser) {
+        <h2>User Created</h2>
+        <p class="success-msg">
+          <strong>{{ createdUser.username }}</strong> ({{ createdUser.profile }}) created successfully.
+        </p>
+        <p class="modal-label">Share this password securely — it will not be shown again.</p>
+        <div class="pw-reveal-row">
+          <input type="text" class="modal-input pw-reveal-input" [value]="createdPassword" readonly />
+          <button class="btn-outline" (click)="copyCreatedPassword()">
+            {{ copiedPassword() ? 'Copied!' : 'Copy' }}
+          </button>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-outline" (click)="openCreateModal()">Create Another</button>
+          <button class="btn-primary" (click)="closeCreateModal()">Done</button>
+        </div>
+      } @else {
+        <h2>Create User</h2>
+        @if (createError()) {
+          <p class="error-msg">{{ createError() }}</p>
+        }
+        <label>Username
+          <input type="text" [(ngModel)]="createForm.username" class="modal-input" />
+        </label>
+        <label>Email
+          <input type="email" [(ngModel)]="createForm.email" class="modal-input" />
+        </label>
+        <label>Password
+          <div class="pw-gen-row">
+            <input type="text" [value]="createForm.password" class="modal-input pw-gen-input" readonly />
+            <button class="btn-outline" type="button" (click)="regeneratePassword()">Regenerate</button>
+          </div>
+        </label>
+        <label>Profile
+          <select [(ngModel)]="createForm.profile" class="modal-input">
+            @for (p of profiles; track p) {
+              <option [value]="p">{{ p }}</option>
+            }
+          </select>
+        </label>
+        <label>First name
+          <input type="text" [(ngModel)]="createForm.first_name" class="modal-input" />
+        </label>
+        <label>Last name
+          <input type="text" [(ngModel)]="createForm.last_name" class="modal-input" />
+        </label>
+        <div class="modal-actions">
+          <button class="btn-outline" (click)="closeCreateModal()">Cancel</button>
+          <button class="btn-primary" (click)="submitCreate()" [disabled]="creatingUser()">
+            {{ creatingUser() ? 'Creating…' : 'Create' }}
+          </button>
+        </div>
       }
-      @if (createSuccess()) {
-        <p class="success-msg">{{ createSuccess() }}</p>
-      }
-      <label>Username
-        <input type="text" [(ngModel)]="createForm.username" class="modal-input" />
-      </label>
-      <label>Email
-        <input type="email" [(ngModel)]="createForm.email" class="modal-input" />
-      </label>
-      <label>Password
-        <input type="password" [(ngModel)]="createForm.password" class="modal-input" />
-      </label>
-      <label>Profile
-        <select [(ngModel)]="createForm.profile" class="modal-input">
-          @for (p of profiles; track p) {
-            <option [value]="p">{{ p }}</option>
-          }
-        </select>
-      </label>
-      <label>First name
-        <input type="text" [(ngModel)]="createForm.first_name" class="modal-input" />
-      </label>
-      <label>Last name
-        <input type="text" [(ngModel)]="createForm.last_name" class="modal-input" />
-      </label>
-      <div class="modal-actions">
-        <button class="btn-outline" (click)="showCreateModal = false">Cancel</button>
-        <button class="btn-primary" (click)="submitCreate()" [disabled]="creatingUser()">
-          {{ creatingUser() ? 'Creating…' : 'Create' }}
-        </button>
-      </div>
     </div>
   </div>
 }

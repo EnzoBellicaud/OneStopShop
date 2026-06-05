@@ -25,10 +25,13 @@ from content.models import (
     User,
 )
 from content.scrapers.extractors import count_links_in_html, extract_links_from_html, extract_deterministic, is_generic_page
+from content.scrapers.offer_type_classifier import OfferTypeClassifier
 from content.scrapers.ollama_client import OllamaClient
 from content.scrapers.source_registry import get_sources
 from content.scrapers.types import ExtractedPayload, SourceDefinition
 from content.seeding import uuid_from_token
+
+_classifier = OfferTypeClassifier()
 
 LOGGER = logging.getLogger(__name__)
 
@@ -404,8 +407,10 @@ class ScrapeService:
                 )
                 continue
 
-            action, natural_key = self._upsert_offer(page_source, source_type, ingestion_user, extracted)
+            action, natural_key, _ = self._upsert_offer(page_source, source_type, ingestion_user, extracted)
             LOGGER.info("[%s] MAP %s — %s (conf=%.2f method=%s)", source.key, action.upper(), page_url, extracted.confidence, extracted.method)
+            if action == "skipped":
+                continue
             offers_processed += 1
             links_mapped += 1
             offers_created += int(action == "created")
@@ -516,9 +521,22 @@ class ScrapeService:
         source_type: SourceType,
         ingestion_user: User,
         extracted: ExtractedPayload,
-    ) -> tuple[str, tuple[str, str, str]]:
+    ) -> tuple[str, tuple[str, str, str] | None, Offer | None]:
         organization = Organization.objects.get(id=uuid_from_token(source.organization_token))
-        resolved_offer_type_name = extracted.offer_type or source.offer_type
+
+        resolved_offer_type_name = extracted.offer_type
+        if not resolved_offer_type_name:
+            classifier_text = f"{extracted.title} {extracted.summary}".strip()
+            resolved_offer_type_name, confidence = _classifier.classify(classifier_text)
+            if resolved_offer_type_name:
+                LOGGER.info(
+                    "[%s] TF-IDF classified → %s (score=%.3f)",
+                    source.key, resolved_offer_type_name, confidence,
+                )
+            else:
+                LOGGER.info("[%s] No offer type determined — discarding", source.key)
+                return "skipped", None, None
+
         offer_type = OfferType.objects.get(name=resolved_offer_type_name)
         target_profile = TargetProfile.objects.get(name=source.target_profile)
 
@@ -549,7 +567,7 @@ class ScrapeService:
 
         if existing is None:
             if self.dry_run:
-                return "created", natural_key
+                return "created", natural_key, None
 
             offer = Offer.objects.create(
                 title=extracted.title,
@@ -566,7 +584,7 @@ class ScrapeService:
                 offer_type=offer_type,
             )
             self._replace_domains(offer, source.domain_names)
-            return "created", natural_key
+            return "created", natural_key, offer
 
         existing_domain_names = set(existing.domains.values_list("name", flat=True))
         source_domain_names = set(source.domain_names)
@@ -583,14 +601,13 @@ class ScrapeService:
 
         if not changed:
             if not self.dry_run:
-                # Keep the freshness marker up to date even when content is unchanged.
                 existing.details = merged_details
                 existing.updated_by = ingestion_user
                 existing.save(update_fields=["details", "updated_by", "updated_at"])
-            return "unchanged", natural_key
+            return "unchanged", natural_key, existing
 
         if self.dry_run:
-            return "updated", natural_key
+            return "updated", natural_key, None
 
         existing.title = extracted.title
         existing.summary = extracted.summary
@@ -612,7 +629,7 @@ class ScrapeService:
             ]
         )
         self._replace_domains(existing, source.domain_names)
-        return "updated", natural_key
+        return "updated", natural_key, existing
 
     def _replace_domains(self, offer: Offer, domain_names: list[str]) -> None:
         domain_map = {

@@ -127,3 +127,37 @@ OneStopShop/
 | Student | /student | Browse thesis and training opportunities |
 | Academic Staff | /staff | Browse research groups and funding |
 | External / Company | /external_user | Browse funding partners and research groups |
+
+---
+
+## Offer Type Classification
+
+Each scraped offer is automatically classified into one of the offer types stored in the database (thesis, internship, scholarship, etc.). Classification happens at scrape time — there is no static type assigned to a source.
+
+### How it works
+
+1. **LLM (primary)** — When the Ollama LLM is enabled, the relevance prompt includes all current offer types and their descriptions from the database. The LLM returns the best matching type as part of its structured JSON response.
+
+2. **TF-IDF cosine similarity (deterministic fallback)** — When the LLM is disabled (`LLM_ENABLED=false`) or returns no type, the scraper falls back to a deterministic classifier. It builds a TF-IDF vector space from the names and descriptions of all offer types, then computes cosine similarity between the extracted offer title+summary and each type. The highest-scoring type is selected if it exceeds the confidence threshold.
+
+3. **Discard** — If neither method can confidently classify the offer, it is discarded. This prevents incorrectly typed offers from appearing in the portal.
+
+### Configuration
+
+| Variable | Default | Description |
+|---|---|---|
+| `LLM_ENABLED` | `true` | Enable or disable the Ollama LLM |
+| `SCRAPER_CLASSIFIER_THRESHOLD` | `0.15` | Minimum cosine similarity score for the TF-IDF fallback to accept a classification |
+
+### Adding or updating offer types
+
+Offer types are managed via the database (`OfferType` table). Add or edit them using the Django admin or the `seed_lookups` management command. The classifier automatically picks up changes — the catalog is cached for 5 minutes and invalidated whenever an `OfferType` record is saved or deleted.
+
+### Why dynamic classification?
+
+Previously each scraping source had a static `offer_type` field set at configuration time. This caused two problems:
+
+- A single university site may list theses, internships, and courses on the same domain — a fixed type would misclassify most of them.
+- Adding a new offer type to the database had no effect on content already being scraped.
+
+Dynamic classification solves both: the type is decided per-offer at runtime based on the actual page content.

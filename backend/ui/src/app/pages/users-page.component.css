@@ -231,3 +231,15 @@
 .error-msg { color: var(--accent-mid, #9b2020); font-size: 0.85rem; }
 .success-msg { color: #1a7a4a; font-size: 0.85rem; }
 .loading-msg { color: #888; font-size: 0.875rem; }
+
+.pw-gen-row, .pw-reveal-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.pw-gen-input, .pw-reveal-input {
+  flex: 1;
+  font-family: monospace;
+  font-size: 0.85rem;
+}
+.modal-label { font-size: 0.8rem; color: #666; margin-bottom: 0.5rem; }

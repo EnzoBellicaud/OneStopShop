@@ -40,6 +40,10 @@ import {
   UserNeedsQueryParams,
   UserNeedUpdateRequest,
   SourcesHealthResponse,
+  ScrapingSource,
+  ScrapingSourceListResponse,
+  ScrapingSourceCreateRequest,
+  ScrapingSourcePatchRequest,
 } from './api.models';
 import { environment } from '../../environments/environment';
 
@@ -251,6 +255,33 @@ export class OssApiService {
       a.download = 'oss_import_template.xlsx';
       a.click();
       URL.revokeObjectURL(url);
+    });
+  }
+
+  // ── Scraping sources ─────────────────────────────────────────────────────
+
+  getScrapingSources(): Observable<ScrapingSourceListResponse> {
+    return this.http.get<ScrapingSourceListResponse>(`${this.apiBaseUrl}/admin/sources`);
+  }
+
+  createScrapingSource(payload: ScrapingSourceCreateRequest): Observable<ScrapingSource> {
+    return this.http.post<ScrapingSource>(`${this.apiBaseUrl}/admin/sources`, payload);
+  }
+
+  patchScrapingSource(key: string, payload: ScrapingSourcePatchRequest): Observable<ScrapingSource> {
+    return this.http.patch<ScrapingSource>(`${this.apiBaseUrl}/admin/sources/${key}`, payload);
+  }
+
+  deleteScrapingSource(key: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiBaseUrl}/admin/sources/${key}`);
+  }
+
+  // ── Auth ──────────────────────────────────────────────────────────────────
+
+  changePassword(oldPassword: string, newPassword: string): Observable<{ detail: string }> {
+    return this.http.post<{ detail: string }>(`${this.apiBaseUrl}/auth/change-password`, {
+      old_password: oldPassword,
+      new_password: newPassword,
     });
   }
 

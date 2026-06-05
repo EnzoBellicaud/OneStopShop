@@ -7,7 +7,6 @@ class SourceDefinition:
     name: str
     url: str
     organization_token: str
-    offer_type: str
     target_profile: str
     country: str
     domain_names: list[str]

@@ -79,6 +79,29 @@
             </router-link>
           </section>
 
+          <section class="pf-card">
+            <h2 class="pf-card-title">Change Password</h2>
+            <div v-if="pwSuccess" class="pw-success">Password changed successfully.</div>
+            <div v-if="pwError" class="pw-error">{{ pwError }}</div>
+            <div class="pf-fields">
+              <div class="pf-field">
+                <label>Current Password</label>
+                <input type="password" v-model="pwForm.old_password" class="pw-input" />
+              </div>
+              <div class="pf-field">
+                <label>New Password</label>
+                <input type="password" v-model="pwForm.new_password" class="pw-input" />
+              </div>
+              <div class="pf-field">
+                <label>Confirm New Password</label>
+                <input type="password" v-model="pwForm.confirm" class="pw-input" />
+              </div>
+            </div>
+            <button class="btn-primary pw-btn" :disabled="pwLoading" @click="submitChangePw">
+              {{ pwLoading ? 'Saving…' : 'Change Password' }}
+            </button>
+          </section>
+
         </div>
       </main>
     </template>
@@ -94,7 +117,7 @@ import { api } from '../../services/api.js'
 import AppHeader from '../layout/AppHeader.vue'
 import AppFooter from '../layout/AppFooter.vue'
 
-const { user } = useAuth()
+const { user, changePassword } = useAuth()
 
 const favLoading = ref(false)
 const favorites = ref([])
@@ -113,6 +136,34 @@ const initials = computed(() =>
     .slice(0, 2)
     .toUpperCase()
 )
+
+const pwForm = ref({ old_password: '', new_password: '', confirm: '' })
+const pwLoading = ref(false)
+const pwError = ref(null)
+const pwSuccess = ref(false)
+
+async function submitChangePw() {
+  pwError.value = null
+  pwSuccess.value = false
+  if (pwForm.value.new_password !== pwForm.value.confirm) {
+    pwError.value = 'Passwords do not match.'
+    return
+  }
+  if (pwForm.value.new_password.length < 8) {
+    pwError.value = 'Password must be at least 8 characters.'
+    return
+  }
+  pwLoading.value = true
+  try {
+    await changePassword(pwForm.value.old_password, pwForm.value.new_password)
+    pwSuccess.value = true
+    pwForm.value = { old_password: '', new_password: '', confirm: '' }
+  } catch (e) {
+    pwError.value = e.message
+  } finally {
+    pwLoading.value = false
+  }
+}
 
 onMounted(async () => {
   if (!user.value) return
@@ -337,5 +388,39 @@ onMounted(async () => {
 
 .btn-nav {
   flex-shrink: 0;
+}
+
+/* ── Change password card ── */
+.pw-input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 0.38rem 0.55rem;
+  font-size: 0.88rem;
+  outline: none;
+  font-family: 'DM Sans', sans-serif;
+  background: var(--white);
+  color: var(--ink);
+  margin-top: 4px;
+}
+
+.pw-input:focus { border-color: var(--ink-soft); }
+
+.pw-btn { align-self: flex-start; }
+
+.pw-success {
+  font-size: 0.85rem;
+  color: #1d7347;
+  background: #e7f4ea;
+  border-radius: var(--r);
+  padding: 0.45rem 0.7rem;
+}
+
+.pw-error {
+  font-size: 0.85rem;
+  color: #9e2a2a;
+  background: #ffe4e4;
+  border-radius: var(--r);
+  padding: 0.45rem 0.7rem;
 }
 </style>

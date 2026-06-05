@@ -2,6 +2,7 @@ from django.urls import path
 
 from content import views, auth
 from content.views import admin_orgs as admin_orgs_views
+from content.views import sources as sources_views
 
 urlpatterns = [
     # Auth endpoints
@@ -52,6 +53,8 @@ urlpatterns = [
     # Admin endpoints
     path("admin/users", views.admin_user_collection, name="admin-user-collection"),
     path("admin/organizations", admin_orgs_views.admin_organization_collection, name="admin-organization-collection"),
+    path("admin/sources", sources_views.admin_sources_collection, name="admin-sources"),
+    path("admin/sources/<str:key>", sources_views.admin_source_detail, name="admin-source-detail"),
     path("admin/allowed-domains", views.allowed_domains_collection, name="allowed-domains"),
     path("admin/allowed-domains/<str:domain_id>", views.allowed_domain_resource, name="allowed-domain-resource"),
 

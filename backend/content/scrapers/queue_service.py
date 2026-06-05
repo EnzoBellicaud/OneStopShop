@@ -11,8 +11,6 @@ from django.utils import timezone
 from content.models import (
     CrawlUrl,
     Offer,
-    OfferType,
-    Organization,
     ScrapingRun,
     SourceType,
 )
@@ -20,7 +18,6 @@ from content.scrapers.extractors import extract_deterministic, is_generic_page
 from content.scrapers.service import ScrapeService, _ts
 from content.scrapers.source_registry import get_sources
 from content.scrapers.types import SourceDefinition
-from content.seeding import uuid_from_token
 
 LOGGER = logging.getLogger(__name__)
 
@@ -244,14 +241,13 @@ class UrlScraperService(ScrapeService):
             self._mark_done(crawl_url)
             return
 
-        action, _ = self._upsert_offer(page_source, source_type, ingestion_user, extracted)
+        action, _, offer = self._upsert_offer(page_source, source_type, ingestion_user, extracted)
         LOGGER.info("[%s] MAP %s — %s (conf=%.2f method=%s)", source.key, action.upper(), crawl_url.url, extracted.confidence, extracted.method)
 
-        offer = Offer.objects.filter(
-            link=crawl_url.url,
-            organization=Organization.objects.get(id=uuid_from_token(source.organization_token)),
-            offer_type=OfferType.objects.get(name=source.offer_type),
-        ).first()
+        if action == "skipped":
+            stats["neglected"] += 1
+            self._mark_done(crawl_url)
+            return
 
         crawl_url.offer = offer
         crawl_url.consecutive_errors = 0
