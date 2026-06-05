@@ -12,7 +12,6 @@ def seed_sources(apps, schema_editor):
                 name=s.name,
                 url=s.url,
                 organization_token=s.organization_token,
-                offer_type=s.offer_type,
                 target_profile=s.target_profile,
                 country=s.country,
                 domain_names=s.domain_names,

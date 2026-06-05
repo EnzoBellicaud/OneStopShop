@@ -12,7 +12,7 @@ _CATALOG = [
     {"name": "course", "description": "Training course, workshop, or online learning program"},
 ]
 
-_CATALOG_MODULE = "content.scrapers.offer_type_classifier.get_offer_type_catalog"
+_CATALOG_MODULE = "content.scrapers.offer_type_catalog.get_offer_type_catalog"
 
 
 class OfferTypeClassifierTest(TestCase):
