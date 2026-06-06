@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Demo University — Student Opportunities</title>
+</head>
+<body>
+  <header>
+    <h1>Demo University</h1>
+    <p>Student opportunities, internships, thesis positions, and scholarships.</p>
+  </header>
+  <main>
+    <h2>Current Opportunities</h2>
+    {% if opportunities %}
+      <ul>
+        {% for opp in opportunities %}
+          <li>
+            <a href="/mock/offers/{{ opp.id }}/">{{ opp.title }}</a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>No opportunities are currently listed.</p>
+    {% endif %}
+  </main>
+</body>
+</html>

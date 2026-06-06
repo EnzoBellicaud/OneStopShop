@@ -1,0 +1,96 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <p class="page-eyebrow">Admin</p>
+      <h1 class="page-title">Mock Site</h1>
+      <p class="page-desc">Manage the local demo website. Add and remove opportunities to test live scraping.</p>
+    </div>
+    <div class="header-actions">
+      <a href="http://localhost:8000/mock/" target="_blank" class="btn-outline">View Mock Site →</a>
+      <button class="btn-primary" (click)="openAddOpportunity()">+ Add Opportunity</button>
+    </div>
+  </div>
+
+  @if (mockError && !showMockModal) {
+    <p class="error-msg">{{ mockError }}</p>
+  }
+
+  @if (loadingMock) {
+    <p class="loading-msg">Loading…</p>
+  } @else {
+    <div class="table-card">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Offer Type</th>
+            <th>Target Profile</th>
+            <th>Added</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (opp of mockOpportunities; track opp.id) {
+            <tr>
+              <td><strong>{{ opp.title }}</strong></td>
+              <td class="desc-cell">{{ opp.offer_type }}</td>
+              <td class="desc-cell">{{ opp.target_profile }}</td>
+              <td class="desc-cell">{{ opp.created_at | date:'mediumDate' }}</td>
+              <td class="actions-cell">
+                <button class="btn-sm btn-danger"
+                        [disabled]="deletingMock === opp.id"
+                        (click)="deleteOpportunity(opp.id)">
+                  {{ deletingMock === opp.id ? '…' : 'Delete' }}
+                </button>
+              </td>
+            </tr>
+          }
+          @if (mockOpportunities.length === 0) {
+            <tr><td colspan="5" class="empty-row">No opportunities on mock site.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+
+@if (showMockModal) {
+  <div class="modal-backdrop" (click)="closeMockModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <h2>Add Opportunity</h2>
+      @if (mockError) {
+        <p class="error-msg">{{ mockError }}</p>
+      }
+      <label>Title
+        <input type="text" [(ngModel)]="mockForm.title" class="modal-input" placeholder="e.g. Python Internship Program" />
+      </label>
+      <label>Description
+        <textarea rows="4" [(ngModel)]="mockForm.description" class="modal-input"
+          placeholder="Describe the opportunity…"></textarea>
+      </label>
+      <label>Offer Type
+        <select [(ngModel)]="mockForm.offer_type" class="modal-input">
+          <option value="internship">Internship</option>
+          <option value="thesis">Thesis</option>
+          <option value="scholarship">Scholarship</option>
+          <option value="job">Job</option>
+          <option value="course">Course</option>
+          <option value="exchange">Exchange</option>
+        </select>
+      </label>
+      <label>Target Profile
+        <select [(ngModel)]="mockForm.target_profile" class="modal-input">
+          <option value="student">Student</option>
+          <option value="teacher">Teacher</option>
+          <option value="academic_staff">Academic Staff</option>
+        </select>
+      </label>
+      <div class="modal-actions">
+        <button class="btn-outline" (click)="closeMockModal()">Cancel</button>
+        <button class="btn-primary" [disabled]="savingMock" (click)="saveOpportunity()">
+          {{ savingMock ? 'Saving…' : 'Save' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

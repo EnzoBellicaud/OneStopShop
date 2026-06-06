@@ -1,3 +1,19 @@
+export interface MockOpportunity {
+  id: string;
+  title: string;
+  description: string;
+  offer_type: string;
+  target_profile: string;
+  created_at: string;
+}
+
+export type MockOpportunityCreateRequest = {
+  title: string;
+  description: string;
+  offer_type: string;
+  target_profile: string;
+};
+
 export interface OfferTypeLookup {
   id: string;
   name: string;

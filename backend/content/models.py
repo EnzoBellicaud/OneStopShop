@@ -575,3 +575,17 @@ class ScrapingSource(models.Model):
 	class Meta:
 		db_table = "content_scrapingsource"
 		ordering = ["key"]
+
+
+class MockOpportunity(models.Model):
+	id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+	title = models.CharField(max_length=200)
+	description = models.TextField()
+	offer_type = models.CharField(max_length=50, default="internship")
+	target_profile = models.CharField(max_length=50, default="student")
+	created_at = models.DateTimeField(auto_now_add=True)
+
+	class Meta:
+		db_table = "content_mockopportunity"
+		ordering = ["-created_at"]
+		verbose_name_plural = "mock opportunities"

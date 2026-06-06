@@ -208,7 +208,7 @@
                         {{ r.failed ? 'error' : r.neglected ? 'skipped' : r.action ?? 'ok' }}
                       </span>
                     </td>
-                    <td class="muted small">{{ r.reason ?? r.message ?? '' }}</td>
+                    <td class="muted small">{{ r.message ?? r.reason ?? '' }}</td>
                   </tr>
                   <tr *ngIf="expandedRawRows.has(r.url)" class="raw-row">
                     <td colspan="6">

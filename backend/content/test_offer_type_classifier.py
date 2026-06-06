@@ -79,3 +79,52 @@ class OfferTypeClassifierTest(TestCase):
         key, score = clf.classify("thesis university research academic")
         self.assertGreaterEqual(score, 0.0)
         self.assertLessEqual(score, 1.0)
+
+
+class OfferTypeClassifierWithTermsTest(TestCase):
+
+    @patch(_CATALOG_MODULE)
+    def test_returns_top_terms_on_match(self, mock_catalog):
+        mock_catalog.return_value = _CATALOG
+        clf = OfferTypeClassifier()
+        key, score, terms = clf.classify_with_terms("internship placement students company work experience")
+        self.assertEqual(key, "internship")
+        self.assertGreater(score, 0.30)
+        self.assertIsInstance(terms, list)
+        self.assertGreater(len(terms), 0)
+        self.assertTrue(any("internship" in t or "placement" in t or "students" in t for t in terms))
+
+    @patch(_CATALOG_MODULE)
+    def test_returns_terms_below_threshold(self, mock_catalog):
+        mock_catalog.return_value = _CATALOG
+        clf = OfferTypeClassifier()
+        key, score, terms = clf.classify_with_terms("xyz abc 123 qwerty asdfgh jkl zxcvbn")
+        self.assertIsNone(key)
+        self.assertIsInstance(terms, list)
+
+    @patch(_CATALOG_MODULE)
+    def test_returns_empty_terms_for_empty_text(self, mock_catalog):
+        mock_catalog.return_value = _CATALOG
+        clf = OfferTypeClassifier()
+        key, score, terms = clf.classify_with_terms("")
+        self.assertIsNone(key)
+        self.assertEqual(score, 0.0)
+        self.assertEqual(terms, [])
+
+    @patch(_CATALOG_MODULE)
+    def test_top_n_limits_terms(self, mock_catalog):
+        mock_catalog.return_value = _CATALOG
+        clf = OfferTypeClassifier()
+        _, _, terms = clf.classify_with_terms(
+            "internship placement students company work experience", top_n=3
+        )
+        self.assertLessEqual(len(terms), 3)
+
+    @patch(_CATALOG_MODULE)
+    def test_returns_empty_terms_when_catalog_empty(self, mock_catalog):
+        mock_catalog.return_value = []
+        clf = OfferTypeClassifier()
+        key, score, terms = clf.classify_with_terms("thesis research academic")
+        self.assertIsNone(key)
+        self.assertEqual(score, 0.0)
+        self.assertEqual(terms, [])

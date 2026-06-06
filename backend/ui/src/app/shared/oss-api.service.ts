@@ -48,6 +48,8 @@ import {
   OfferTypeAdminListResponse,
   OfferTypeAdminCreateRequest,
   OfferTypeAdminPatchRequest,
+  MockOpportunity,
+  MockOpportunityCreateRequest,
 } from './api.models';
 import { environment } from '../../environments/environment';
 
@@ -296,6 +298,22 @@ export class OssApiService {
 
   deleteAdminOfferType(id: string): Observable<void> {
     return this.http.delete<void>(`${this.apiBaseUrl}/admin/offer-types/${id}`);
+  }
+
+  // ── Admin mock opportunities ──────────────────────────────────────────────
+
+  getMockOpportunities(): Observable<{ count: number; results: MockOpportunity[] }> {
+    return this.http.get<{ count: number; results: MockOpportunity[] }>(
+      `${this.apiBaseUrl}/admin/mock-opportunities`
+    );
+  }
+
+  createMockOpportunity(body: MockOpportunityCreateRequest): Observable<MockOpportunity> {
+    return this.http.post<MockOpportunity>(`${this.apiBaseUrl}/admin/mock-opportunities`, body);
+  }
+
+  deleteMockOpportunity(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiBaseUrl}/admin/mock-opportunities/${id}`);
   }
 
   // ── Auth ──────────────────────────────────────────────────────────────────

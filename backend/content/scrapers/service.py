@@ -361,14 +361,16 @@ class ScrapeService:
                         extracted = llm_payload
                 else:
                     # LLM disabled: TF-IDF relevance gate.
-                    gate_text = f"{extracted.title} {extracted.summary} {' '.join(str(v) for v in extracted.details.values())}"
-                    gate_type, gate_score_val = _classifier.classify(gate_text)
+                    _meta_keys = {"source_url", "source_name", "json_ld_detected"}
+                    gate_text = f"{extracted.title} {extracted.summary} {' '.join(str(v) for k, v in extracted.details.items() if k not in _meta_keys)}"
+                    gate_type, gate_score_val, gate_terms = _classifier.classify_with_terms(gate_text)
                     if gate_score_val < _GATE_THRESHOLD:
                         urls_neglected += 1
                         LOGGER.debug(
-                            "[%s] NEGLECT %s — gate_score=%.3f below %.2f",
-                            source.key, page_url, gate_score_val, _GATE_THRESHOLD,
+                            "[%s] NEGLECT %s — gate_score=%.3f below %.2f matched=%s",
+                            source.key, page_url, gate_score_val, _GATE_THRESHOLD, gate_terms,
                         )
+                        terms_str = ", ".join(gate_terms) if gate_terms else "none"
                         logs.append(
                             {
                                 "ts": _ts(),
@@ -377,7 +379,7 @@ class ScrapeService:
                                 "source_key": source.key,
                                 "url": page_url,
                                 "reason": "below_gate_threshold",
-                                "message": f"gate_score={gate_score_val:.3f}",
+                                "message": f"gate_score={gate_score_val:.3f} matched=[{terms_str}]",
                             }
                         )
                         continue
@@ -415,14 +417,6 @@ class ScrapeService:
 
             action, natural_key, _ = self._upsert_offer(page_source, source_type, ingestion_user, extracted)
             LOGGER.info("[%s] MAP %s — %s (conf=%.2f method=%s)", source.key, action.upper(), page_url, extracted.confidence, extracted.method)
-            if action == "skipped":
-                continue
-            offers_processed += 1
-            links_mapped += 1
-            offers_created += int(action == "created")
-            offers_updated += int(action == "updated")
-            offers_unchanged += int(action == "unchanged")
-            seen_keys.add(natural_key)
             logs.append(
                 {
                     "ts": _ts(),
@@ -435,6 +429,14 @@ class ScrapeService:
                     "action": action,
                 }
             )
+            if action == "skipped":
+                continue
+            offers_processed += 1
+            links_mapped += 1
+            offers_created += int(action == "created")
+            offers_updated += int(action == "updated")
+            offers_unchanged += int(action == "unchanged")
+            seen_keys.add(natural_key)
 
         return {
             "offers_processed": offers_processed,

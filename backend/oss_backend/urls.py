@@ -17,7 +17,11 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import include, path
 
+from content.views import mock_website
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('content.urls')),
+    path('mock/', mock_website.mock_list, name='mock-list'),
+    path('mock/offers/<uuid:pk>/', mock_website.mock_detail, name='mock-detail'),
 ]
