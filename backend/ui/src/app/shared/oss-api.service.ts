@@ -44,6 +44,10 @@ import {
   ScrapingSourceListResponse,
   ScrapingSourceCreateRequest,
   ScrapingSourcePatchRequest,
+  OfferTypeAdmin,
+  OfferTypeAdminListResponse,
+  OfferTypeAdminCreateRequest,
+  OfferTypeAdminPatchRequest,
 } from './api.models';
 import { environment } from '../../environments/environment';
 
@@ -274,6 +278,24 @@ export class OssApiService {
 
   deleteScrapingSource(key: string): Observable<void> {
     return this.http.delete<void>(`${this.apiBaseUrl}/admin/sources/${key}`);
+  }
+
+  // ── Admin offer types ─────────────────────────────────────────────────────
+
+  getAdminOfferTypes(): Observable<OfferTypeAdminListResponse> {
+    return this.http.get<OfferTypeAdminListResponse>(`${this.apiBaseUrl}/admin/offer-types`);
+  }
+
+  createAdminOfferType(body: OfferTypeAdminCreateRequest): Observable<OfferTypeAdmin> {
+    return this.http.post<OfferTypeAdmin>(`${this.apiBaseUrl}/admin/offer-types`, body);
+  }
+
+  patchAdminOfferType(id: string, body: OfferTypeAdminPatchRequest): Observable<OfferTypeAdmin> {
+    return this.http.patch<OfferTypeAdmin>(`${this.apiBaseUrl}/admin/offer-types/${id}`, body);
+  }
+
+  deleteAdminOfferType(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiBaseUrl}/admin/offer-types/${id}`);
   }
 
   // ── Auth ──────────────────────────────────────────────────────────────────

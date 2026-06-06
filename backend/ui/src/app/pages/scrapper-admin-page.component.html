@@ -369,6 +369,72 @@
     </div>
   </div>
 
+  <!-- ───────────────────── OFFER TYPES TAB ───────────────────── -->
+  @if (activeTab() === 'offer-types') {
+    <div class="tab-content">
+      <!-- toolbar -->
+      <div class="tab-toolbar">
+        <span class="section-title">Offer Types</span>
+        <button class="btn-primary" (click)="openNewOfferType()">+ New Type</button>
+      </div>
+
+      <p class="hint" *ngIf="loadingOfferTypes">Loading offer types…</p>
+
+      <!-- table -->
+      <div class="url-table-wrap" *ngIf="!loadingOfferTypes">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Description</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (ot of offerTypes; track ot.id) {
+              <tr>
+                <td><strong>{{ ot.name }}</strong></td>
+                <td class="small muted">{{ ot.description || '—' }}</td>
+                <td>
+                  <button class="btn-ghost small" (click)="openEditOfferType(ot)">Edit</button>
+                  <button class="btn-ghost small danger" (click)="deleteOfferType(ot.id)">Delete</button>
+                </td>
+              </tr>
+            }
+            @if (offerTypes.length === 0) {
+              <tr><td colspan="3" class="hint">No offer types configured.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <!-- modal -->
+      @if (showOfferTypeModal) {
+        <div class="modal-backdrop" (click)="showOfferTypeModal = false">
+          <div class="modal modal-lg" (click)="$event.stopPropagation()">
+            <h2>{{ editingOfferTypeId ? 'Edit' : 'New' }} Offer Type</h2>
+            @if (offerTypeError) { <p class="error">{{ offerTypeError }}</p> }
+            <div class="form-grid">
+              <div class="form-field full">
+                <label>Name</label>
+                <input type="text" [(ngModel)]="offerTypeForm.name" placeholder="e.g. internship" />
+              </div>
+              <div class="form-field full">
+                <label>Description <span class="muted small">(used by TF-IDF classifier)</span></label>
+                <textarea rows="4" style="resize:vertical;font-family:inherit;font-size:0.82rem;border:1px solid var(--border,#e4e4e0);border-radius:6px;padding:0.35rem 0.5rem"
+                  [(ngModel)]="offerTypeForm.description" placeholder="Describe this offer type in plain language..."></textarea>
+              </div>
+            </div>
+            <div style="display:flex;gap:0.5rem;justify-content:flex-end;margin-top:0.75rem">
+              <button class="btn-ghost" (click)="showOfferTypeModal = false">Cancel</button>
+              <button class="btn-primary" (click)="saveOfferType()">Save</button>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
   <!-- Source modal -->
   <div class="modal-backdrop" *ngIf="showSourceModal" (click)="closeSourceModal()">
     <div class="modal modal-lg" (click)="$event.stopPropagation()">
