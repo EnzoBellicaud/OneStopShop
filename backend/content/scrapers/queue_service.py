@@ -249,7 +249,8 @@ class UrlScraperService(ScrapeService):
             self._mark_done(crawl_url)
             return
 
-        crawl_url.offer = offer
+        if offer is not None:
+            crawl_url.offer = offer
         crawl_url.consecutive_errors = 0
         crawl_url.last_error = ""
         self._mark_done(crawl_url)
