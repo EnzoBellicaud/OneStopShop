@@ -336,7 +336,7 @@
             <th>Key</th>
             <th>Name</th>
             <th>Country</th>
-            <th>LLM fallback</th>
+            <th>Classification mode</th>
             <th>Enabled</th>
             <th>Actions</th>
           </tr>
@@ -346,9 +346,8 @@
             <td class="small mono">{{ s.key }}</td>
             <td>{{ s.name }}</td>
             <td class="small">{{ s.country || '—' }}</td>
-            <td class="center">
-              <input type="checkbox" [checked]="s.llm_fallback_enabled"
-                (change)="toggleLlmFallback(s.key, $any($event.target).checked)" />
+            <td class="small center">
+              {{ s.llm_fallback_enabled ? 'LLM' : 'Deterministic' }}
             </td>
             <td class="center">
               <input type="checkbox" [checked]="s.enabled"
@@ -411,10 +410,22 @@
             <option value="test">test</option>
           </select>
         </label>
-        <label class="form-field toggle-row">
-          LLM fallback enabled
-          <input type="checkbox" [(ngModel)]="sourceForm.llm_fallback_enabled" />
-        </label>
+        <div class="form-field radio-group">
+          <span class="radio-label">
+            Classification mode
+            <span class="tooltip-anchor" title="LLM uses AI to judge page relevance and classify offer types. If Ollama is unavailable or hits rate limits, it automatically falls back to the deterministic keyword + TF-IDF classifier.">&#9432;</span>
+          </span>
+          <div class="radio-options">
+            <label class="radio-option">
+              <input type="radio" name="llm_mode" [value]="true" [(ngModel)]="sourceForm.llm_fallback_enabled" />
+              LLM <span class="radio-hint">(falls back to deterministic if unavailable)</span>
+            </label>
+            <label class="radio-option">
+              <input type="radio" name="llm_mode" [value]="false" [(ngModel)]="sourceForm.llm_fallback_enabled" />
+              Deterministic only <span class="radio-hint">(keyword gate + TF-IDF, fully offline)</span>
+            </label>
+          </div>
+        </div>
         <label class="form-field toggle-row">
           Enabled
           <input type="checkbox" [(ngModel)]="sourceForm.enabled" />

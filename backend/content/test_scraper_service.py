@@ -275,7 +275,7 @@ class ScrapeServiceBehaviorTests(TestCase):
         mock_extract.return_value = ExtractedPayload(
             offer_type="training",
             title="Offer",
-            summary="Summary",
+            summary="Internship position open for students. Apply now.",
             details={"source_name": "Crawler Source"},
             confidence=0.75,
             method="deterministic",
@@ -586,7 +586,7 @@ class ScrapeServiceBehaviorTests(TestCase):
         mock_extract.return_value = ExtractedPayload(
             offer_type="training",
             title="Master Program",
-            summary="Full description here.",
+            summary="PhD position available. Apply now before the application deadline.",
             details={},
             confidence=0.9,
             method="deterministic",

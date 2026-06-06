@@ -541,3 +541,59 @@ header h1 {
 }
 
 .modal-lg { max-width: 700px; width: 95vw; }
+
+/* ── Classification mode radio group ─────────────────────── */
+.radio-group {
+  grid-column: 1 / -1;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--ink, #111110);
+}
+
+.tooltip-anchor {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #c8d8e8;
+  color: #1a4d73;
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: help;
+  line-height: 1;
+}
+
+.radio-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding-left: 0.1rem;
+}
+
+.radio-option {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  font-weight: 400;
+  color: var(--ink, #111110);
+  cursor: pointer;
+}
+
+.radio-option input[type="radio"] { cursor: pointer; }
+
+.radio-hint {
+  font-size: 0.74rem;
+  color: #6a7e8f;
+  font-weight: 400;
+}

@@ -482,12 +482,6 @@ export class ScrapperAdminPageComponent implements OnInit, OnDestroy {
     });
   }
 
-  toggleLlmFallback(key: string, enabled: boolean): void {
-    this.api.patchScrapingSource(key, { llm_fallback_enabled: enabled })
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({ next: (s) => { this.managedSources = this.managedSources.map(x => x.key === key ? s : x); } });
-  }
-
   toggleSourceEnabled(key: string, enabled: boolean): void {
     this.api.patchScrapingSource(key, { enabled })
       .pipe(takeUntil(this.destroy$))
