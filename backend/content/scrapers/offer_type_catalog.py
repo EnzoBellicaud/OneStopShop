@@ -7,12 +7,12 @@ _CACHE_TTL = 300  # 5 minutes
 
 
 def get_offer_type_catalog() -> list[dict]:
-    """Returns [{id, name, description}] for all OfferType rows, cached for 5 min."""
+    """Returns [{id, name, description, keywords}] for all OfferType rows, cached for 5 min."""
     cached = cache.get(_CACHE_KEY)
     if cached is not None:
         return cached
     from content.models import OfferType  # local import avoids circular dep
-    catalog = list(OfferType.objects.values("id", "name", "description"))
+    catalog = list(OfferType.objects.values("id", "name", "description", "keywords"))
     cache.set(_CACHE_KEY, catalog, _CACHE_TTL)
     LOGGER.debug("Loaded %d offer types from DB into cache", len(catalog))
     return catalog

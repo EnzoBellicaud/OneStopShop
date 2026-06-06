@@ -8,12 +8,13 @@ export interface OfferTypeAdmin {
   id: string;
   name: string;
   description: string;
+  keywords: string;
 }
 export interface OfferTypeAdminListResponse {
   count: number;
   results: OfferTypeAdmin[];
 }
-export type OfferTypeAdminCreateRequest = { name: string; description: string };
+export type OfferTypeAdminCreateRequest = { name: string; description: string; keywords: string };
 export type OfferTypeAdminPatchRequest = Partial<OfferTypeAdminCreateRequest>;
 
 export interface DomainLookup {

@@ -221,10 +221,11 @@ class ScrapeServiceBehaviorTests(TestCase):
         self.assertFalse(scraping["stale_candidate"])
         self.assertNotEqual(scraping["last_seen_at"], "2020-01-01T00:00:00+00:00")
 
+    @patch("content.scrapers.service._classifier")
     @patch("content.scrapers.service.get_sources")
     @patch("content.scrapers.service.extract_deterministic")
     @patch("content.scrapers.service.requests.get")
-    def test_crawl_mode_discovers_and_processes_depth1_links(self, mock_get, mock_extract, mock_get_sources):
+    def test_crawl_mode_discovers_and_processes_depth1_links(self, mock_get, mock_extract, mock_get_sources, mock_classifier):
         crawl_source = SourceDefinition(
             key="test_crawl_source",
             name="Crawler Source",
@@ -272,6 +273,7 @@ class ScrapeServiceBehaviorTests(TestCase):
             raise AssertionError(f"Unexpected URL requested during crawl: {url}")
 
         mock_get.side_effect = _request_side_effect
+        mock_classifier.classify.return_value = ('internship', 0.8)
         mock_extract.return_value = ExtractedPayload(
             offer_type="training",
             title="Offer",
@@ -293,10 +295,11 @@ class ScrapeServiceBehaviorTests(TestCase):
             2,
         )
 
+    @patch("content.scrapers.service._classifier")
     @patch("content.scrapers.service.get_sources")
     @patch("content.scrapers.service.extract_deterministic")
     @patch("content.scrapers.service.requests.get")
-    def test_crawl_mode_neglects_non_offer_pages(self, mock_get, mock_extract, mock_get_sources):
+    def test_crawl_mode_neglects_non_offer_pages(self, mock_get, mock_extract, mock_get_sources, mock_classifier):
         crawl_source = SourceDefinition(
             key="test_crawl_source",
             name="Crawler Source",
@@ -329,6 +332,7 @@ class ScrapeServiceBehaviorTests(TestCase):
             raise AssertionError(f"Unexpected URL requested: {url}")
 
         mock_get.side_effect = _request_side_effect
+        mock_classifier.classify.return_value = (None, 0.01)
         mock_extract.return_value = ExtractedPayload(
             offer_type="training",
             title=crawl_source.name,
@@ -404,10 +408,11 @@ class ScrapeServiceBehaviorTests(TestCase):
         self.assertEqual(summary["offers_created"], 0)
         self.assertFalse(Offer.objects.filter(link="https://example.edu/home/alumni").exists())
 
+    @patch("content.scrapers.service._classifier")
     @patch("content.scrapers.service.get_sources")
     @patch("content.scrapers.service.extract_deterministic")
     @patch("content.scrapers.service.requests.get")
-    def test_partial_crawl_failures_do_not_flag_existing_offers_stale(self, mock_get, mock_extract, mock_get_sources):
+    def test_partial_crawl_failures_do_not_flag_existing_offers_stale(self, mock_get, mock_extract, mock_get_sources, mock_classifier):
         crawl_source = SourceDefinition(
             key="test_crawl_source",
             name="Crawler Source",
@@ -464,6 +469,7 @@ class ScrapeServiceBehaviorTests(TestCase):
             raise AssertionError(f"Unexpected URL requested: {url}")
 
         mock_get.side_effect = _request_side_effect
+        mock_classifier.classify.return_value = ('internship', 0.8)
 
         def _extract_side_effect(html, source):
             return ExtractedPayload(
@@ -534,10 +540,11 @@ class ScrapeServiceBehaviorTests(TestCase):
         self.assertEqual(summary["offers_created"], 0)
         self.assertFalse(Offer.objects.filter(link="https://example.edu/en/contact").exists())
 
+    @patch("content.scrapers.service._classifier")
     @patch("content.scrapers.service.get_sources")
     @patch("content.scrapers.service.extract_deterministic")
     @patch("content.scrapers.service.requests.get")
-    def test_crawl_redirect_dedup_creates_single_offer(self, mock_get, mock_extract, mock_get_sources):
+    def test_crawl_redirect_dedup_creates_single_offer(self, mock_get, mock_extract, mock_get_sources, mock_classifier):
         crawl_source = SourceDefinition(
             key="test_crawl_source",
             name="Crawler Source",
@@ -583,6 +590,7 @@ class ScrapeServiceBehaviorTests(TestCase):
             raise AssertionError(f"Unexpected URL: {url}")
 
         mock_get.side_effect = _request_side_effect
+        mock_classifier.classify.return_value = ('thesis', 0.7)
         mock_extract.return_value = ExtractedPayload(
             offer_type="training",
             title="Master Program",

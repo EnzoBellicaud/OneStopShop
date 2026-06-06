@@ -6,9 +6,6 @@ import { Subject, forkJoin, interval, of } from 'rxjs';
 import { switchMap, startWith, takeUntil } from 'rxjs/operators';
 import {
   LlmStats,
-  OfferTypeAdmin,
-  OfferTypeAdminCreateRequest,
-  OfferTypeAdminListResponse,
   ScrapingOverview,
   ScrapingRunDetail,
   ScrapingRunSummary,
@@ -23,7 +20,7 @@ import { StatCardComponent } from '../shared/components/stat-card.component';
 import { MiniBarChartComponent, BarChartPoint } from '../shared/components/mini-bar-chart.component';
 import { StatusChipComponent } from '../shared/components/status-chip.component';
 
-type TabId = 'overview' | 'runs' | 'sources' | 'errors' | 'manage' | 'offer-types';
+type TabId = 'overview' | 'runs' | 'sources' | 'errors' | 'manage';
 type WindowOption = '24h' | '7d' | '30d';
 
 @Component({
@@ -42,7 +39,6 @@ export class ScrapperAdminPageComponent implements OnInit, OnDestroy {
       { id: 'errors', label: 'Errors' },
     ];
     if (this.auth.isAdmin) base.push({ id: 'manage', label: 'Manage Sources' });
-    if (this.auth.isAdmin) base.push({ id: 'offer-types', label: 'Offer Types' });
     return base;
   }
 
@@ -88,14 +84,6 @@ export class ScrapperAdminPageComponent implements OnInit, OnDestroy {
   // Errors (cross-run, client-side aggregate)
   errorRuns: ScrapingRunDetail[] = [];
   loadingErrors = false;
-
-  // Offer Types
-  offerTypes: OfferTypeAdmin[] = [];
-  loadingOfferTypes = false;
-  offerTypeForm: OfferTypeAdminCreateRequest = { name: '', description: '' };
-  editingOfferTypeId: string | null = null;
-  showOfferTypeModal = false;
-  offerTypeError: string | null = null;
 
   // Manage Sources
   managedSources: ScrapingSource[] = [];
@@ -180,7 +168,6 @@ export class ScrapperAdminPageComponent implements OnInit, OnDestroy {
     else if (tab === 'sources') this.loadSources();
     else if (tab === 'errors') this.loadErrors();
     else if (tab === 'manage') this.loadManagedSources();
-    else if (tab === 'offer-types') this.loadOfferTypes();
   }
 
   // ── Overview ──────────────────────────────────────────────────────────────
@@ -522,56 +509,6 @@ export class ScrapperAdminPageComponent implements OnInit, OnDestroy {
       crawl_enabled: false, crawl_depth: 1, crawl_max_pages: 25,
       crawl_match_patterns: [], crawl_exclude_patterns: [],
     };
-  }
-
-  // ── Offer Types ───────────────────────────────────────────────────────────
-
-  loadOfferTypes(): void {
-    this.loadingOfferTypes = true;
-    this.api.getAdminOfferTypes().pipe(takeUntil(this.destroy$)).subscribe({
-      next: (res: OfferTypeAdminListResponse) => { this.offerTypes = res.results; this.loadingOfferTypes = false; },
-      error: () => { this.loadingOfferTypes = false; },
-    });
-  }
-
-  openNewOfferType(): void {
-    this.editingOfferTypeId = null;
-    this.offerTypeForm = { name: '', description: '' };
-    this.offerTypeError = null;
-    this.showOfferTypeModal = true;
-  }
-
-  openEditOfferType(ot: OfferTypeAdmin): void {
-    this.editingOfferTypeId = ot.id;
-    this.offerTypeForm = { name: ot.name, description: ot.description };
-    this.offerTypeError = null;
-    this.showOfferTypeModal = true;
-  }
-
-  saveOfferType(): void {
-    this.offerTypeError = null;
-    const obs = this.editingOfferTypeId
-      ? this.api.patchAdminOfferType(this.editingOfferTypeId, this.offerTypeForm)
-      : this.api.createAdminOfferType(this.offerTypeForm);
-    obs.pipe(takeUntil(this.destroy$)).subscribe({
-      next: (saved: OfferTypeAdmin) => {
-        if (this.editingOfferTypeId) {
-          this.offerTypes = this.offerTypes.map(ot => ot.id === saved.id ? saved : ot);
-        } else {
-          this.offerTypes = [...this.offerTypes, saved];
-        }
-        this.showOfferTypeModal = false;
-      },
-      error: () => { this.offerTypeError = 'Failed to save offer type. Check all required fields.'; },
-    });
-  }
-
-  deleteOfferType(id: string): void {
-    if (!confirm('Delete this offer type?')) return;
-    this.api.deleteAdminOfferType(id).pipe(takeUntil(this.destroy$)).subscribe({
-      next: () => { this.offerTypes = this.offerTypes.filter(ot => ot.id !== id); },
-      error: () => { this.errorMessage = 'Failed to delete offer type.'; },
-    });
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────

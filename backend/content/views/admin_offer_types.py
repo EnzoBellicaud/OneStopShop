@@ -23,6 +23,7 @@ def _serialize(ot: OfferType) -> dict:
         "id": str(ot.id),
         "name": ot.name,
         "description": ot.description,
+        "keywords": ot.keywords,
     }
 
 
@@ -47,8 +48,9 @@ def admin_offer_types_collection(request):
         return JsonResponse({"detail": f"Offer type with name '{name}' already exists."}, status=409)
 
     description = str(body.get("description") or "").strip()
+    keywords = str(body.get("keywords") or "").strip()
 
-    offer_type = OfferType.objects.create(name=name, description=description)
+    offer_type = OfferType.objects.create(name=name, description=description, keywords=keywords)
     invalidate_catalog()
     return JsonResponse(_serialize(offer_type), status=201)
 
@@ -90,6 +92,9 @@ def admin_offer_type_detail(request, offer_type_id: str):
 
     if "description" in body:
         offer_type.description = str(body["description"] or "").strip()
+
+    if "keywords" in body:
+        offer_type.keywords = str(body["keywords"] or "").strip()
 
     offer_type.save()
     invalidate_catalog()

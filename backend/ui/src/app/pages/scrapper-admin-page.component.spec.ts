@@ -118,7 +118,7 @@ describe('ScrapperAdminPageComponent — Manage Sources tab', () => {
     component.sourceModalTarget = null;
     component.sourceForm = {
       key: 'new_src', name: 'New', url: 'https://n.com',
-      organization_token: 'o', offer_type: 'training', target_profile: 'student',
+      organization_token: 'o', target_profile: 'student',
       country: 'IT', domain_names: [], interval_minutes: 360,
       llm_fallback_enabled: true, enabled: true, quality: 'real',
       crawl_enabled: false, crawl_depth: 1, crawl_max_pages: 25,
@@ -153,18 +153,7 @@ describe('ScrapperAdminPageComponent — Manage Sources tab', () => {
     expect(component.showSourceModal).toBeFalse();
   });
 
-  // ── toggleLlmFallback / toggleSourceEnabled ───────────────────────────────
-
-  it('toggleLlmFallback sends PATCH with llm_fallback_enabled', () => {
-    component.managedSources = [makeSource('s1') as any];
-    component.toggleLlmFallback('s1', false);
-
-    const req = http.expectOne(`${API}/admin/sources/s1`);
-    expect(req.request.body).toEqual({ llm_fallback_enabled: false });
-    req.flush(makeSource('s1', { llm_fallback_enabled: false }));
-
-    expect(component.managedSources[0].llm_fallback_enabled).toBeFalse();
-  });
+  // ── toggleSourceEnabled ───────────────────────────────────────────────────
 
   it('toggleSourceEnabled sends PATCH with enabled', () => {
     component.managedSources = [makeSource('s2') as any];

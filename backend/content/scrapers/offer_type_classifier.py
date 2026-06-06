@@ -3,6 +3,7 @@ import os
 
 LOGGER = logging.getLogger(__name__)
 _THRESHOLD = float(os.environ.get("SCRAPER_CLASSIFIER_THRESHOLD", "0.30"))
+_GATE_THRESHOLD = float(os.environ.get("SCRAPER_GATE_THRESHOLD", "0.05"))
 
 
 class OfferTypeClassifier:
@@ -32,7 +33,10 @@ class OfferTypeClassifier:
             LOGGER.warning("scikit-learn not installed — offer_type_classifier unavailable")
             return None, 0.0
 
-        docs = [f"{t['name']} {t['description'] or ''}" for t in catalog]
+        docs = [
+            f"{t['name']} {t['description'] or ''} {(t.get('keywords') or '').replace(',', ' ')}"
+            for t in catalog
+        ]
         names = [t["name"] for t in catalog]
 
         vectorizer = TfidfVectorizer(stop_words="english")

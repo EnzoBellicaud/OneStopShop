@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { DashboardPageComponent } from './pages/dashboard-page.component';
 import { ImportPageComponent } from './pages/import-page.component';
 import { LoginPageComponent } from './pages/login-page.component';
+import { OffersAdminPageComponent } from './pages/offers-admin-page.component';
 import { OffersPageComponent } from './pages/offers-page.component';
 import { ScrapperAdminPageComponent } from './pages/scrapper-admin-page.component';
 import { UsersPageComponent } from './pages/users-page.component';
@@ -39,6 +40,11 @@ export const routes: Routes = [
 	{
 		path: 'admin/domains',
 		component: DomainsPageComponent,
+		canActivate: [adminGuard],
+	},
+	{
+		path: 'admin/offers',
+		component: OffersAdminPageComponent,
 		canActivate: [adminGuard],
 	},
 	{

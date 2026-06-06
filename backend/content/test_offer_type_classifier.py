@@ -5,11 +5,11 @@ from django.test import TestCase
 from content.scrapers.offer_type_classifier import OfferTypeClassifier
 
 _CATALOG = [
-    {"name": "thesis", "description": "Academic thesis or dissertation project at a university"},
-    {"name": "internship", "description": "Internship or work placement for students"},
-    {"name": "job", "description": "Full-time or part-time employment position"},
-    {"name": "scholarship", "description": "Scholarship, grant, or funding opportunity"},
-    {"name": "course", "description": "Training course, workshop, or online learning program"},
+    {"name": "thesis", "description": "Academic thesis or dissertation project at a university", "keywords": ""},
+    {"name": "internship", "description": "Internship or work placement for students", "keywords": ""},
+    {"name": "job", "description": "Full-time or part-time employment position", "keywords": ""},
+    {"name": "scholarship", "description": "Scholarship, grant, or funding opportunity", "keywords": ""},
+    {"name": "course", "description": "Training course, workshop, or online learning program", "keywords": ""},
 ]
 
 _CATALOG_MODULE = "content.scrapers.offer_type_catalog.get_offer_type_catalog"
