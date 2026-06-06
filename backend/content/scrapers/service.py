@@ -35,6 +35,39 @@ _classifier = OfferTypeClassifier()
 
 LOGGER = logging.getLogger(__name__)
 
+# Keyword gate used when LLM is unavailable in crawl mode.
+# Strong signal: any one present → page is an opportunity.
+# Weak signals: 4+ present → page is an opportunity.
+_STRONG_OPPORTUNITY_SIGNALS: frozenset[str] = frozenset([
+    "application deadline", "apply now", "call for applications",
+    "call for candidates", "call for proposals",
+    "phd position", "phd candidate", "doctoral position", "doctoral candidate",
+    "postdoc", "postdoctoral", "fellowship", "stipend",
+    "scholarship", "bursary",
+    "vacancy", "job opening", "open position", "position available",
+    "we are hiring", "we are looking for", "now hiring",
+    "internship position", "internship opportunity",
+    "traineeship", "work placement", "apprenticeship",
+    "research position", "research opening", "funded project",
+])
+
+_WEAK_OPPORTUNITY_SIGNALS: frozenset[str] = frozenset([
+    "application", "apply", "deadline", "eligible", "eligibility",
+    "funding", "grant", "award", "salary", "compensation",
+    "thesis", "dissertation", "research project", "research opportunity",
+    "position", "opening", "candidate", "recruit", "hiring",
+    "requirements", "qualifications", "duration", "contract",
+])
+
+_WEAK_SIGNAL_THRESHOLD = 4
+
+
+def _is_opportunity_page(title: str, summary: str, details: dict) -> bool:
+    text = f"{title} {summary} {' '.join(str(v) for v in details.values())}".lower()
+    if any(sig in text for sig in _STRONG_OPPORTUNITY_SIGNALS):
+        return True
+    return sum(1 for sig in _WEAK_OPPORTUNITY_SIGNALS if sig in text) >= _WEAK_SIGNAL_THRESHOLD
+
 
 def _ts() -> str:
     return timezone.now().isoformat().replace("+00:00", "Z")
@@ -360,12 +393,10 @@ class ScrapeService:
                     if llm_payload is not None and llm_payload.confidence >= extracted.confidence:
                         extracted = llm_payload
                 else:
-                    # LLM disabled: degraded placeholder gate.
-                    if (
-                        extracted.title == source.name
-                        and extracted.summary.startswith("Auto-extracted from")
-                    ):
+                    # LLM disabled: keyword heuristic gate.
+                    if not _is_opportunity_page(extracted.title, extracted.summary, extracted.details):
                         urls_neglected += 1
+                        LOGGER.debug("[%s] NEGLECT %s — no opportunity signals", source.key, page_url)
                         logs.append(
                             {
                                 "ts": _ts(),
@@ -373,7 +404,7 @@ class ScrapeService:
                                 "level": "info",
                                 "source_key": source.key,
                                 "url": page_url,
-                                "reason": "non_relevant_page",
+                                "reason": "no_opportunity_signals",
                             }
                         )
                         continue

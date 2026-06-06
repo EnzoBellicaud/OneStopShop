@@ -2,7 +2,7 @@ import logging
 import os
 
 LOGGER = logging.getLogger(__name__)
-_THRESHOLD = float(os.environ.get("SCRAPER_CLASSIFIER_THRESHOLD", "0.15"))
+_THRESHOLD = float(os.environ.get("SCRAPER_CLASSIFIER_THRESHOLD", "0.30"))
 
 
 class OfferTypeClassifier:

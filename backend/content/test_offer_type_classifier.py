@@ -23,7 +23,7 @@ class OfferTypeClassifierTest(TestCase):
         clf = OfferTypeClassifier()
         key, score = clf.classify("PhD thesis research project university academic dissertation supervisor")
         self.assertEqual(key, "thesis")
-        self.assertGreater(score, 0.15)
+        self.assertGreater(score, 0.30)
 
     @patch(_CATALOG_MODULE)
     def test_classifies_internship_text(self, mock_catalog):
@@ -31,7 +31,7 @@ class OfferTypeClassifierTest(TestCase):
         clf = OfferTypeClassifier()
         key, score = clf.classify("internship placement students company work experience")
         self.assertEqual(key, "internship")
-        self.assertGreater(score, 0.15)
+        self.assertGreater(score, 0.30)
 
     @patch(_CATALOG_MODULE)
     def test_classifies_scholarship_text(self, mock_catalog):
@@ -39,7 +39,7 @@ class OfferTypeClassifierTest(TestCase):
         clf = OfferTypeClassifier()
         key, score = clf.classify("scholarship grant funding opportunity students financial aid")
         self.assertEqual(key, "scholarship")
-        self.assertGreater(score, 0.15)
+        self.assertGreater(score, 0.30)
 
     @patch(_CATALOG_MODULE)
     def test_returns_none_below_threshold(self, mock_catalog):
