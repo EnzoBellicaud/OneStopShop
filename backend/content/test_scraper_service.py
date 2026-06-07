@@ -274,6 +274,7 @@ class ScrapeServiceBehaviorTests(TestCase):
 
         mock_get.side_effect = _request_side_effect
         mock_classifier.classify.return_value = ('internship', 0.8)
+        mock_classifier.classify_with_terms.return_value = ('internship', 0.8, ['internship'])
         mock_extract.return_value = ExtractedPayload(
             offer_type="training",
             title="Offer",
@@ -333,6 +334,7 @@ class ScrapeServiceBehaviorTests(TestCase):
 
         mock_get.side_effect = _request_side_effect
         mock_classifier.classify.return_value = (None, 0.01)
+        mock_classifier.classify_with_terms.return_value = (None, 0.01, [])
         mock_extract.return_value = ExtractedPayload(
             offer_type="training",
             title=crawl_source.name,
@@ -470,6 +472,7 @@ class ScrapeServiceBehaviorTests(TestCase):
 
         mock_get.side_effect = _request_side_effect
         mock_classifier.classify.return_value = ('internship', 0.8)
+        mock_classifier.classify_with_terms.return_value = ('internship', 0.8, ['internship'])
 
         def _extract_side_effect(html, source):
             return ExtractedPayload(
@@ -591,6 +594,7 @@ class ScrapeServiceBehaviorTests(TestCase):
 
         mock_get.side_effect = _request_side_effect
         mock_classifier.classify.return_value = ('thesis', 0.7)
+        mock_classifier.classify_with_terms.return_value = ('thesis', 0.7, ['thesis'])
         mock_extract.return_value = ExtractedPayload(
             offer_type="training",
             title="Master Program",

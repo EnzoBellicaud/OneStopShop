@@ -248,6 +248,22 @@ class AdminMockListCreateTestCase(TestCase):
         self._post({"title": "Persist Check", "description": "desc"})
         self.assertEqual(MockOpportunity.objects.filter(title="Persist Check").count(), 1)
 
+    def test_create_title_too_long_returns_400(self):
+        resp = self._post({"title": "A" * 201})
+        self.assertEqual(resp.status_code, 400)
+
+    def test_create_offer_type_truncated_to_50(self):
+        resp = self._post({"title": "T", "offer_type": "x" * 60})
+        self.assertEqual(resp.status_code, 201)
+        data = json.loads(resp.content)
+        self.assertEqual(len(data["offer_type"]), 50)
+
+    def test_create_target_profile_truncated_to_50(self):
+        resp = self._post({"title": "T", "target_profile": "y" * 60})
+        self.assertEqual(resp.status_code, 201)
+        data = json.loads(resp.content)
+        self.assertEqual(len(data["target_profile"]), 50)
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Admin CRUD API — delete

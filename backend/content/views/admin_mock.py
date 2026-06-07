@@ -33,14 +33,18 @@ def list_create(request):
     body = json.loads(request.body)
     title = str(body.get("title", "")).strip()
     description = str(body.get("description", "")).strip()
+    offer_type = str(body.get("offer_type", "internship"))[:50]
+    target_profile = str(body.get("target_profile", "student"))[:50]
     if not title:
         return JsonResponse({"detail": "title is required"}, status=400)
+    if len(title) > 200:
+        return JsonResponse({"detail": "title must be 200 characters or fewer"}, status=400)
 
     item = MockOpportunity.objects.create(
-        title=title,
+        title=title[:200],
         description=description,
-        offer_type=str(body.get("offer_type", "internship")),
-        target_profile=str(body.get("target_profile", "student")),
+        offer_type=offer_type,
+        target_profile=target_profile,
     )
     return JsonResponse(_serialize(item), status=201)
 
