@@ -1,4 +1,6 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from './shared/auth.service';
 import { OssApiService } from './shared/oss-api.service';
@@ -7,7 +9,7 @@ import { environment } from '../environments/environment';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterLink, RouterLinkActive, RouterOutlet],
+  imports: [CommonModule, FormsModule, RouterLink, RouterLinkActive, RouterOutlet],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
 })
@@ -15,6 +17,12 @@ export class AppComponent implements OnInit {
   title = 'SUNRISE OSS';
   pendingCount = 0;
   readonly vueUrl: string = environment.vueBaseUrl;
+
+  showChangePw = false;
+  changePwForm = { old_password: '', new_password: '', confirm: '' };
+  changePwError = signal<string | null>(null);
+  changePwSuccess = signal(false);
+  submittingPw = signal(false);
 
   constructor(
     readonly auth: AuthService,
@@ -69,5 +77,35 @@ export class AppComponent implements OnInit {
 
   logout(): void {
     this.auth.logout();
+  }
+
+  submitChangePassword(): void {
+    if (this.changePwForm.new_password !== this.changePwForm.confirm) {
+      this.changePwError.set('New passwords do not match.');
+      return;
+    }
+    if (this.changePwForm.new_password.length < 8) {
+      this.changePwError.set('New password must be at least 8 characters.');
+      return;
+    }
+    this.changePwError.set(null);
+    this.submittingPw.set(true);
+    this.api.changePassword(this.changePwForm.old_password, this.changePwForm.new_password).subscribe({
+      next: () => {
+        this.submittingPw.set(false);
+        this.changePwSuccess.set(true);
+      },
+      error: (err) => {
+        this.submittingPw.set(false);
+        this.changePwError.set(err?.error?.detail ?? 'Failed to change password.');
+      },
+    });
+  }
+
+  closeChangePw(): void {
+    this.showChangePw = false;
+    this.changePwSuccess.set(false);
+    this.changePwError.set(null);
+    this.changePwForm = { old_password: '', new_password: '', confirm: '' };
   }
 }

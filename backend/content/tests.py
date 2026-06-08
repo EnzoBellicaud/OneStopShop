@@ -6,7 +6,7 @@ from time import perf_counter
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
-from django.test import Client, TestCase, override_settings
+from django.test import Client, TestCase
 
 from content.auth import generate_tokens, hash_password
 from content.models import (
@@ -1772,7 +1772,6 @@ class ScrapingAnalyticsTests(TestCase):
 # Teacher / Company registration + approval flow tests
 # ──────────────────────────────────────────────────────────────────────────────
 
-@override_settings(RATELIMIT_ENABLE=False)
 class TeacherRegistrationTests(TestCase):
 	@classmethod
 	def setUpTestData(cls):
@@ -1888,7 +1887,6 @@ class TeacherRegistrationTests(TestCase):
 		self.assertEqual(resp.json()["error"], "account_rejected")
 
 
-@override_settings(RATELIMIT_ENABLE=False)
 class UserApprovalTests(TestCase):
 	@classmethod
 	def setUpTestData(cls):

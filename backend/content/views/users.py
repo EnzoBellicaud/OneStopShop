@@ -381,9 +381,10 @@ def user_approval(request, user_id: str):
     if action == "approve":
         user.is_active = True
         user.approval_status = User.ApprovalStatus.APPROVED
+        user.email_verified = True
         user.approved_by = request.auth_user
         user.approval_notes = notes
-        user.save(update_fields=["is_active", "approval_status", "approved_by", "approval_notes", "updated_at"])
+        user.save(update_fields=["is_active", "approval_status", "email_verified", "approved_by", "approval_notes", "updated_at"])
         # Auto-link Teacher to org via AllowedDomain if not already linked
         if user.profile == User.ProfileType.TEACHER:
             domain = user.email.split('@')[-1].lower()

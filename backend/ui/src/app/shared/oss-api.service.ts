@@ -40,6 +40,17 @@ import {
   UserNeedsQueryParams,
   UserNeedUpdateRequest,
   SourcesHealthResponse,
+  ScrapingSource,
+  ScrapingSourceListResponse,
+  ScrapingSourceCreateRequest,
+  ScrapingSourcePatchRequest,
+  OfferTypeAdmin,
+  OfferTypeAdminListResponse,
+  OfferTypeAdminCreateRequest,
+  OfferTypeAdminPatchRequest,
+  MockOpportunity,
+  MockOpportunityCreateRequest,
+  OrganizationDetail,
 } from './api.models';
 import { environment } from '../../environments/environment';
 
@@ -160,6 +171,13 @@ export class OssApiService {
     return this.http.get<SourcesHealthResponse>(`${this.apiBaseUrl}/scraping/sources/health`);
   }
 
+  triggerCrawl(sourceKeys?: string[]): Observable<{ status: string; message: string }> {
+    const body = sourceKeys?.length ? { source_keys: sourceKeys } : {};
+    return this.http.post<{ status: string; message: string }>(
+      `${this.apiBaseUrl}/admin/crawl`, body
+    );
+  }
+
   getLlmStats(window: '24h' | '7d' | '30d' = '24h'): Observable<LlmStats> {
     return this.http.get<LlmStats>(`${this.apiBaseUrl}/scraping/llm/stats`, {
       params: this.buildParams({ window }),
@@ -207,8 +225,20 @@ export class OssApiService {
     );
   }
 
-  createOrganization(payload: AdminCreateOrgRequest): Observable<OrganizationLookup> {
-    return this.http.post<OrganizationLookup>(`${this.apiBaseUrl}/admin/organizations`, payload);
+  getAdminOrganizations(): Observable<{ count: number; results: OrganizationDetail[] }> {
+    return this.http.get<{ count: number; results: OrganizationDetail[] }>(`${this.apiBaseUrl}/admin/organizations`);
+  }
+
+  createOrganization(payload: AdminCreateOrgRequest): Observable<OrganizationDetail> {
+    return this.http.post<OrganizationDetail>(`${this.apiBaseUrl}/admin/organizations`, payload);
+  }
+
+  updateOrganization(id: string, payload: Partial<AdminCreateOrgRequest>): Observable<OrganizationDetail> {
+    return this.http.patch<OrganizationDetail>(`${this.apiBaseUrl}/admin/organizations/${id}`, payload);
+  }
+
+  deleteOrganization(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiBaseUrl}/admin/organizations/${id}`);
   }
 
   // ── Allowed domains ───────────────────────────────────────────────────────
@@ -251,6 +281,67 @@ export class OssApiService {
       a.download = 'oss_import_template.xlsx';
       a.click();
       URL.revokeObjectURL(url);
+    });
+  }
+
+  // ── Scraping sources ─────────────────────────────────────────────────────
+
+  getScrapingSources(): Observable<ScrapingSourceListResponse> {
+    return this.http.get<ScrapingSourceListResponse>(`${this.apiBaseUrl}/admin/sources`);
+  }
+
+  createScrapingSource(payload: ScrapingSourceCreateRequest): Observable<ScrapingSource> {
+    return this.http.post<ScrapingSource>(`${this.apiBaseUrl}/admin/sources`, payload);
+  }
+
+  patchScrapingSource(key: string, payload: ScrapingSourcePatchRequest): Observable<ScrapingSource> {
+    return this.http.patch<ScrapingSource>(`${this.apiBaseUrl}/admin/sources/${key}`, payload);
+  }
+
+  deleteScrapingSource(key: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiBaseUrl}/admin/sources/${key}`);
+  }
+
+  // ── Admin offer types ─────────────────────────────────────────────────────
+
+  getAdminOfferTypes(): Observable<OfferTypeAdminListResponse> {
+    return this.http.get<OfferTypeAdminListResponse>(`${this.apiBaseUrl}/admin/offer-types`);
+  }
+
+  createAdminOfferType(body: OfferTypeAdminCreateRequest): Observable<OfferTypeAdmin> {
+    return this.http.post<OfferTypeAdmin>(`${this.apiBaseUrl}/admin/offer-types`, body);
+  }
+
+  patchAdminOfferType(id: string, body: OfferTypeAdminPatchRequest): Observable<OfferTypeAdmin> {
+    return this.http.patch<OfferTypeAdmin>(`${this.apiBaseUrl}/admin/offer-types/${id}`, body);
+  }
+
+  deleteAdminOfferType(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiBaseUrl}/admin/offer-types/${id}`);
+  }
+
+  // ── Admin mock opportunities ──────────────────────────────────────────────
+
+  getMockOpportunities(): Observable<{ count: number; results: MockOpportunity[] }> {
+    return this.http.get<{ count: number; results: MockOpportunity[] }>(
+      `${this.apiBaseUrl}/admin/mock-opportunities`
+    );
+  }
+
+  createMockOpportunity(body: MockOpportunityCreateRequest): Observable<MockOpportunity> {
+    return this.http.post<MockOpportunity>(`${this.apiBaseUrl}/admin/mock-opportunities`, body);
+  }
+
+  deleteMockOpportunity(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiBaseUrl}/admin/mock-opportunities/${id}`);
+  }
+
+  // ── Auth ──────────────────────────────────────────────────────────────────
+
+  changePassword(oldPassword: string, newPassword: string): Observable<{ detail: string }> {
+    return this.http.post<{ detail: string }>(`${this.apiBaseUrl}/auth/change-password`, {
+      old_password: oldPassword,
+      new_password: newPassword,
     });
   }
 

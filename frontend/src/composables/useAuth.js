@@ -74,6 +74,18 @@ export function useAuth() {
     }
   }
 
+  async function changePassword(oldPassword, newPassword) {
+    const res = await api.post('/api/auth/change-password', {
+      old_password: oldPassword,
+      new_password: newPassword,
+    })
+    if (!res.ok) {
+      let detail = 'Password change failed'
+      try { detail = (await res.json()).detail ?? detail } catch {}
+      throw new Error(detail)
+    }
+  }
+
   function logout() {
     api.post('/api/auth/logout', {}).catch(() => {})
     localStorage.removeItem('access_token')
@@ -91,6 +103,7 @@ export function useAuth() {
     login,
     register,
     logout,
+    changePassword,
     isLoggedIn: _isLoggedIn,
   }
 }

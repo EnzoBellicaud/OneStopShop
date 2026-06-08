@@ -119,6 +119,65 @@ main {
 	color: #d0d0c8;
 }
 
+.change-pw-btn {
+	background: transparent;
+	border: none;
+	color: #888880;
+	font-size: 0.72rem;
+	font-family: 'DM Sans', sans-serif;
+	cursor: pointer;
+	padding: 0.2rem 0.3rem;
+	white-space: nowrap;
+	text-decoration: underline;
+	transition: color 0.15s;
+}
+
+.change-pw-btn:hover {
+	color: #d0d0c8;
+}
+
+.change-pw-fields {
+	display: grid;
+	gap: 0.75rem;
+	margin-bottom: 1rem;
+}
+
+.form-field {
+	display: flex;
+	flex-direction: column;
+	gap: 0.3rem;
+	font-size: 0.82rem;
+	font-weight: 500;
+	color: var(--ink, #111110);
+}
+
+.form-field input {
+	border: 1px solid var(--border, #e4e4e0);
+	border-radius: var(--r, 6px);
+	padding: 0.38rem 0.55rem;
+	font-size: 0.82rem;
+	outline: none;
+}
+
+.form-field input:focus {
+	border-color: var(--accent-mid, #2b7cb8);
+}
+
+.error-banner {
+	background: #ffe4e4;
+	color: #9e2a2a;
+	border-radius: var(--r, 6px);
+	padding: 0.5rem 0.75rem;
+	font-size: 0.82rem;
+	margin-bottom: 0.75rem;
+}
+
+.success-msg {
+	color: #1d7347;
+	font-size: 0.88rem;
+	margin-bottom: 1rem;
+}
+
 @media (max-width: 900px) {
 	.app-shell {
 		grid-template-columns: 1fr;

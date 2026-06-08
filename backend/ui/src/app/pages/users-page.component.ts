@@ -11,6 +11,13 @@ import {
 } from '../shared/api.models';
 import { OssApiService } from '../shared/oss-api.service';
 
+function generatePassword(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%^&*';
+  const buf = new Uint8Array(16);
+  crypto.getRandomValues(buf);
+  return Array.from(buf, (b) => chars[b % chars.length]).join('');
+}
+
 @Component({
   selector: 'app-users-page',
   standalone: true,
@@ -44,10 +51,12 @@ export class UsersPageComponent implements OnInit {
 
   // Create user modal
   showCreateModal = false;
-  createForm: AdminCreateUserRequest = { username: '', email: '', password: '', profile: 'Student' };
+  createForm: AdminCreateUserRequest = { username: '', email: '', password: generatePassword(), profile: 'Student' };
   createError = signal<string | null>(null);
-  createSuccess = signal<string | null>(null);
   creatingUser = signal(false);
+  createdUser: UserManagementSummary | null = null;
+  createdPassword = '';
+  copiedPassword = signal(false);
 
   readonly profiles = ['Student', 'Academic staff', 'Teacher', 'Company', 'Admin'];
 
@@ -162,26 +171,50 @@ export class UsersPageComponent implements OnInit {
   }
 
   openCreateModal(): void {
-    this.createForm = { username: '', email: '', password: '', profile: 'Student' };
+    this.createForm = { username: '', email: '', password: generatePassword(), profile: 'Student' };
     this.createError.set(null);
-    this.createSuccess.set(null);
+    this.createdUser = null;
+    this.createdPassword = '';
+    this.copiedPassword.set(false);
     this.showCreateModal = true;
   }
 
+  regeneratePassword(): void {
+    this.createForm = { ...this.createForm, password: generatePassword() };
+  }
+
   submitCreate(): void {
+    if (!this.createForm.username || !this.createForm.email) {
+      this.createError.set('Username and email are required.');
+      return;
+    }
     this.createError.set(null);
     this.creatingUser.set(true);
     this.api.createAdminUser(this.createForm).subscribe({
       next: user => {
         this.creatingUser.set(false);
-        this.createSuccess.set(`User "${user.username}" created.`);
+        this.createdPassword = this.createForm.password;
+        this.createdUser = user;
         this.load();
       },
-      error: () => {
+      error: err => {
         this.creatingUser.set(false);
-        this.createError.set('Failed to create user.');
+        this.createError.set(err?.error?.detail ?? 'Failed to create user.');
       },
     });
+  }
+
+  copyCreatedPassword(): void {
+    navigator.clipboard.writeText(this.createdPassword).then(() => {
+      this.copiedPassword.set(true);
+      setTimeout(() => this.copiedPassword.set(false), 2000);
+    });
+  }
+
+  closeCreateModal(): void {
+    this.showCreateModal = false;
+    this.createdUser = null;
+    this.createdPassword = '';
   }
 
   prevPage(): void {

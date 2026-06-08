@@ -4,6 +4,7 @@ from content.views.imports import import_confirm, import_preview, import_templat
 from content.views.lookups import countries, domains, offer_types, organizations, target_profiles
 from content.views.offers import offer_detail, offers
 from content.views.scraping import (
+    admin_trigger_crawl,
     scraping_llm_stats,
     scraping_overview,
     scraping_run_detail,
@@ -48,6 +49,7 @@ __all__ = [
     "target_profiles",
     "offer_detail",
     "offers",
+    "admin_trigger_crawl",
     "scraping_llm_stats",
     "scraping_overview",
     "scraping_run_detail",

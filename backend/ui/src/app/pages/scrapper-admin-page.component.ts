@@ -73,6 +73,7 @@ export class ScrapperAdminPageComponent implements OnInit, OnDestroy {
   sources: SourceHealth[] = [];
   sourceSort: 'name' | 'last_scraped' | 'pending' | 'done' = 'name';
   loadingSources = false;
+  triggeringCrawl = signal(false);
 
   // Errors (cross-run, client-side aggregate)
   errorRuns: ScrapingRunDetail[] = [];
@@ -387,6 +388,20 @@ export class ScrapperAdminPageComponent implements OnInit, OnDestroy {
           this.loadingSources = false;
         },
       });
+  }
+
+  triggerCrawl(): void {
+    if (this.triggeringCrawl()) return;
+    this.triggeringCrawl.set(true);
+    this.api.triggerCrawl().subscribe({
+      next: () => {
+        setTimeout(() => {
+          this.loadSources();
+          this.triggeringCrawl.set(false);
+        }, 3000);
+      },
+      error: () => this.triggeringCrawl.set(false),
+    });
   }
 
   get sortedSources(): SourceHealth[] {

@@ -1,8 +1,37 @@
+export interface MockOpportunity {
+  id: string;
+  title: string;
+  description: string;
+  offer_type: string;
+  target_profile: string;
+  created_at: string;
+}
+
+export type MockOpportunityCreateRequest = {
+  title: string;
+  description: string;
+  offer_type: string;
+  target_profile: string;
+};
+
 export interface OfferTypeLookup {
   id: string;
   name: string;
   description: string;
 }
+
+export interface OfferTypeAdmin {
+  id: string;
+  name: string;
+  description: string;
+  keywords: string;
+}
+export interface OfferTypeAdminListResponse {
+  count: number;
+  results: OfferTypeAdmin[];
+}
+export type OfferTypeAdminCreateRequest = { name: string; description: string; keywords: string };
+export type OfferTypeAdminPatchRequest = Partial<OfferTypeAdminCreateRequest>;
 
 export interface DomainLookup {
   id: string;
@@ -31,6 +60,16 @@ export interface OrganizationSummary {
   name: string;
   type: string;
   country: string;
+}
+
+export interface OrganizationDetail {
+  id: string;
+  name: string;
+  type: string;
+  country: string;
+  website: string;
+  offers_count: number;
+  sources_count: number;
 }
 
 export interface Offer {
@@ -67,6 +106,7 @@ export interface ScrapingRunSummary {
   offers_created: number;
   offers_updated: number;
   offers_unchanged: number;
+  offers_skipped: number;
   urls_neglected: number;
   errors_count: number;
   started_at: string | null;
@@ -503,6 +543,37 @@ export interface AdminCreateOrgRequest {
   country: string;
   website?: string;
 }
+
+// ── Scraping sources ───────────────────────────────────────────────────────
+
+export interface ScrapingSource {
+  key: string;
+  name: string;
+  url: string;
+  organization_id: string | null;
+  organization_name: string | null;
+  target_profile: string;
+  country: string;
+  domain_names: string[];
+  interval_minutes: number;
+  llm_fallback_enabled: boolean;
+  enabled: boolean;
+  quality: string;
+  crawl_depth: number;
+  crawl_max_pages: number;
+  crawl_match_patterns: string[];
+  crawl_exclude_patterns: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ScrapingSourceListResponse {
+  count: number;
+  results: ScrapingSource[];
+}
+
+export type ScrapingSourceCreateRequest = Omit<ScrapingSource, 'created_at' | 'updated_at' | 'organization_name'> & { organization_id: string };
+export type ScrapingSourcePatchRequest = Partial<Omit<ScrapingSourceCreateRequest, 'key'>>;
 
 // ── Allowed domains ────────────────────────────────────────────────────────
 

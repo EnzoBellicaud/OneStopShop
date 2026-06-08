@@ -1,3 +1,5 @@
+import json
+import threading
 from collections import defaultdict
 from datetime import timedelta
 from uuid import UUID
@@ -5,11 +7,14 @@ from uuid import UUID
 from django.db.models import Count, Max
 from django.http import JsonResponse
 from django.utils import timezone
-from django.views.decorators.http import require_GET
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_GET, require_http_methods
 
 from content.auth import require_auth
-from content.models import CrawlUrl, ScrapingRun
+from content.models import CrawlUrl, ScrapingRun, User
 from content.views._utils import _WINDOW_DELTAS, _parse_positive_int
+
+ADMIN_PROFILE = User.ProfileType.ADMIN
 
 
 def _run_summary(run: ScrapingRun) -> dict:
@@ -21,6 +26,7 @@ def _run_summary(run: ScrapingRun) -> dict:
         "offers_created": run.offers_created,
         "offers_updated": run.offers_updated,
         "offers_unchanged": run.offers_unchanged,
+        "offers_skipped": run.offers_skipped,
         "urls_neglected": run.urls_neglected or 0,
         "errors_count": run.errors_count,
         "started_at": run.started_at.isoformat() if run.started_at else None,
@@ -175,3 +181,30 @@ def scraping_llm_stats(request):
         "avg_confidence_llm": round(sum(confidence_llm) / len(confidence_llm), 3) if confidence_llm else None,
         "avg_confidence_deterministic": round(sum(confidence_det) / len(confidence_det), 3) if confidence_det else None,
     })
+
+
+@csrf_exempt
+@require_auth(roles=[ADMIN_PROFILE])
+@require_http_methods(["POST"])
+def admin_trigger_crawl(request):
+    try:
+        body = json.loads(request.body) if request.body else {}
+    except (json.JSONDecodeError, ValueError):
+        body = {}
+
+    source_keys = body.get("source_keys") or None
+
+    def _run():
+        from content.scrapers.queue_service import run_crawler
+        try:
+            run_crawler(source_keys=source_keys)
+        except Exception:
+            import logging
+            logging.getLogger(__name__).exception("Background crawl failed")
+
+    threading.Thread(target=_run, daemon=True).start()
+
+    return JsonResponse(
+        {"status": "triggered", "message": "Crawler started in background."},
+        status=202,
+    )

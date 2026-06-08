@@ -1,0 +1,78 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <p class="page-eyebrow">Admin</p>
+      <h1 class="page-title">Offer Types</h1>
+      <p class="page-desc">Define the categories of opportunities the system looks for. Better descriptions and keywords mean more accurate results.</p>
+    </div>
+    <button class="btn-primary" (click)="openNewOfferType()">+ New Type</button>
+  </div>
+
+  @if (offerTypeError && !showOfferTypeModal) {
+    <p class="error-msg">{{ offerTypeError }}</p>
+  }
+
+  @if (loadingOfferTypes) {
+    <p class="loading-msg">Loading…</p>
+  } @else {
+    <div class="table-card">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Keywords</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (ot of offerTypes; track ot.id) {
+            <tr>
+              <td><strong>{{ ot.name }}</strong></td>
+              <td class="desc-cell">{{ ot.description || '—' }}</td>
+              <td class="desc-cell">{{ keywordCount(ot) }}</td>
+              <td class="actions-cell">
+                <button class="btn-sm btn-outline" (click)="openEditOfferType(ot)">Edit</button>
+                <button class="btn-sm btn-danger" (click)="deleteOfferType(ot.id)">Delete</button>
+              </td>
+            </tr>
+          }
+          @if (offerTypes.length === 0) {
+            <tr><td colspan="4" class="empty-row">No offer types configured.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+
+<!-- Edit / Create modal -->
+@if (showOfferTypeModal) {
+  <div class="modal-backdrop" (click)="showOfferTypeModal = false">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <h2>{{ editingOfferTypeId ? 'Edit' : 'New' }} Offer Type</h2>
+      @if (offerTypeError) {
+        <p class="error-msg">{{ offerTypeError }}</p>
+      }
+      <label>Name
+        <input type="text" [(ngModel)]="offerTypeForm.name" class="modal-input" placeholder="e.g. internship" />
+      </label>
+      <label>
+        Description
+        <span class="label-hint">Helps the system understand what this type is about</span>
+        <textarea rows="3" [(ngModel)]="offerTypeForm.description" class="modal-input"
+          placeholder="Describe this offer type in plain language…"></textarea>
+      </label>
+      <label>
+        Keywords
+        <span class="label-hint">Synonyms in any language, comma-separated. The system uses these to recognise relevant pages written in other languages.</span>
+        <textarea rows="3" [(ngModel)]="offerTypeForm.keywords" class="modal-input"
+          placeholder="e.g. examensarbete, stage, tesi di laurea, Praktikum"></textarea>
+      </label>
+      <div class="modal-actions">
+        <button class="btn-outline" (click)="showOfferTypeModal = false">Cancel</button>
+        <button class="btn-primary" (click)="saveOfferType()">Save</button>
+      </div>
+    </div>
+  </div>
+}

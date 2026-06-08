@@ -47,7 +47,7 @@ class ScrapeServiceBehaviorTests(TestCase):
             name="Test Source",
             url="https://example.edu/test-source",
             organization_token="unibz",
-            offer_type="training",
+            organization_id=str(uuid_from_token("unibz")),
             target_profile="student",
             country="IT",
             domain_names=["AI"],
@@ -111,6 +111,7 @@ class ScrapeServiceBehaviorTests(TestCase):
 
         self.assertFalse(Offer.objects.filter(link=self.source.url).exists())
 
+    @patch("content.scrapers.service._classifier")
     @patch("content.scrapers.service.requests.head")
     @patch("content.scrapers.service.get_sources")
     @patch("content.scrapers.service.extract_deterministic")
@@ -121,6 +122,7 @@ class ScrapeServiceBehaviorTests(TestCase):
         mock_extract,
         mock_get_sources,
         mock_head,
+        mock_classifier,
     ):
         orphan_link = "https://example.edu/retired-page"
         self._create_offer(
@@ -154,7 +156,9 @@ class ScrapeServiceBehaviorTests(TestCase):
 
         mock_get.side_effect = _get_side_effect
         mock_head.side_effect = _head_side_effect
+        mock_classifier.classify_with_terms.return_value = ("training", 0.9, ["scholarship"])
         mock_extract.return_value = ExtractedPayload(
+            offer_type="training",
             title="Stable Title",
             summary="Stable Summary",
             details={"source_name": "Test Source", "extra": "stable"},
@@ -169,6 +173,7 @@ class ScrapeServiceBehaviorTests(TestCase):
         self.assertEqual(summary["offers_deleted"], 1)
         self.assertFalse(Offer.objects.filter(link=orphan_link).exists())
 
+    @patch("content.scrapers.service._classifier")
     @patch("content.scrapers.service.get_sources")
     @patch("content.scrapers.service.extract_deterministic")
     @patch("content.scrapers.service.requests.get")
@@ -177,6 +182,7 @@ class ScrapeServiceBehaviorTests(TestCase):
         mock_get,
         mock_extract,
         mock_get_sources,
+        mock_classifier,
     ):
         self._create_offer(
             {
@@ -199,8 +205,11 @@ class ScrapeServiceBehaviorTests(TestCase):
         mock_response = Mock()
         mock_response.text = "<html><h1>ignored</h1></html>"
         mock_response.raise_for_status.return_value = None
+        mock_response.url = self.source.url
         mock_get.return_value = mock_response
+        mock_classifier.classify_with_terms.return_value = ("training", 0.9, ["scholarship"])
         mock_extract.return_value = ExtractedPayload(
+            offer_type="training",
             title="Stable Title",
             summary="Stable Summary",
             details={"source_name": "Test Source", "extra": "stable"},
@@ -220,19 +229,21 @@ class ScrapeServiceBehaviorTests(TestCase):
         self.assertFalse(scraping["stale_candidate"])
         self.assertNotEqual(scraping["last_seen_at"], "2020-01-01T00:00:00+00:00")
 
+    @patch("content.scrapers.service._classifier")
     @patch("content.scrapers.service.get_sources")
+    @patch("content.scrapers.service.extract_deterministic")
     @patch("content.scrapers.service.requests.get")
-    def test_crawl_mode_discovers_and_processes_depth1_links(self, mock_get, mock_get_sources):
+    def test_crawl_mode_discovers_and_processes_depth1_links(self, mock_get, mock_extract, mock_get_sources, mock_classifier):
         crawl_source = SourceDefinition(
             key="test_crawl_source",
             name="Crawler Source",
             url="https://example.edu/root",
             organization_token="unibz",
-            offer_type="training",
+            organization_id=str(uuid_from_token("unibz")),
             target_profile="student",
             country="IT",
             domain_names=["AI"],
-            crawl_enabled=True,
+
             crawl_max_pages=2,
             crawl_match_patterns=["/offers/"],
             crawl_exclude_patterns=["/offers/skip"],
@@ -271,6 +282,16 @@ class ScrapeServiceBehaviorTests(TestCase):
             raise AssertionError(f"Unexpected URL requested during crawl: {url}")
 
         mock_get.side_effect = _request_side_effect
+        mock_classifier.classify.return_value = ('internship', 0.8)
+        mock_classifier.classify_with_terms.return_value = ('internship', 0.8, ['internship'])
+        mock_extract.return_value = ExtractedPayload(
+            offer_type="training",
+            title="Offer",
+            summary="Internship position open for students. Apply now.",
+            details={"source_name": "Crawler Source"},
+            confidence=0.75,
+            method="deterministic",
+        )
 
         summary = run_scrape(source_keys=[crawl_source.key], use_llm_fallback=False)
 
@@ -284,20 +305,21 @@ class ScrapeServiceBehaviorTests(TestCase):
             2,
         )
 
+    @patch("content.scrapers.service._classifier")
     @patch("content.scrapers.service.get_sources")
     @patch("content.scrapers.service.extract_deterministic")
     @patch("content.scrapers.service.requests.get")
-    def test_crawl_mode_neglects_non_offer_pages(self, mock_get, mock_extract, mock_get_sources):
+    def test_crawl_mode_neglects_non_offer_pages(self, mock_get, mock_extract, mock_get_sources, mock_classifier):
         crawl_source = SourceDefinition(
             key="test_crawl_source",
             name="Crawler Source",
             url="https://example.edu/root",
             organization_token="unibz",
-            offer_type="training",
+            organization_id=str(uuid_from_token("unibz")),
             target_profile="student",
             country="IT",
             domain_names=["AI"],
-            crawl_enabled=True,
+
             crawl_max_pages=1,
             crawl_match_patterns=["/offers/"],
         )
@@ -321,7 +343,10 @@ class ScrapeServiceBehaviorTests(TestCase):
             raise AssertionError(f"Unexpected URL requested: {url}")
 
         mock_get.side_effect = _request_side_effect
+        mock_classifier.classify.return_value = (None, 0.01)
+        mock_classifier.classify_with_terms.return_value = (None, 0.01, [])
         mock_extract.return_value = ExtractedPayload(
+            offer_type="training",
             title=crawl_source.name,
             summary=f"Auto-extracted from https://example.edu/offers/a",
             details={"source_name": crawl_source.name},
@@ -345,11 +370,11 @@ class ScrapeServiceBehaviorTests(TestCase):
             name="Crawler Source",
             url="https://example.edu/root",
             organization_token="unibz",
-            offer_type="training",
+            organization_id=str(uuid_from_token("unibz")),
             target_profile="student",
             country="IT",
             domain_names=["AI"],
-            crawl_enabled=True,
+
             crawl_max_pages=1,
             crawl_match_patterns=["/home/"],
         )
@@ -374,6 +399,7 @@ class ScrapeServiceBehaviorTests(TestCase):
 
         mock_get.side_effect = _request_side_effect
         mock_extract.return_value = ExtractedPayload(
+            offer_type="training",
             title="Alumni Network",
             summary="Connect with graduates.",
             details={},
@@ -395,20 +421,21 @@ class ScrapeServiceBehaviorTests(TestCase):
         self.assertEqual(summary["offers_created"], 0)
         self.assertFalse(Offer.objects.filter(link="https://example.edu/home/alumni").exists())
 
+    @patch("content.scrapers.service._classifier")
     @patch("content.scrapers.service.get_sources")
     @patch("content.scrapers.service.extract_deterministic")
     @patch("content.scrapers.service.requests.get")
-    def test_partial_crawl_failures_do_not_flag_existing_offers_stale(self, mock_get, mock_extract, mock_get_sources):
+    def test_partial_crawl_failures_do_not_flag_existing_offers_stale(self, mock_get, mock_extract, mock_get_sources, mock_classifier):
         crawl_source = SourceDefinition(
             key="test_crawl_source",
             name="Crawler Source",
             url="https://example.edu/root",
             organization_token="unibz",
-            offer_type="training",
+            organization_id=str(uuid_from_token("unibz")),
             target_profile="student",
             country="IT",
             domain_names=["AI"],
-            crawl_enabled=True,
+
             crawl_max_pages=3,
             crawl_match_patterns=["/offers/"],
         )
@@ -456,10 +483,13 @@ class ScrapeServiceBehaviorTests(TestCase):
             raise AssertionError(f"Unexpected URL requested: {url}")
 
         mock_get.side_effect = _request_side_effect
+        mock_classifier.classify.return_value = ('internship', 0.8)
+        mock_classifier.classify_with_terms.return_value = ('internship', 0.8, ['internship'])
 
         def _extract_side_effect(html, source):
             return ExtractedPayload(
-                title=f"Offer for {source.url}",
+                offer_type="training",
+            title=f"Offer for {source.url}",
                 summary="Valid summary",
                 details={"source_name": source.name},
                 confidence=0.85,
@@ -483,11 +513,11 @@ class ScrapeServiceBehaviorTests(TestCase):
             name="Crawler Source",
             url="https://example.edu/root",
             organization_token="unibz",
-            offer_type="training",
+            organization_id=str(uuid_from_token("unibz")),
             target_profile="student",
             country="IT",
             domain_names=["AI"],
-            crawl_enabled=True,
+
             crawl_max_pages=1,
             crawl_match_patterns=["/en/"],
         )
@@ -512,6 +542,7 @@ class ScrapeServiceBehaviorTests(TestCase):
 
         mock_get.side_effect = _request_side_effect
         mock_extract.return_value = ExtractedPayload(
+            offer_type="training",
             title="Contact Us",
             summary="Reach us here.",
             details={},
@@ -525,20 +556,21 @@ class ScrapeServiceBehaviorTests(TestCase):
         self.assertEqual(summary["offers_created"], 0)
         self.assertFalse(Offer.objects.filter(link="https://example.edu/en/contact").exists())
 
+    @patch("content.scrapers.service._classifier")
     @patch("content.scrapers.service.get_sources")
     @patch("content.scrapers.service.extract_deterministic")
     @patch("content.scrapers.service.requests.get")
-    def test_crawl_redirect_dedup_creates_single_offer(self, mock_get, mock_extract, mock_get_sources):
+    def test_crawl_redirect_dedup_creates_single_offer(self, mock_get, mock_extract, mock_get_sources, mock_classifier):
         crawl_source = SourceDefinition(
             key="test_crawl_source",
             name="Crawler Source",
             url="https://example.edu/root",
             organization_token="unibz",
-            offer_type="training",
+            organization_id=str(uuid_from_token("unibz")),
             target_profile="student",
             country="IT",
             domain_names=["AI"],
-            crawl_enabled=True,
+
             crawl_max_pages=5,
             crawl_match_patterns=["/en/"],
         )
@@ -575,9 +607,12 @@ class ScrapeServiceBehaviorTests(TestCase):
             raise AssertionError(f"Unexpected URL: {url}")
 
         mock_get.side_effect = _request_side_effect
+        mock_classifier.classify.return_value = ('thesis', 0.7)
+        mock_classifier.classify_with_terms.return_value = ('thesis', 0.7, ['thesis'])
         mock_extract.return_value = ExtractedPayload(
+            offer_type="training",
             title="Master Program",
-            summary="Full description here.",
+            summary="PhD position available. Apply now before the application deadline.",
             details={},
             confidence=0.9,
             method="deterministic",
@@ -631,6 +666,7 @@ class ScrapeServiceBehaviorTests(TestCase):
         mock_get.side_effect = _get_side_effect
         mock_head.side_effect = _head_side_effect
         mock_extract.return_value = ExtractedPayload(
+            offer_type="training",
             title="Test Source",
             summary="Summary.",
             details={},
@@ -687,6 +723,7 @@ class ScrapeServiceBehaviorTests(TestCase):
         mock_get.side_effect = _get_side_effect
         mock_head.side_effect = _head_side_effect
         mock_extract.return_value = ExtractedPayload(
+            offer_type="training",
             title="Test Source",
             summary="Summary.",
             details={},
@@ -746,6 +783,7 @@ class ScrapeServiceBehaviorTests(TestCase):
         mock_get.side_effect = _get_side_effect
         mock_head.side_effect = _head_side_effect
         mock_extract.return_value = ExtractedPayload(
+            offer_type="training",
             title="Test Source",
             summary="Summary.",
             details={},
@@ -833,7 +871,7 @@ class ScraperUtilityTests(TestCase):
             name="Source",
             url="https://example.edu/offers/a",
             organization_token="unibz",
-            offer_type="training",
+            organization_id=str(uuid_from_token("unibz")),
             target_profile="student",
             country="IT",
             domain_names=["AI"],
@@ -843,7 +881,8 @@ class ScraperUtilityTests(TestCase):
                 html="<html><h1>Title</h1></html>",
                 source=source,
                 deterministic_payload=ExtractedPayload(
-                    title="Deterministic",
+                    offer_type="training",
+            title="Deterministic",
                     summary="Deterministic summary",
                     details={},
                     confidence=0.2,

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ opportunity.title }} — Demo University</title>
+  <meta name="description" content="{{ opportunity.description|truncatechars:160 }}">
+</head>
+<body>
+  <header>
+    <h1>{{ opportunity.title }}</h1>
+    <p>Demo University — Student Opportunities</p>
+  </header>
+  <main>
+    <p>{{ opportunity.description }}</p>
+    <ul>
+      <li>Type: {{ opportunity.offer_type }}</li>
+      <li>For: {{ opportunity.target_profile }}</li>
+      <li>Institution: Demo University</li>
+    </ul>
+  </main>
+</body>
+</html>

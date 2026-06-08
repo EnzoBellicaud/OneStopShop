@@ -122,6 +122,48 @@
 
     <p class="hint" *ngIf="loadingRuns">Loading runs…</p>
 
+    <!-- Scoring legend — static, shown regardless of selected run -->
+    <details class="scoring-legend" open>
+      <summary>How are scores calculated? &#9432;</summary>
+      <div class="legend-grid">
+        <section>
+          <h4>Confidence Score (0–1)</h4>
+          <p>Measures how much structured data was extracted from the page.</p>
+          <table class="legend-table">
+            <tr><th>Signal</th><th>Deterministic</th><th>LLM</th></tr>
+            <tr><td>Base</td><td>+0.25</td><td rowspan="5" class="llm-cell">Returned directly<br>by the model<br>(0.0 – 1.0)</td></tr>
+            <tr><td>&lt;h1&gt; found</td><td>+0.30</td></tr>
+            <tr><td>Meta description</td><td>+0.20</td></tr>
+            <tr><td>JSON-LD data</td><td>+0.10</td></tr>
+            <tr><td>Content &gt; 150 chars</td><td>+0.15</td></tr>
+            <tr><td><strong>Max</strong></td><td><strong>1.00</strong></td><td></td></tr>
+          </table>
+          <p class="legend-note">LLM assesses page relevance and extracts offer data when enabled. If LLM is disabled, TF-IDF gate filters and classifies instead.</p>
+        </section>
+        <section>
+          <h4>TF-IDF Gate Score (0–1)</h4>
+          <p>Cosine similarity between the page text and the OfferType keyword corpus. Filters irrelevant pages before classification.</p>
+          <table class="legend-table">
+            <tr><th>Score range</th><th>Result</th></tr>
+            <tr><td>&lt; 0.05</td><td><span class="chip-inline chip-fail">neglected</span> — page discarded, too little academic content</td></tr>
+            <tr><td>0.05 – 0.30</td><td><span class="chip-inline chip-warn">skipped</span> — passes gate but no offer type assigned</td></tr>
+            <tr><td>&ge; 0.30</td><td><span class="chip-inline chip-ok">classified</span> — offer type determined, offer created/updated</td></tr>
+          </table>
+          <p class="legend-note">Gate score appears in the <strong>Note</strong> column for neglected and skipped URLs.</p>
+        </section>
+        <section>
+          <h4>Action Types</h4>
+          <table class="legend-table">
+            <tr><td><span class="chip-inline chip-ok">created</span></td><td>New offer added to OneStopShop</td></tr>
+            <tr><td><span class="chip-inline chip-ok">updated</span></td><td>Existing offer content changed</td></tr>
+            <tr><td><span class="chip-inline chip-ok">unchanged</span></td><td>Offer exists, no changes detected</td></tr>
+            <tr><td><span class="chip-inline chip-warn">skipped</span></td><td>No offer type could be determined</td></tr>
+            <tr><td><span class="chip-inline chip-fail">failed</span></td><td>Fetch error, missing fields, or exception</td></tr>
+          </table>
+        </section>
+      </div>
+    </details>
+
     <div class="runs-layout" *ngIf="!loadingRuns">
       <!-- Run list -->
       <aside class="run-list">
@@ -137,7 +179,7 @@
           </div>
           <h3>{{ run.source_key }}</h3>
           <p class="counters">
-            {{ run.offers_created }} new · {{ run.offers_updated }} updated · {{ run.urls_neglected }} skipped · {{ run.errors_count }} errors
+            {{ run.offers_created }} new · {{ run.offers_updated }} updated · {{ run.offers_skipped }} skipped · {{ run.errors_count }} errors
           </p>
         </article>
         <p class="hint" *ngIf="filteredRuns.length === 0">No runs match.</p>
@@ -158,7 +200,7 @@
             <div><span>Created</span><strong>{{ run.offers_created }}</strong></div>
             <div><span>Updated</span><strong>{{ run.offers_updated }}</strong></div>
             <div><span>Unchanged</span><strong>{{ run.offers_unchanged }}</strong></div>
-            <div><span>Skipped</span><strong>{{ run.urls_neglected }}</strong></div>
+            <div><span>Skipped</span><strong>{{ run.offers_skipped }}</strong></div>
             <div><span>Errors</span><strong [class.red]="run.errors_count > 0">{{ run.errors_count }}</strong></div>
           </div>
 
@@ -208,7 +250,7 @@
                         {{ r.failed ? 'error' : r.neglected ? 'skipped' : r.action ?? 'ok' }}
                       </span>
                     </td>
-                    <td class="muted small">{{ r.reason ?? r.message ?? '' }}</td>
+                    <td class="muted small">{{ r.message ?? r.reason ?? '' }}</td>
                   </tr>
                   <tr *ngIf="expandedRawRows.has(r.url)" class="raw-row">
                     <td colspan="6">
@@ -245,6 +287,9 @@
           [class.active]="sourceSort === opt.id"
           (click)="sourceSort = opt.id">{{ opt.label }}</button>
       </div>
+      <button class="btn btn-primary" (click)="triggerCrawl()" [disabled]="triggeringCrawl()">
+        {{ triggeringCrawl() ? 'Triggering…' : 'Trigger Crawl Now' }}
+      </button>
     </div>
 
     <p class="hint" *ngIf="loadingSources">Loading sources…</p>
@@ -316,5 +361,6 @@
       </div>
     </ng-container>
   </div>
+
 
 </section>

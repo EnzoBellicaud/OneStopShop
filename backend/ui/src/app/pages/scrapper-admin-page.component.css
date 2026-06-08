@@ -479,3 +479,203 @@ header h1 {
   .runs-layout { grid-template-columns: 1fr; }
   .run-list { max-height: none; }
 }
+
+/* -- Manage Sources tab ------------------------------------- */
+.toolbar-actions { display: flex; gap: 0.5rem; }
+.center { text-align: center; }
+.mono { font-family: 'Courier New', monospace; }
+.danger { color: #a02f2f; }
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
+/* -- Scoring legend ------------------------------------------ */
+.scoring-legend {
+  border: 1px solid var(--border, #e4e4e0);
+  border-radius: 10px;
+  padding: 0.6rem 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.82rem;
+  background: var(--surface, #fafaf8);
+}
+
+.scoring-legend summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: #555;
+  user-select: none;
+  padding: 0.2rem 0;
+}
+
+.scoring-legend summary:hover { color: #222; }
+
+.legend-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem 1.5rem;
+  margin-top: 0.75rem;
+}
+
+.legend-grid section h4 {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #444;
+  margin: 0 0 0.35rem;
+}
+
+.legend-grid section p {
+  color: #666;
+  margin: 0 0 0.5rem;
+  line-height: 1.5;
+}
+
+.legend-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.78rem;
+}
+
+.legend-table th {
+  text-align: left;
+  padding: 0.25rem 0.4rem;
+  border-bottom: 1px solid var(--border, #e4e4e0);
+  color: #888;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.68rem;
+}
+
+.legend-table td {
+  padding: 0.3rem 0.4rem;
+  border-bottom: 1px solid #f4f4f2;
+  vertical-align: middle;
+  color: #444;
+}
+
+.legend-table tr:last-child td { border-bottom: none; }
+
+.llm-cell {
+  text-align: center;
+  color: #555;
+  font-style: italic;
+  font-size: 0.75rem;
+  padding: 0.3rem 0.6rem;
+  background: #f9f8f5;
+}
+
+.legend-note {
+  font-size: 0.75rem;
+  color: #888;
+  margin-top: 0.4rem;
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--ink, #111110);
+}
+
+.form-field.full { grid-column: 1 / -1; }
+
+.form-field.toggle-row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.form-field input[type="text"],
+.form-field input[type="url"],
+.form-field input[type="number"],
+.form-field select {
+  border: 1px solid var(--border, #e4e4e0);
+  border-radius: var(--r, 6px);
+  padding: 0.35rem 0.5rem;
+  font-size: 0.82rem;
+  outline: none;
+}
+
+.form-field input:focus,
+.form-field select:focus {
+  border-color: var(--accent-mid, #2b7cb8);
+}
+
+.crawl-group {
+  border: 1px solid var(--border, #e4e4e0);
+  border-radius: var(--r, 6px);
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.crawl-group legend {
+  padding: 0 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #6a7e8f;
+}
+
+.modal-lg { max-width: 700px; width: 95vw; }
+
+/* ── Classification mode radio group ─────────────────────── */
+.radio-group {
+  grid-column: 1 / -1;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--ink, #111110);
+}
+
+.tooltip-anchor {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #c8d8e8;
+  color: #1a4d73;
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: help;
+  line-height: 1;
+}
+
+.radio-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding-left: 0.1rem;
+}
+
+.radio-option {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  font-weight: 400;
+  color: var(--ink, #111110);
+  cursor: pointer;
+}
+
+.radio-option input[type="radio"] { cursor: pointer; }
+
+.radio-hint {
+  font-size: 0.74rem;
+  color: #6a7e8f;
+  font-weight: 400;
+}

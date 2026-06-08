@@ -13,6 +13,10 @@
             }
           </a>
           <a routerLink="/admin/domains" routerLinkActive="active">Allowed Domains</a>
+          <a routerLink="/admin/offers" routerLinkActive="active">Offer Types</a>
+          <a routerLink="/admin/mock-site" routerLinkActive="active">Mock Site</a>
+          <a routerLink="/admin/organizations" routerLinkActive="active">Organizations</a>
+          <a routerLink="/admin/sources" routerLinkActive="active">Sources</a>
           <a routerLink="/admin/scrapper" routerLinkActive="active">Scrapper Tracking</a>
           <a routerLink="/admin/import" routerLinkActive="active">Bulk Import</a>
         }
@@ -20,6 +24,7 @@
       <div class="user-section">
         <a [href]="publicSiteUrl" target="_blank" class="cross-portal-link" rel="noopener">← Public Site</a>
         <span class="username">{{ auth.currentUser?.username }}</span>
+        <button class="change-pw-btn" (click)="showChangePw = true">Change Password</button>
         <button class="logout-btn" (click)="logout()">Logout</button>
       </div>
     </aside>
@@ -29,4 +34,42 @@
   </div>
 } @else {
   <router-outlet></router-outlet>
+}
+
+@if (showChangePw) {
+  <div class="modal-backdrop" (click)="closeChangePw()">
+    <div class="modal modal-sm" (click)="$event.stopPropagation()">
+      <h2>Change Password</h2>
+      @if (changePwSuccess()) {
+        <p class="success-msg">Password changed successfully.</p>
+        <div class="modal-actions">
+          <button class="btn-primary" (click)="closeChangePw()">Close</button>
+        </div>
+      } @else {
+        @if (changePwError()) {
+          <div class="error-banner">{{ changePwError() }}</div>
+        }
+        <div class="change-pw-fields">
+          <label class="form-field">
+            Current password
+            <input type="password" [(ngModel)]="changePwForm.old_password" autocomplete="current-password" />
+          </label>
+          <label class="form-field">
+            New password
+            <input type="password" [(ngModel)]="changePwForm.new_password" autocomplete="new-password" />
+          </label>
+          <label class="form-field">
+            Confirm new password
+            <input type="password" [(ngModel)]="changePwForm.confirm" autocomplete="new-password" />
+          </label>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-ghost" (click)="closeChangePw()">Cancel</button>
+          <button class="btn-primary" (click)="submitChangePassword()" [disabled]="submittingPw()">
+            {{ submittingPw() ? 'Saving…' : 'Change Password' }}
+          </button>
+        </div>
+      }
+    </div>
+  </div>
 }

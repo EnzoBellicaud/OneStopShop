@@ -18,6 +18,7 @@ class OfferType(models.Model):
 	id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 	name = models.CharField(max_length=100, unique=True)
 	description = models.TextField(blank=True)
+	keywords = models.TextField(blank=True, default="")
 
 	class Meta:
 		db_table = "offer_type"
@@ -328,6 +329,7 @@ class ScrapingRun(TimeStampedModel):
 	offers_created = models.PositiveIntegerField(default=0)
 	offers_updated = models.PositiveIntegerField(default=0)
 	offers_unchanged = models.PositiveIntegerField(default=0)
+	offers_skipped = models.PositiveIntegerField(default=0)
 	offers_flagged_stale = models.PositiveIntegerField(default=0)
 	offers_deleted = models.PositiveIntegerField(default=0)
 	urls_neglected = models.PositiveIntegerField(default=0)
@@ -549,3 +551,48 @@ class ForumAnswer(TimeStampedModel):
 		indexes = [
 			models.Index(fields=["question", "created_at"], name="idx_forum_answer_question"),
 		]
+
+
+class ScrapingSource(models.Model):
+	key                    = models.CharField(max_length=100, primary_key=True)
+	name                   = models.CharField(max_length=255)
+	url                    = models.URLField(max_length=500)
+	organization_token     = models.CharField(max_length=100)
+	organization           = models.ForeignKey(
+		"Organization",
+		null=True,
+		blank=True,
+		on_delete=models.SET_NULL,
+		related_name="scraping_sources",
+	)
+	target_profile         = models.CharField(max_length=100)
+	country                = models.CharField(max_length=10)
+	domain_names           = models.JSONField(default=list)
+	interval_minutes       = models.IntegerField(default=360)
+	llm_fallback_enabled   = models.BooleanField(default=True)
+	enabled                = models.BooleanField(default=True)
+	quality                = models.CharField(max_length=50, default="real")
+	crawl_depth            = models.IntegerField(default=1)
+	crawl_max_pages        = models.IntegerField(default=25)
+	crawl_match_patterns   = models.JSONField(default=list)
+	crawl_exclude_patterns = models.JSONField(default=list)
+	created_at             = models.DateTimeField(auto_now_add=True)
+	updated_at             = models.DateTimeField(auto_now=True)
+
+	class Meta:
+		db_table = "content_scrapingsource"
+		ordering = ["key"]
+
+
+class MockOpportunity(models.Model):
+	id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+	title = models.CharField(max_length=200)
+	description = models.TextField()
+	offer_type = models.CharField(max_length=50, default="internship")
+	target_profile = models.CharField(max_length=50, default="student")
+	created_at = models.DateTimeField(auto_now_add=True)
+
+	class Meta:
+		db_table = "content_mockopportunity"
+		ordering = ["-created_at"]
+		verbose_name_plural = "mock opportunities"

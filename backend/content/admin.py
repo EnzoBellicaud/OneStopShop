@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from content.models import Offer, ScrapingJob, ScrapingRun
+from content.models import MockOpportunity, Offer, ScrapingJob, ScrapingRun
 
 
 @admin.register(Offer)
@@ -39,3 +39,9 @@ class ScrapingRunAdmin(admin.ModelAdmin):
 	list_filter = ("status", "source_key")
 	search_fields = ("source_key",)
 	readonly_fields = ("created_at", "updated_at", "started_at", "completed_at")
+
+
+@admin.register(MockOpportunity)
+class MockOpportunityAdmin(admin.ModelAdmin):
+	list_display = ("title", "offer_type", "target_profile", "created_at")
+	search_fields = ("title",)

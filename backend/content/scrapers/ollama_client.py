@@ -192,14 +192,14 @@ class OllamaClient:
             raw_offer_type = parsed.get("offer_type")
             offer_type = (
                 raw_offer_type
-                if isinstance(raw_offer_type, str) and raw_offer_type in OllamaClient._VALID_OFFER_TYPES
+                if isinstance(raw_offer_type, str) and raw_offer_type in OllamaClient._valid_offer_type_names()
                 else None
             )
 
             self.last_switch_count = index
             LOGGER.info(
                 "LLM assess success — source=%s model=%s is_offer=%s offer_type=%s conf=%.2f reason=%r",
-                source.key, model, is_relevant, offer_type or "(source default)", confidence, reason[:80] if reason else "",
+                source.key, model, is_relevant, offer_type or "(will classify)", confidence, reason[:80] if reason else "",
             )
             llm_details = {
                 **deterministic_payload.details,
@@ -242,11 +242,10 @@ class OllamaClient:
             f"HTML:\n{trimmed_html}"
         )
 
-    _VALID_OFFER_TYPES = frozenset({
-        "training", "thesis", "internship", "research_group", "funding_partner",
-        "co_creation", "service", "hackathon", "challenge", "lab", "testbed",
-        "project_opportunity",
-    })
+    @staticmethod
+    def _valid_offer_type_names() -> frozenset[str]:
+        from content.scrapers.offer_type_catalog import get_offer_type_catalog
+        return frozenset(t["name"] for t in get_offer_type_catalog())
 
     @staticmethod
     def _build_relevance_prompt(
@@ -254,26 +253,22 @@ class OllamaClient:
         source: SourceDefinition,
         deterministic_payload: ExtractedPayload,
     ) -> str:
+        from content.scrapers.offer_type_catalog import get_offer_type_catalog
+        catalog = get_offer_type_catalog()
+        type_lines = "\n".join(
+            f"  {t['name']} — {t['description'] or t['name']}"
+            for t in catalog
+        )
+        valid_keys = ", ".join(t["name"] for t in catalog)
         trimmed_html = html[:14000]
         return (
             "You are evaluating a university web page for a One Stop Shop academic offer catalog. "
             "Decide if this page describes a real opportunity, and classify its type precisely:\n"
-            "  training — degree/course/exchange programme awarding ECTS or formal qualification\n"
-            "  thesis — supervised PhD/licentiate/dissertation project\n"
-            "  internship — work placement at an external org; practical industry experience\n"
-            "  research_group — profile of a research group, lab, or specialisation\n"
-            "  funding_partner — funding call, grant, or financial partnership offer\n"
-            "  co_creation — joint R&D or innovation project with external partners\n"
-            "  service — IP/patent/TTO/advisory/facility access for companies or researchers\n"
-            "  hackathon — time-limited collaborative build event\n"
-            "  challenge — open problem-solving competition\n"
-            "  lab — access to physical/virtual laboratory or equipment\n"
-            "  testbed — controlled environment for industrial product validation\n"
-            "  project_opportunity — open invitation to join a defined research/innovation project\n"
+            f"{type_lines}\n"
             "Mark is_offer=true even for service or infrastructure pages if they describe something a company or researcher could actually use. "
             "Navigation pages, contact pages, alumni pages, donation pages, and generic institutional info are NOT offers. "
             "Respond with strict JSON only, keys: "
-            "is_offer (bool), offer_type (one of the exact strings above, omit if is_offer=false), "
+            f"is_offer (bool), offer_type (one of: {valid_keys} — omit if is_offer=false), "
             "reason (string, required when is_offer is false), "
             "title (string), summary (string), confidence (0..1). "
             f"Source key: {source.key}. "
