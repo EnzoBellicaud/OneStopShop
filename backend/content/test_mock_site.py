@@ -2,7 +2,7 @@
 import json
 import uuid
 
-from django.test import Client, TestCase, override_settings
+from django.test import Client, TestCase
 
 from content.auth import hash_password
 from content.models import MockOpportunity, User
@@ -142,7 +142,6 @@ class MockWebsiteDetailViewTestCase(TestCase):
 # Admin CRUD API — list / create
 # ─────────────────────────────────────────────────────────────────────────────
 
-@override_settings(RATELIMIT_ENABLE=False)
 class AdminMockListCreateTestCase(TestCase):
     """Tests for GET/POST /api/admin/mock-opportunities."""
 
@@ -269,7 +268,6 @@ class AdminMockListCreateTestCase(TestCase):
 # Admin CRUD API — delete
 # ─────────────────────────────────────────────────────────────────────────────
 
-@override_settings(RATELIMIT_ENABLE=False)
 class AdminMockDeleteTestCase(TestCase):
     """Tests for DELETE /api/admin/mock-opportunities/<uuid>."""
 

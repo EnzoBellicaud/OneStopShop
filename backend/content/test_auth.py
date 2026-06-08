@@ -1,12 +1,11 @@
 """Tests for authentication endpoints."""
 import json
-from django.test import TestCase, Client, override_settings
+from django.test import TestCase, Client
 from django.urls import reverse
 from content.models import User
 from content.auth import hash_password, verify_password
 
 
-@override_settings(RATELIMIT_ENABLE=False)
 class AuthenticationTestCase(TestCase):
 	"""Test cases for authentication functionality."""
 

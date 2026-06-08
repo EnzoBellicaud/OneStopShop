@@ -12,7 +12,6 @@ from django.db import transaction
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
-from django_ratelimit.decorators import ratelimit
 
 from content.emails import send_registration_pending_email
 from content.models import AllowedDomain, Organization, User, UserOrganization
@@ -126,7 +125,6 @@ def _user_dict(user: User) -> dict:
 
 
 @csrf_exempt
-@ratelimit(key='ip', rate='5/h', method='POST')
 @require_http_methods(["POST"])
 def register(request):
 	try:
@@ -235,7 +233,6 @@ def register(request):
 
 
 @csrf_exempt
-@ratelimit(key='ip', rate='10/h', method='POST')
 @require_http_methods(["POST"])
 def login(request):
 	try:
@@ -272,7 +269,6 @@ def login(request):
 
 
 @csrf_exempt
-@ratelimit(key='ip', rate='20/h', method='POST')
 @require_http_methods(["POST"])
 def refresh_token(request):
 	try:
@@ -334,7 +330,6 @@ def update_user_profile(request):
 
 @csrf_exempt
 @require_auth()
-@ratelimit(key='ip', rate='5/h', method='POST')
 @require_http_methods(["POST"])
 def change_password(request):
 	try:

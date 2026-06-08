@@ -1,7 +1,7 @@
 """Tests for admin scraping-source CRUD endpoints."""
 import json
 import uuid
-from django.test import TestCase, Client, override_settings
+from django.test import TestCase, Client
 from content.models import Organization, ScrapingSource, User
 from content.auth import hash_password
 
@@ -78,7 +78,6 @@ def _source_payload(**overrides):
     return base
 
 
-@override_settings(RATELIMIT_ENABLE=False)
 class SourcesListCreateTestCase(TestCase):
     """Tests for GET /api/admin/sources and POST /api/admin/sources."""
 
@@ -212,7 +211,6 @@ class SourcesListCreateTestCase(TestCase):
         self.assertNotIn("crawl_enabled", data)
 
 
-@override_settings(RATELIMIT_ENABLE=False)
 class SourcesDetailTestCase(TestCase):
     """Tests for GET/PATCH/DELETE /api/admin/sources/<key>."""
 
@@ -360,7 +358,6 @@ class SourcesDetailTestCase(TestCase):
         self.assertEqual(resp.status_code, 403)
 
 
-@override_settings(RATELIMIT_ENABLE=False)
 class GetSourcesFromDBTestCase(TestCase):
     """Tests for get_sources() DB-backed implementation."""
 
