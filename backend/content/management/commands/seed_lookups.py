@@ -257,29 +257,37 @@ class Command(BaseCommand):
                 "token": "user_ingestion_bot",
                 "username": "ingestion_bot",
                 "email": "ingestion-bot@oss.local",
+                "profile": User.ProfileType.STUDENT,
             },
             {
                 "token": "user_admin_unibz",
                 "username": "admin_unibz",
                 "email": "admin-unibz@oss.local",
                 "org_token": "unibz",
+                "profile": User.ProfileType.ADMIN,
             },
             {
                 "token": "user_admin_mdu",
                 "username": "admin_mdu",
                 "email": "admin-mdu@oss.local",
                 "org_token": "mdu",
+                "profile": User.ProfileType.ADMIN,
             },
         ]
 
         admin_role = UserRole.objects.get(name="admin")
         for row in users:
+            profile = row["profile"]
             user, _ = User.objects.update_or_create(
                 id=uuid_from_token(row["token"]),
                 defaults={
                     "username": row["username"],
                     "email": row["email"],
                     "password_hash": "seeded-not-for-auth",
+                    "profile": profile,
+                    "is_active": True,
+                    "approval_status": User.ApprovalStatus.APPROVED,
+                    "email_verified": profile == User.ProfileType.ADMIN,
                 },
             )
 
