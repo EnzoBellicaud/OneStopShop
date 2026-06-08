@@ -252,42 +252,48 @@ class Command(BaseCommand):
             },
         )
 
+        # Single shared password for all loginable seeded users
+        SEED_PASSWORD = "passw0rd"
+
         users = [
             {
                 "token": "user_ingestion_bot",
                 "username": "ingestion_bot",
                 "email": "ingestion-bot@oss.local",
                 "profile": User.ProfileType.STUDENT,
+                "loginable": False,
             },
             {
                 "token": "user_admin_unibz",
                 "username": "admin_unibz",
                 "email": "admin-unibz@oss.local",
                 "org_token": "unibz",
-                "profile": User.ProfileType.ADMIN,
+                "profile": User.ProfileType.TEACHER,
+                "loginable": True,
             },
             {
                 "token": "user_admin_mdu",
                 "username": "admin_mdu",
                 "email": "admin-mdu@oss.local",
                 "org_token": "mdu",
-                "profile": User.ProfileType.ADMIN,
+                "profile": User.ProfileType.TEACHER,
+                "loginable": True,
             },
         ]
 
         admin_role = UserRole.objects.get(name="admin")
         for row in users:
-            profile = row["profile"]
+            loginable = row.get("loginable", False)
             user, _ = User.objects.update_or_create(
                 id=uuid_from_token(row["token"]),
                 defaults={
                     "username": row["username"],
                     "email": row["email"],
-                    "password_hash": "seeded-not-for-auth",
-                    "profile": profile,
-                    "is_active": True,
-                    "approval_status": User.ApprovalStatus.APPROVED,
-                    "email_verified": profile == User.ProfileType.ADMIN,
+                    "password_hash": hash_password(SEED_PASSWORD) if loginable else "seeded-not-for-auth",
+                    "profile": row["profile"],
+                    "is_active": loginable,
+                    "approval_status": User.ApprovalStatus.APPROVED if loginable else User.ApprovalStatus.PENDING,
+                    "email_verified": loginable,
                 },
             )
 
