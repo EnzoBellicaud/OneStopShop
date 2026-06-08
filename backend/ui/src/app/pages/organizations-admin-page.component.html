@@ -1,0 +1,98 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <p class="page-eyebrow">Admin</p>
+      <h1 class="page-title">Organizations</h1>
+      <p class="page-desc">Manage universities and partner organizations.</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn-primary" (click)="openAdd()">+ Add Organization</button>
+    </div>
+  </div>
+
+  @if (error && !showModal) {
+    <p class="error-msg">{{ error }}</p>
+  }
+
+  @if (loading) {
+    <p class="loading-msg">Loading…</p>
+  } @else {
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Country</th>
+          <th>Website</th>
+          <th class="num">Offers</th>
+          <th class="num">Sources</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (org of organizations; track org.id) {
+          <tr>
+            <td>{{ org.name }}</td>
+            <td><span class="chip">{{ org.type }}</span></td>
+            <td>{{ org.country }}</td>
+            <td>
+              @if (org.website) {
+                <a [href]="org.website" target="_blank" rel="noopener" class="link-ext">{{ org.website }}</a>
+              } @else {
+                <span class="muted">—</span>
+              }
+            </td>
+            <td class="num">{{ org.offers_count }}</td>
+            <td class="num">{{ org.sources_count }}</td>
+            <td class="actions-cell">
+              <button class="btn-outline btn-sm" (click)="openEdit(org)">Edit</button>
+              <button class="btn-danger btn-sm" (click)="deleteOrg(org)"
+                [disabled]="deletingId === org.id">
+                {{ deletingId === org.id ? '…' : 'Delete' }}
+              </button>
+            </td>
+          </tr>
+        } @empty {
+          <tr><td colspan="7" class="empty-row">No organizations found.</td></tr>
+        }
+      </tbody>
+    </table>
+  }
+</div>
+
+@if (showModal) {
+  <div class="modal-backdrop" (click)="closeModal()"></div>
+  <div class="modal">
+    <div class="modal-header">
+      <h2>{{ editingOrg ? 'Edit Organization' : 'Add Organization' }}</h2>
+      <button class="close-btn" (click)="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      @if (error) {
+        <p class="error-msg">{{ error }}</p>
+      }
+      <label>Name <span class="required">*</span>
+        <input type="text" [(ngModel)]="form.name" placeholder="Free University of Bozen-Bolzano" />
+      </label>
+      <label>Type <span class="required">*</span>
+        <select [(ngModel)]="form.type">
+          <option value="university">University</option>
+          <option value="company">Company</option>
+          <option value="other">Other</option>
+        </select>
+      </label>
+      <label>Country (ISO 2-letter) <span class="required">*</span>
+        <input type="text" [(ngModel)]="form.country" maxlength="2" placeholder="IT" style="text-transform:uppercase" />
+      </label>
+      <label>Website
+        <input type="url" [(ngModel)]="form.website" placeholder="https://www.example.edu/" />
+      </label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-outline" (click)="closeModal()" [disabled]="saving">Cancel</button>
+      <button class="btn-primary" (click)="submit()" [disabled]="saving">
+        {{ saving ? 'Saving…' : (editingOrg ? 'Save Changes' : 'Add Organization') }}
+      </button>
+    </div>
+  </div>
+}

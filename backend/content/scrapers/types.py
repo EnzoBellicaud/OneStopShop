@@ -10,6 +10,7 @@ class SourceDefinition:
     target_profile: str
     country: str
     domain_names: list[str]
+    organization_id: str | None = None
     interval_minutes: int = 360
     llm_fallback_enabled: bool = True
     enabled: bool = True

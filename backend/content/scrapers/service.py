@@ -46,18 +46,15 @@ class ScrapeService:
         source_keys: list[str] | None = None,
         dry_run: bool = False,
         use_llm_fallback: bool = True,
-        crawl: bool = False,
     ):
         self.source_keys = source_keys
         self.dry_run = dry_run
         self.use_llm_fallback = use_llm_fallback
-        self.crawl = crawl
         self.request_timeout_seconds = int(os.getenv("SCRAPER_TIMEOUT_SECONDS", "30"))
         self.user_agent = os.getenv(
             "SCRAPER_USER_AGENT",
             "SUNRISE-OSS-Scraper/1.0 (+https://github.com/EnzoBellicaud/OneStopShop)",
         )
-        self.llm_threshold = float(os.getenv("SCRAPER_LLM_FALLBACK_THRESHOLD", "0.60"))
         self.ollama_client = OllamaClient()
 
     def run(self) -> dict:
@@ -121,6 +118,7 @@ class ScrapeService:
                 run.offers_created = result["offers_created"]
                 run.offers_updated = result["offers_updated"]
                 run.offers_unchanged = result["offers_unchanged"]
+                run.offers_skipped = result["offers_skipped"]
                 run.llm_calls_count = result["llm_calls"]
                 run.urls_neglected = result["urls_neglected"]
                 run.log = result["logs"]
@@ -255,25 +253,25 @@ class ScrapeService:
         return without_scheme.split("/", 1)[0]
 
     def _process_source(self, source: SourceDefinition, source_type: SourceType, ingestion_user: User) -> dict:
-        use_crawl = self.crawl or source.crawl_enabled
+        try:
+            page_urls, links_skipped = self._discover_urls_bfs(source)
+        except requests.exceptions.HTTPError:
+            raise
+        except requests.RequestException as exc:
+            raise requests.RequestException(
+                f"Seed URL crawl failed for {source.key}: {exc}"
+            ) from exc
 
-        if use_crawl:
-            try:
-                page_urls, links_skipped = self._discover_urls_bfs(source)
-            except requests.RequestException as exc:
-                raise requests.RequestException(
-                    f"Seed URL crawl failed for {source.key}: {exc}"
-                ) from exc
-        else:
+        if not page_urls:
             page_urls = [source.url]
-            links_skipped = 0
 
-        LOGGER.info("[%s] mode=%s urls=%d", source.key, "crawl" if use_crawl else "direct", len(page_urls))
+        LOGGER.info("[%s] mode=crawl urls=%d", source.key, len(page_urls))
 
         offers_processed = 0
         offers_created = 0
         offers_updated = 0
         offers_unchanged = 0
+        offers_skipped = 0
         llm_calls = 0
         urls_neglected = 0
         model_switches = 0
@@ -282,14 +280,12 @@ class ScrapeService:
         logs: list[dict] = []
         seen_keys: set[tuple[str, str, str]] = set()
         seen_canonical_urls: set[str] = set()
-        skip_links: set[str] = set(page_urls if use_crawl else [source.url])
+        skip_links: set[str] = set(page_urls)
 
         for page_url in page_urls:
             try:
                 html, canonical_url = self._fetch_html_url(page_url)
             except requests.RequestException as exc:
-                if not use_crawl:
-                    raise
                 page_errors += 1
                 LOGGER.warning("[%s] Fetch error — %s: %s", source.key, page_url, exc)
                 logs.append(
@@ -305,18 +301,17 @@ class ScrapeService:
                 )
                 continue
 
-            if use_crawl and canonical_url in seen_canonical_urls:
+            if canonical_url in seen_canonical_urls:
                 LOGGER.debug("[%s] SKIP %s — redirects to already-seen %s", source.key, page_url, canonical_url)
                 continue
-            if use_crawl:
-                seen_canonical_urls.add(canonical_url)
+            seen_canonical_urls.add(canonical_url)
 
-            effective_url = canonical_url if use_crawl else page_url
+            effective_url = canonical_url
             page_source = replace(source, url=effective_url)
 
             extracted = extract_deterministic(html, page_source)
 
-            if use_crawl and is_generic_page(extracted.title):
+            if is_generic_page(extracted.title):
                 urls_neglected += 1
                 LOGGER.info("[%s] NEGLECT %s — generic_page_title (%r)", source.key, page_url, extracted.title)
                 logs.append(
@@ -332,75 +327,62 @@ class ScrapeService:
                 )
                 continue
 
-            if use_crawl:
-                # Crawl mode: LLM is the primary relevance + extraction judge.
-                if self.use_llm_fallback and source.llm_fallback_enabled:
-                    LOGGER.debug("[%s] LLM assessing — %s", source.key, page_url)
-                    is_relevant, llm_payload, reason = self.ollama_client.assess_and_extract(
-                        html, page_source, extracted
+            gate_score_val = 0.0
+            gate_terms: list[str] = []
+            terms_str = ""
+
+            # LLM is the primary relevance + extraction judge.
+            if self.use_llm_fallback and source.llm_fallback_enabled:
+                LOGGER.debug("[%s] LLM assessing — %s", source.key, page_url)
+                is_relevant, llm_payload, reason = self.ollama_client.assess_and_extract(
+                    html, page_source, extracted
+                )
+                logs.extend(self.ollama_client.flush_cooldown_events())
+                model_switches += self.ollama_client.last_switch_count
+                if llm_payload is not None:
+                    llm_calls += 1
+                if not is_relevant:
+                    urls_neglected += 1
+                    LOGGER.info("[%s] NEGLECT %s — %s", source.key, page_url, reason or "non_relevant_page")
+                    logs.append(
+                        {
+                            "ts": _ts(),
+                            "event": "url_failed",
+                            "level": "info",
+                            "source_key": source.key,
+                            "url": page_url,
+                            "reason": reason or "non_relevant_page",
+                        }
                     )
-                    logs.extend(self.ollama_client.flush_cooldown_events())
-                    model_switches += self.ollama_client.last_switch_count
-                    if llm_payload is not None:
-                        llm_calls += 1
-                    if not is_relevant:
-                        urls_neglected += 1
-                        LOGGER.info("[%s] NEGLECT %s — %s", source.key, page_url, reason or "non_relevant_page")
-                        logs.append(
-                            {
-                                "ts": _ts(),
-                                "event": "url_failed",
-                                "level": "info",
-                                "source_key": source.key,
-                                "url": page_url,
-                                "reason": reason or "non_relevant_page",
-                            }
-                        )
-                        continue
-                    if llm_payload is not None and llm_payload.confidence >= extracted.confidence:
-                        extracted = llm_payload
-                else:
-                    # LLM disabled: TF-IDF relevance gate.
-                    _meta_keys = {"source_url", "source_name", "json_ld_detected"}
-                    gate_text = f"{extracted.title} {extracted.summary} {' '.join(str(v) for k, v in extracted.details.items() if k not in _meta_keys)}"
-                    gate_type, gate_score_val, gate_terms = _classifier.classify_with_terms(gate_text)
-                    if gate_score_val < _GATE_THRESHOLD:
-                        urls_neglected += 1
-                        LOGGER.debug(
-                            "[%s] NEGLECT %s — gate_score=%.3f below %.2f matched=%s",
-                            source.key, page_url, gate_score_val, _GATE_THRESHOLD, gate_terms,
-                        )
-                        terms_str = ", ".join(gate_terms) if gate_terms else "none"
-                        logs.append(
-                            {
-                                "ts": _ts(),
-                                "event": "url_failed",
-                                "level": "info",
-                                "source_key": source.key,
-                                "url": page_url,
-                                "reason": "below_gate_threshold",
-                                "message": f"gate_score={gate_score_val:.3f} matched=[{terms_str}]",
-                            }
-                        )
-                        continue
-                    if gate_type and not extracted.offer_type:
-                        extracted = replace(extracted, offer_type=gate_type)
+                    continue
+                if llm_payload is not None and llm_payload.confidence >= extracted.confidence:
+                    extracted = llm_payload
             else:
-                # Non-crawl: LLM as quality fallback only.
-                if self.use_llm_fallback and source.llm_fallback_enabled:
-                    if extracted.confidence < self.llm_threshold or not extracted.summary or not extracted.title:
-                        llm_payload = self.ollama_client.extract_fallback(html, page_source, extracted)
-                        logs.extend(self.ollama_client.flush_cooldown_events())
-                        if llm_payload is not None:
-                            llm_calls += 1
-                            model_switches += self.ollama_client.last_switch_count
-                            LOGGER.info(
-                                "[%s] LLM fallback — conf_before=%.2f conf_after=%.2f adopted=%s",
-                                source.key, extracted.confidence, llm_payload.confidence,
-                                llm_payload.confidence >= extracted.confidence,
-                            )
-                            if llm_payload.confidence >= extracted.confidence:
-                                extracted = llm_payload
+                # LLM disabled: TF-IDF relevance gate.
+                _meta_keys = {"source_url", "source_name", "json_ld_detected"}
+                gate_text = f"{extracted.title} {extracted.summary} {' '.join(str(v) for k, v in extracted.details.items() if k not in _meta_keys)}"
+                gate_type, gate_score_val, gate_terms = _classifier.classify_with_terms(gate_text)
+                terms_str = ", ".join(gate_terms) if gate_terms else "none"
+                if gate_score_val < _GATE_THRESHOLD:
+                    urls_neglected += 1
+                    LOGGER.debug(
+                        "[%s] NEGLECT %s — gate_score=%.3f below %.2f matched=%s",
+                        source.key, page_url, gate_score_val, _GATE_THRESHOLD, gate_terms,
+                    )
+                    logs.append(
+                        {
+                            "ts": _ts(),
+                            "event": "url_failed",
+                            "level": "info",
+                            "source_key": source.key,
+                            "url": page_url,
+                            "reason": "below_gate_threshold",
+                            "message": f"gate_score={gate_score_val:.3f} matched=[{terms_str}]",
+                        }
+                    )
+                    continue
+                if gate_type and not extracted.offer_type:
+                    extracted = replace(extracted, offer_type=gate_type)
 
             if not extracted.title and not extracted.summary:
                 logs.append(
@@ -417,19 +399,23 @@ class ScrapeService:
 
             action, natural_key, _ = self._upsert_offer(page_source, source_type, ingestion_user, extracted)
             LOGGER.info("[%s] MAP %s — %s (conf=%.2f method=%s)", source.key, action.upper(), page_url, extracted.confidence, extracted.method)
-            logs.append(
-                {
-                    "ts": _ts(),
-                    "event": "url_processed",
-                    "level": "info",
-                    "source_key": source.key,
-                    "url": page_url,
-                    "method": extracted.method,
-                    "confidence": extracted.confidence,
-                    "action": action,
-                }
-            )
+            event: dict = {
+                "ts": _ts(),
+                "event": "url_processed",
+                "level": "info",
+                "source_key": source.key,
+                "url": page_url,
+                "method": extracted.method,
+                "confidence": extracted.confidence,
+                "action": action,
+            }
+            if gate_score_val:
+                event["gate_score"] = round(gate_score_val, 3)
+            if action == "skipped" and gate_score_val:
+                event["message"] = f"gate_score={gate_score_val:.3f} matched=[{terms_str}]"
+            logs.append(event)
             if action == "skipped":
+                offers_skipped += 1
                 continue
             offers_processed += 1
             links_mapped += 1
@@ -443,6 +429,7 @@ class ScrapeService:
             "offers_created": offers_created,
             "offers_updated": offers_updated,
             "offers_unchanged": offers_unchanged,
+            "offers_skipped": offers_skipped,
             "llm_calls": llm_calls,
             "urls_neglected": urls_neglected,
             "links_discovered": len(page_urls),
@@ -530,7 +517,9 @@ class ScrapeService:
         ingestion_user: User,
         extracted: ExtractedPayload,
     ) -> tuple[str, tuple[str, str, str] | None, Offer | None]:
-        organization = Organization.objects.get(id=uuid_from_token(source.organization_token))
+        if not source.organization_id:
+            raise ValueError(f"Source '{source.key}' has no linked organization.")
+        organization = Organization.objects.get(id=source.organization_id)
 
         resolved_offer_type_name = extracted.offer_type
         if not resolved_offer_type_name:
@@ -793,12 +782,10 @@ def run_scrape(
     source_keys: list[str] | None = None,
     dry_run: bool = False,
     use_llm_fallback: bool = True,
-    crawl: bool = False,
 ) -> dict:
     service = ScrapeService(
         source_keys=source_keys,
         dry_run=dry_run,
         use_llm_fallback=use_llm_fallback,
-        crawl=crawl,
     )
     return service.run()

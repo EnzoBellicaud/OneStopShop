@@ -62,6 +62,16 @@ export interface OrganizationSummary {
   country: string;
 }
 
+export interface OrganizationDetail {
+  id: string;
+  name: string;
+  type: string;
+  country: string;
+  website: string;
+  offers_count: number;
+  sources_count: number;
+}
+
 export interface Offer {
   id: string;
   title: string;
@@ -96,6 +106,7 @@ export interface ScrapingRunSummary {
   offers_created: number;
   offers_updated: number;
   offers_unchanged: number;
+  offers_skipped: number;
   urls_neglected: number;
   errors_count: number;
   started_at: string | null;
@@ -539,7 +550,8 @@ export interface ScrapingSource {
   key: string;
   name: string;
   url: string;
-  organization_token: string;
+  organization_id: string | null;
+  organization_name: string | null;
   target_profile: string;
   country: string;
   domain_names: string[];
@@ -547,7 +559,6 @@ export interface ScrapingSource {
   llm_fallback_enabled: boolean;
   enabled: boolean;
   quality: string;
-  crawl_enabled: boolean;
   crawl_depth: number;
   crawl_max_pages: number;
   crawl_match_patterns: string[];
@@ -561,8 +572,8 @@ export interface ScrapingSourceListResponse {
   results: ScrapingSource[];
 }
 
-export type ScrapingSourceCreateRequest = Omit<ScrapingSource, 'created_at' | 'updated_at'>;
-export type ScrapingSourcePatchRequest = Partial<ScrapingSourceCreateRequest>;
+export type ScrapingSourceCreateRequest = Omit<ScrapingSource, 'created_at' | 'updated_at' | 'organization_name'> & { organization_id: string };
+export type ScrapingSourcePatchRequest = Partial<Omit<ScrapingSourceCreateRequest, 'key'>>;
 
 // ── Allowed domains ────────────────────────────────────────────────────────
 

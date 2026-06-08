@@ -47,6 +47,7 @@ class ScrapeServiceBehaviorTests(TestCase):
             name="Test Source",
             url="https://example.edu/test-source",
             organization_token="unibz",
+            organization_id=str(uuid_from_token("unibz")),
             target_profile="student",
             country="IT",
             domain_names=["AI"],
@@ -110,6 +111,7 @@ class ScrapeServiceBehaviorTests(TestCase):
 
         self.assertFalse(Offer.objects.filter(link=self.source.url).exists())
 
+    @patch("content.scrapers.service._classifier")
     @patch("content.scrapers.service.requests.head")
     @patch("content.scrapers.service.get_sources")
     @patch("content.scrapers.service.extract_deterministic")
@@ -120,6 +122,7 @@ class ScrapeServiceBehaviorTests(TestCase):
         mock_extract,
         mock_get_sources,
         mock_head,
+        mock_classifier,
     ):
         orphan_link = "https://example.edu/retired-page"
         self._create_offer(
@@ -153,6 +156,7 @@ class ScrapeServiceBehaviorTests(TestCase):
 
         mock_get.side_effect = _get_side_effect
         mock_head.side_effect = _head_side_effect
+        mock_classifier.classify_with_terms.return_value = ("training", 0.9, ["scholarship"])
         mock_extract.return_value = ExtractedPayload(
             offer_type="training",
             title="Stable Title",
@@ -169,6 +173,7 @@ class ScrapeServiceBehaviorTests(TestCase):
         self.assertEqual(summary["offers_deleted"], 1)
         self.assertFalse(Offer.objects.filter(link=orphan_link).exists())
 
+    @patch("content.scrapers.service._classifier")
     @patch("content.scrapers.service.get_sources")
     @patch("content.scrapers.service.extract_deterministic")
     @patch("content.scrapers.service.requests.get")
@@ -177,6 +182,7 @@ class ScrapeServiceBehaviorTests(TestCase):
         mock_get,
         mock_extract,
         mock_get_sources,
+        mock_classifier,
     ):
         self._create_offer(
             {
@@ -199,7 +205,9 @@ class ScrapeServiceBehaviorTests(TestCase):
         mock_response = Mock()
         mock_response.text = "<html><h1>ignored</h1></html>"
         mock_response.raise_for_status.return_value = None
+        mock_response.url = self.source.url
         mock_get.return_value = mock_response
+        mock_classifier.classify_with_terms.return_value = ("training", 0.9, ["scholarship"])
         mock_extract.return_value = ExtractedPayload(
             offer_type="training",
             title="Stable Title",
@@ -231,10 +239,11 @@ class ScrapeServiceBehaviorTests(TestCase):
             name="Crawler Source",
             url="https://example.edu/root",
             organization_token="unibz",
+            organization_id=str(uuid_from_token("unibz")),
             target_profile="student",
             country="IT",
             domain_names=["AI"],
-            crawl_enabled=True,
+
             crawl_max_pages=2,
             crawl_match_patterns=["/offers/"],
             crawl_exclude_patterns=["/offers/skip"],
@@ -306,10 +315,11 @@ class ScrapeServiceBehaviorTests(TestCase):
             name="Crawler Source",
             url="https://example.edu/root",
             organization_token="unibz",
+            organization_id=str(uuid_from_token("unibz")),
             target_profile="student",
             country="IT",
             domain_names=["AI"],
-            crawl_enabled=True,
+
             crawl_max_pages=1,
             crawl_match_patterns=["/offers/"],
         )
@@ -360,10 +370,11 @@ class ScrapeServiceBehaviorTests(TestCase):
             name="Crawler Source",
             url="https://example.edu/root",
             organization_token="unibz",
+            organization_id=str(uuid_from_token("unibz")),
             target_profile="student",
             country="IT",
             domain_names=["AI"],
-            crawl_enabled=True,
+
             crawl_max_pages=1,
             crawl_match_patterns=["/home/"],
         )
@@ -420,10 +431,11 @@ class ScrapeServiceBehaviorTests(TestCase):
             name="Crawler Source",
             url="https://example.edu/root",
             organization_token="unibz",
+            organization_id=str(uuid_from_token("unibz")),
             target_profile="student",
             country="IT",
             domain_names=["AI"],
-            crawl_enabled=True,
+
             crawl_max_pages=3,
             crawl_match_patterns=["/offers/"],
         )
@@ -501,10 +513,11 @@ class ScrapeServiceBehaviorTests(TestCase):
             name="Crawler Source",
             url="https://example.edu/root",
             organization_token="unibz",
+            organization_id=str(uuid_from_token("unibz")),
             target_profile="student",
             country="IT",
             domain_names=["AI"],
-            crawl_enabled=True,
+
             crawl_max_pages=1,
             crawl_match_patterns=["/en/"],
         )
@@ -553,10 +566,11 @@ class ScrapeServiceBehaviorTests(TestCase):
             name="Crawler Source",
             url="https://example.edu/root",
             organization_token="unibz",
+            organization_id=str(uuid_from_token("unibz")),
             target_profile="student",
             country="IT",
             domain_names=["AI"],
-            crawl_enabled=True,
+
             crawl_max_pages=5,
             crawl_match_patterns=["/en/"],
         )
@@ -857,6 +871,7 @@ class ScraperUtilityTests(TestCase):
             name="Source",
             url="https://example.edu/offers/a",
             organization_token="unibz",
+            organization_id=str(uuid_from_token("unibz")),
             target_profile="student",
             country="IT",
             domain_names=["AI"],

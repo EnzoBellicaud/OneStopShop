@@ -122,6 +122,48 @@
 
     <p class="hint" *ngIf="loadingRuns">Loading runs…</p>
 
+    <!-- Scoring legend — static, shown regardless of selected run -->
+    <details class="scoring-legend" open>
+      <summary>How are scores calculated? &#9432;</summary>
+      <div class="legend-grid">
+        <section>
+          <h4>Confidence Score (0–1)</h4>
+          <p>Measures how much structured data was extracted from the page.</p>
+          <table class="legend-table">
+            <tr><th>Signal</th><th>Deterministic</th><th>LLM</th></tr>
+            <tr><td>Base</td><td>+0.25</td><td rowspan="5" class="llm-cell">Returned directly<br>by the model<br>(0.0 – 1.0)</td></tr>
+            <tr><td>&lt;h1&gt; found</td><td>+0.30</td></tr>
+            <tr><td>Meta description</td><td>+0.20</td></tr>
+            <tr><td>JSON-LD data</td><td>+0.10</td></tr>
+            <tr><td>Content &gt; 150 chars</td><td>+0.15</td></tr>
+            <tr><td><strong>Max</strong></td><td><strong>1.00</strong></td><td></td></tr>
+          </table>
+          <p class="legend-note">LLM assesses page relevance and extracts offer data when enabled. If LLM is disabled, TF-IDF gate filters and classifies instead.</p>
+        </section>
+        <section>
+          <h4>TF-IDF Gate Score (0–1)</h4>
+          <p>Cosine similarity between the page text and the OfferType keyword corpus. Filters irrelevant pages before classification.</p>
+          <table class="legend-table">
+            <tr><th>Score range</th><th>Result</th></tr>
+            <tr><td>&lt; 0.05</td><td><span class="chip-inline chip-fail">neglected</span> — page discarded, too little academic content</td></tr>
+            <tr><td>0.05 – 0.30</td><td><span class="chip-inline chip-warn">skipped</span> — passes gate but no offer type assigned</td></tr>
+            <tr><td>&ge; 0.30</td><td><span class="chip-inline chip-ok">classified</span> — offer type determined, offer created/updated</td></tr>
+          </table>
+          <p class="legend-note">Gate score appears in the <strong>Note</strong> column for neglected and skipped URLs.</p>
+        </section>
+        <section>
+          <h4>Action Types</h4>
+          <table class="legend-table">
+            <tr><td><span class="chip-inline chip-ok">created</span></td><td>New offer added to OneStopShop</td></tr>
+            <tr><td><span class="chip-inline chip-ok">updated</span></td><td>Existing offer content changed</td></tr>
+            <tr><td><span class="chip-inline chip-ok">unchanged</span></td><td>Offer exists, no changes detected</td></tr>
+            <tr><td><span class="chip-inline chip-warn">skipped</span></td><td>No offer type could be determined</td></tr>
+            <tr><td><span class="chip-inline chip-fail">failed</span></td><td>Fetch error, missing fields, or exception</td></tr>
+          </table>
+        </section>
+      </div>
+    </details>
+
     <div class="runs-layout" *ngIf="!loadingRuns">
       <!-- Run list -->
       <aside class="run-list">
@@ -137,7 +179,7 @@
           </div>
           <h3>{{ run.source_key }}</h3>
           <p class="counters">
-            {{ run.offers_created }} new · {{ run.offers_updated }} updated · {{ run.urls_neglected }} skipped · {{ run.errors_count }} errors
+            {{ run.offers_created }} new · {{ run.offers_updated }} updated · {{ run.offers_skipped }} skipped · {{ run.errors_count }} errors
           </p>
         </article>
         <p class="hint" *ngIf="filteredRuns.length === 0">No runs match.</p>
@@ -158,7 +200,7 @@
             <div><span>Created</span><strong>{{ run.offers_created }}</strong></div>
             <div><span>Updated</span><strong>{{ run.offers_updated }}</strong></div>
             <div><span>Unchanged</span><strong>{{ run.offers_unchanged }}</strong></div>
-            <div><span>Skipped</span><strong>{{ run.urls_neglected }}</strong></div>
+            <div><span>Skipped</span><strong>{{ run.offers_skipped }}</strong></div>
             <div><span>Errors</span><strong [class.red]="run.errors_count > 0">{{ run.errors_count }}</strong></div>
           </div>
 
@@ -245,6 +287,9 @@
           [class.active]="sourceSort === opt.id"
           (click)="sourceSort = opt.id">{{ opt.label }}</button>
       </div>
+      <button class="btn btn-primary" (click)="triggerCrawl()" [disabled]="triggeringCrawl()">
+        {{ triggeringCrawl() ? 'Triggering…' : 'Trigger Crawl Now' }}
+      </button>
     </div>
 
     <p class="hint" *ngIf="loadingSources">Loading sources…</p>
@@ -317,146 +362,5 @@
     </ng-container>
   </div>
 
-  <!-- ───────────────────── MANAGE SOURCES TAB ───────────────────── -->
-  <div *ngIf="activeTab() === 'manage'" class="tab-content">
-    <div class="tab-toolbar">
-      <span class="section-title">Scraping Sources</span>
-      <div class="toolbar-actions">
-        <button class="btn-primary" (click)="openCreateSource()">+ Add Source</button>
-        <button class="btn-ghost" (click)="loadManagedSources()">Refresh</button>
-      </div>
-    </div>
-
-    <p class="hint" *ngIf="loadingManagedSources">Loading sources…</p>
-
-    <div class="url-table-wrap" *ngIf="!loadingManagedSources">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>Key</th>
-            <th>Name</th>
-            <th>Country</th>
-            <th>Classification mode</th>
-            <th>Enabled</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let s of managedSources">
-            <td class="small mono">{{ s.key }}</td>
-            <td>{{ s.name }}</td>
-            <td class="small">{{ s.country || '—' }}</td>
-            <td class="small center">
-              {{ s.llm_fallback_enabled ? 'LLM' : 'Deterministic' }}
-            </td>
-            <td class="center">
-              <input type="checkbox" [checked]="s.enabled"
-                (change)="toggleSourceEnabled(s.key, $any($event.target).checked)" />
-            </td>
-            <td>
-              <button class="btn-ghost small" (click)="openEditSource(s)">Edit</button>
-              <button class="btn-ghost small danger" (click)="deleteSource(s.key)"
-                [disabled]="deletingSource() === s.key">
-                {{ deletingSource() === s.key ? '…' : 'Delete' }}
-              </button>
-            </td>
-          </tr>
-          <tr *ngIf="managedSources.length === 0">
-            <td colspan="6" class="hint">No sources configured.</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- Source modal -->
-  <div class="modal-backdrop" *ngIf="showSourceModal" (click)="closeSourceModal()">
-    <div class="modal modal-lg" (click)="$event.stopPropagation()">
-      <h2>{{ sourceModalTarget ? 'Edit Source' : 'Add Source' }}</h2>
-
-      <div class="form-grid">
-        <label class="form-field" *ngIf="!sourceModalTarget">
-          Key
-          <input type="text" [(ngModel)]="sourceForm.key" placeholder="e.g. unibz_erasmus" />
-        </label>
-        <label class="form-field">
-          Name
-          <input type="text" [(ngModel)]="sourceForm.name" />
-        </label>
-        <label class="form-field full">
-          URL
-          <input type="url" [(ngModel)]="sourceForm.url" />
-        </label>
-        <label class="form-field">
-          Organization token
-          <input type="text" [(ngModel)]="sourceForm.organization_token" />
-        </label>
-        <label class="form-field">
-          Country (ISO code)
-          <input type="text" [(ngModel)]="sourceForm.country" maxlength="10" />
-        </label>
-        <label class="form-field">
-          Target profile
-          <input type="text" [(ngModel)]="sourceForm.target_profile" />
-        </label>
-        <label class="form-field">
-          Interval (minutes)
-          <input type="number" [(ngModel)]="sourceForm.interval_minutes" min="1" />
-        </label>
-        <label class="form-field">
-          Quality
-          <select [(ngModel)]="sourceForm.quality">
-            <option value="real">real</option>
-            <option value="test">test</option>
-          </select>
-        </label>
-        <div class="form-field radio-group">
-          <span class="radio-label">
-            Classification mode
-            <span class="tooltip-anchor" title="LLM uses AI to judge page relevance and classify offer types. If Ollama is unavailable or hits rate limits, it automatically falls back to the deterministic keyword + TF-IDF classifier.">&#9432;</span>
-          </span>
-          <div class="radio-options">
-            <label class="radio-option">
-              <input type="radio" name="llm_mode" [value]="true" [(ngModel)]="sourceForm.llm_fallback_enabled" />
-              LLM <span class="radio-hint">(falls back to deterministic if unavailable)</span>
-            </label>
-            <label class="radio-option">
-              <input type="radio" name="llm_mode" [value]="false" [(ngModel)]="sourceForm.llm_fallback_enabled" />
-              Deterministic only <span class="radio-hint">(keyword gate + TF-IDF, fully offline)</span>
-            </label>
-          </div>
-        </div>
-        <label class="form-field toggle-row">
-          Enabled
-          <input type="checkbox" [(ngModel)]="sourceForm.enabled" />
-        </label>
-      </div>
-
-      <fieldset class="crawl-group">
-        <legend>Crawl settings</legend>
-        <div class="form-grid">
-          <label class="form-field toggle-row">
-            Crawl enabled
-            <input type="checkbox" [(ngModel)]="sourceForm.crawl_enabled" />
-          </label>
-          <label class="form-field">
-            Crawl depth
-            <input type="number" [(ngModel)]="sourceForm.crawl_depth" min="1" />
-          </label>
-          <label class="form-field">
-            Max pages
-            <input type="number" [(ngModel)]="sourceForm.crawl_max_pages" min="1" />
-          </label>
-        </div>
-      </fieldset>
-
-      <div class="modal-actions">
-        <button class="btn-ghost" (click)="closeSourceModal()">Cancel</button>
-        <button class="btn-primary" (click)="saveSource()" [disabled]="savingSource()">
-          {{ savingSource() ? 'Saving…' : (sourceModalTarget ? 'Save Changes' : 'Create Source') }}
-        </button>
-      </div>
-    </div>
-  </div>
 
 </section>

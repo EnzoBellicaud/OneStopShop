@@ -27,11 +27,6 @@ class Command(BaseCommand):
             help="Disable Ollama fallback even when confidence is low.",
         )
         parser.add_argument(
-            "--crawl",
-            action="store_true",
-            help="Legacy: force crawl mode via old ScrapeService path.",
-        )
-        parser.add_argument(
             "--queue",
             action="store_true",
             help="Use new queue flow: run crawler to populate CrawlUrl, then run scraper batch.",
@@ -55,6 +50,5 @@ class Command(BaseCommand):
                 source_keys=source_keys,
                 dry_run=bool(options.get("dry_run")),
                 use_llm_fallback=use_llm,
-                crawl=bool(options.get("crawl")),
             )
             self.stdout.write(json.dumps(summary, indent=2))

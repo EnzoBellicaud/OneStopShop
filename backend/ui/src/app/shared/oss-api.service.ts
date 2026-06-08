@@ -50,6 +50,7 @@ import {
   OfferTypeAdminPatchRequest,
   MockOpportunity,
   MockOpportunityCreateRequest,
+  OrganizationDetail,
 } from './api.models';
 import { environment } from '../../environments/environment';
 
@@ -170,6 +171,13 @@ export class OssApiService {
     return this.http.get<SourcesHealthResponse>(`${this.apiBaseUrl}/scraping/sources/health`);
   }
 
+  triggerCrawl(sourceKeys?: string[]): Observable<{ status: string; message: string }> {
+    const body = sourceKeys?.length ? { source_keys: sourceKeys } : {};
+    return this.http.post<{ status: string; message: string }>(
+      `${this.apiBaseUrl}/admin/crawl`, body
+    );
+  }
+
   getLlmStats(window: '24h' | '7d' | '30d' = '24h'): Observable<LlmStats> {
     return this.http.get<LlmStats>(`${this.apiBaseUrl}/scraping/llm/stats`, {
       params: this.buildParams({ window }),
@@ -217,8 +225,20 @@ export class OssApiService {
     );
   }
 
-  createOrganization(payload: AdminCreateOrgRequest): Observable<OrganizationLookup> {
-    return this.http.post<OrganizationLookup>(`${this.apiBaseUrl}/admin/organizations`, payload);
+  getAdminOrganizations(): Observable<{ count: number; results: OrganizationDetail[] }> {
+    return this.http.get<{ count: number; results: OrganizationDetail[] }>(`${this.apiBaseUrl}/admin/organizations`);
+  }
+
+  createOrganization(payload: AdminCreateOrgRequest): Observable<OrganizationDetail> {
+    return this.http.post<OrganizationDetail>(`${this.apiBaseUrl}/admin/organizations`, payload);
+  }
+
+  updateOrganization(id: string, payload: Partial<AdminCreateOrgRequest>): Observable<OrganizationDetail> {
+    return this.http.patch<OrganizationDetail>(`${this.apiBaseUrl}/admin/organizations/${id}`, payload);
+  }
+
+  deleteOrganization(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiBaseUrl}/admin/organizations/${id}`);
   }
 
   // ── Allowed domains ───────────────────────────────────────────────────────

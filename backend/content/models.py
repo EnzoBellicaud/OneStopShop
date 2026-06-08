@@ -329,6 +329,7 @@ class ScrapingRun(TimeStampedModel):
 	offers_created = models.PositiveIntegerField(default=0)
 	offers_updated = models.PositiveIntegerField(default=0)
 	offers_unchanged = models.PositiveIntegerField(default=0)
+	offers_skipped = models.PositiveIntegerField(default=0)
 	offers_flagged_stale = models.PositiveIntegerField(default=0)
 	offers_deleted = models.PositiveIntegerField(default=0)
 	urls_neglected = models.PositiveIntegerField(default=0)
@@ -557,6 +558,13 @@ class ScrapingSource(models.Model):
 	name                   = models.CharField(max_length=255)
 	url                    = models.URLField(max_length=500)
 	organization_token     = models.CharField(max_length=100)
+	organization           = models.ForeignKey(
+		"Organization",
+		null=True,
+		blank=True,
+		on_delete=models.SET_NULL,
+		related_name="scraping_sources",
+	)
 	target_profile         = models.CharField(max_length=100)
 	country                = models.CharField(max_length=10)
 	domain_names           = models.JSONField(default=list)
@@ -564,7 +572,6 @@ class ScrapingSource(models.Model):
 	llm_fallback_enabled   = models.BooleanField(default=True)
 	enabled                = models.BooleanField(default=True)
 	quality                = models.CharField(max_length=50, default="real")
-	crawl_enabled          = models.BooleanField(default=False)
 	crawl_depth            = models.IntegerField(default=1)
 	crawl_max_pages        = models.IntegerField(default=25)
 	crawl_match_patterns   = models.JSONField(default=list)

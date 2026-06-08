@@ -8,6 +8,7 @@ from content.models import (
     Domain,
     OfferType,
     Organization,
+    ScrapingSource,
     SourceType,
     TargetProfile,
     User,
@@ -29,6 +30,102 @@ class Command(BaseCommand):
                 id=uuid_from_token(row["id"].strip("{}")),
                 defaults={"name": row["name"], "description": row["description"]},
             )
+
+        _OFFER_TYPE_KEYWORDS = {
+            "internship": (
+                "internship, intern, placement, work experience, traineeship, "
+                "stage, praktik, tirocinio, estágio, Praktikum, stagiaire, pratica"
+            ),
+            "thesis": (
+                "thesis, dissertation, final project, capstone, research project, "
+                "master thesis, bachelor thesis, "
+                "examensarbete, abschlussarbeit, mémoire, tesi di laurea, "
+                "trabalho de conclusão, doktorarbeit"
+            ),
+            "scholarship": (
+                "scholarship, grant, fellowship, bursary, financial aid, funding, "
+                "stipendium, bourse, borsa di studio, bolsa, stipendio, beca, studienbörse"
+            ),
+            "job": (
+                "job, position, vacancy, employment, career, full-time, part-time, hiring, "
+                "emploi, stelle, lavoro, emprego, jobb, arbeit, offre d emploi"
+            ),
+            "course": (
+                "course, class, training, programme, program, workshop, seminar, lecture, "
+                "kurs, cours, corso, kurso, opleiding, formation, ausbildung"
+            ),
+            "exchange": (
+                "exchange, mobility, abroad, semester abroad, study abroad, "
+                "échange, scambio, intercâmbio, Austausch, utbyte, erasmus"
+            ),
+            "challenge": (
+                "challenge, open challenge, open call, call for solutions, competition, "
+                "contest, prize, problem-solving, open innovation, "
+                "defi, Herausforderung, sfida, desafio, tävling, Wettbewerb, "
+                "concours, concorso, competição, gara"
+            ),
+            "co_creation": (
+                "co-creation, co creation, collaboration, partnership, joint project, "
+                "co-design, innovation partnership, spin-off, joint venture, consortium, "
+                "collaborazione, samarbete, zusammenarbeit, coopération, parceria, "
+                "colaboración, samenwerking, coinnovation"
+            ),
+            "funding_partner": (
+                "funding, grant, financial support, research funding, call for proposals, "
+                "doctoral funding, fellowship, bursary, subsidy, "
+                "financement, Förderung, Förderprogramm, finanziamento, financiamento, "
+                "beca de investigación, stipendium, anslag, research grant, "
+                "EU funding, Horizon, Marie Curie, innovation fund"
+            ),
+            "hackathon": (
+                "hackathon, hack, coding sprint, innovation sprint, makeathon, datathon, "
+                "buildathon, bootcamp, sprint event, coding event, "
+                "hackatón, marathone de programmation, maratona di coding"
+            ),
+            "lab": (
+                "lab, laboratory, research lab, research facility, equipment access, "
+                "infrastructure, competence centre, makerspace, fab lab, fablab, "
+                "clean room, testing facility, shared facility, research infrastructure, "
+                "laboratorio, Laboratorium, laboratoire, laboratório, labb"
+            ),
+            "project_opportunity": (
+                "project, research project, innovation project, collaboration project, "
+                "R&D project, joint research, open project, project invitation, "
+                "research partner, industry project, applied project, student project, "
+                "progetto, Projekt, projet, projeto, projecto, prosjekt"
+            ),
+            "research_group": (
+                "research group, research team, research unit, department, specialization, "
+                "competence area, research area, group profile, research community, "
+                "academic group, research centre, "
+                "gruppo di ricerca, Forschungsgruppe, groupe de recherche, "
+                "grupo de investigación, forskningsgrupp, pesquisadores"
+            ),
+            "service": (
+                "service, consulting, advisory, business support, professional service, "
+                "patent, licensing, IP management, intellectual property, "
+                "technology transfer, TTO, legal support, innovation service, "
+                "servizio, Dienstleistung, service professionnel, serviço, "
+                "servicio, tjänst, valorisation"
+            ),
+            "testbed": (
+                "testbed, test bed, testing environment, validation, pilot, "
+                "proof of concept, PoC, prototype testing, demonstration, "
+                "industrial testing, product validation, technology demonstration, "
+                "banc de test, Testumgebung, banco di prova, banco de testes, "
+                "provbed, living lab"
+            ),
+            "training": (
+                "training, course, programme, program, degree, master, bachelor, "
+                "PhD, doctorate, doctoral, executive education, ECTS, credits, "
+                "qualification, certificate, diploma, curriculum, learning, education, "
+                "exchange, Erasmus, semester abroad, study abroad, mobility, "
+                "formation, Ausbildung, Studiengang, formazione, formação, "
+                "programa educativo, utbildning, opleiding"
+            ),
+        }
+        for name, keywords in _OFFER_TYPE_KEYWORDS.items():
+            OfferType.objects.filter(name=name, keywords="").update(keywords=keywords)
 
         for row in data["domains"]:
             Domain.objects.update_or_create(
@@ -115,6 +212,12 @@ class Command(BaseCommand):
                 "country": "PT",
                 "website": "https://www.ipvc.pt/",
             },
+            {
+                "token": "demo_university",
+                "name": "Demo University",
+                "country": "IT",
+                "website": "http://api:8000/mock/",
+            },
         ]
 
         organization_map = {}
@@ -129,6 +232,25 @@ class Command(BaseCommand):
                 },
             )
             organization_map[row["token"]] = org
+
+        ScrapingSource.objects.update_or_create(
+            key="demo_mock",
+            defaults={
+                "name": "Demo University",
+                "url": "http://api:8000/mock/",
+                "organization_token": "demo_university",
+                "organization": organization_map.get("demo_university"),
+                "target_profile": "student",
+                "country": "IT",
+                "quality": "mock",
+                "llm_fallback_enabled": False,
+                "enabled": True,
+                "crawl_depth": 1,
+                "crawl_max_pages": 50,
+                "crawl_match_patterns": ["/mock/offers/"],
+                "crawl_exclude_patterns": [],
+            },
+        )
 
         users = [
             {

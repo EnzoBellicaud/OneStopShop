@@ -50,10 +50,7 @@ class CrawlerService(ScrapeService):
         return stats
 
     def _crawl_source(self, source: SourceDefinition) -> dict:
-        if source.crawl_enabled:
-            urls, _ = self._discover_urls_bfs(source)
-        else:
-            urls = [source.url]
+        urls, _ = self._discover_urls_bfs(source)
 
         new_count = 0
         known_count = 0
@@ -196,10 +193,9 @@ class UrlScraperService(ScrapeService):
                          "message": str(exc)})
             return
 
-        use_crawl = source.crawl_enabled
         extracted = extract_deterministic(html, page_source)
 
-        if use_crawl and is_generic_page(extracted.title):
+        if is_generic_page(extracted.title):
             stats["neglected"] += 1
             LOGGER.info("[%s] NEGLECT %s — generic_page_title", source.key, crawl_url.url)
             logs.append({"ts": _ts(), "event": "url_neglected", "level": "info",
@@ -207,34 +203,27 @@ class UrlScraperService(ScrapeService):
             self._mark_done(crawl_url)
             return
 
-        if use_crawl:
-            if self.use_llm_fallback and source.llm_fallback_enabled:
-                is_relevant, llm_payload, reason = self.ollama_client.assess_and_extract(
-                    html, page_source, extracted
-                )
-                if llm_payload is not None:
-                    stats["processed"] += 0  # just count LLM call
-                if not is_relevant:
-                    stats["neglected"] += 1
-                    LOGGER.info("[%s] NEGLECT %s — %s", source.key, crawl_url.url, reason or "non_relevant_page")
-                    logs.append({"ts": _ts(), "event": "url_neglected", "level": "info",
-                                 "source_key": source.key, "url": crawl_url.url,
-                                 "reason": reason or "non_relevant_page"})
-                    self._mark_done(crawl_url)
-                    return
-                if llm_payload is not None and llm_payload.confidence >= extracted.confidence:
-                    extracted = llm_payload
-            else:
-                if (extracted.title == source.name and extracted.summary.startswith("Auto-extracted from")):
-                    stats["neglected"] += 1
-                    self._mark_done(crawl_url)
-                    return
+        if self.use_llm_fallback and source.llm_fallback_enabled:
+            is_relevant, llm_payload, reason = self.ollama_client.assess_and_extract(
+                html, page_source, extracted
+            )
+            if llm_payload is not None:
+                stats["processed"] += 0  # just count LLM call
+            if not is_relevant:
+                stats["neglected"] += 1
+                LOGGER.info("[%s] NEGLECT %s — %s", source.key, crawl_url.url, reason or "non_relevant_page")
+                logs.append({"ts": _ts(), "event": "url_neglected", "level": "info",
+                             "source_key": source.key, "url": crawl_url.url,
+                             "reason": reason or "non_relevant_page"})
+                self._mark_done(crawl_url)
+                return
+            if llm_payload is not None and llm_payload.confidence >= extracted.confidence:
+                extracted = llm_payload
         else:
-            # Non-crawl: LLM is primary. Deterministic is fallback when LLM unavailable/fails.
-            if self.use_llm_fallback and source.llm_fallback_enabled:
-                llm_payload = self.ollama_client.extract_fallback(html, page_source, extracted)
-                if llm_payload is not None:
-                    extracted = llm_payload
+            if (extracted.title == source.name and extracted.summary.startswith("Auto-extracted from")):
+                stats["neglected"] += 1
+                self._mark_done(crawl_url)
+                return
 
         if not extracted.title and not extracted.summary:
             stats["neglected"] += 1

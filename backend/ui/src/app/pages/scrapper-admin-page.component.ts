@@ -9,18 +9,15 @@ import {
   ScrapingOverview,
   ScrapingRunDetail,
   ScrapingRunSummary,
-  ScrapingSource,
-  ScrapingSourceCreateRequest,
   SourceHealth,
 } from '../shared/api.models';
 import { OssApiService } from '../shared/oss-api.service';
-import { AuthService } from '../shared/auth.service';
 import { parseRunLog, toUrlResults, RunLogEntry, UrlResult } from '../shared/run-log.parser';
 import { StatCardComponent } from '../shared/components/stat-card.component';
 import { MiniBarChartComponent, BarChartPoint } from '../shared/components/mini-bar-chart.component';
 import { StatusChipComponent } from '../shared/components/status-chip.component';
 
-type TabId = 'overview' | 'runs' | 'sources' | 'errors' | 'manage';
+type TabId = 'overview' | 'runs' | 'sources' | 'errors';
 type WindowOption = '24h' | '7d' | '30d';
 
 @Component({
@@ -31,16 +28,12 @@ type WindowOption = '24h' | '7d' | '30d';
   styleUrl: './scrapper-admin-page.component.css',
 })
 export class ScrapperAdminPageComponent implements OnInit, OnDestroy {
-  get TABS(): { id: TabId; label: string }[] {
-    const base: { id: TabId; label: string }[] = [
-      { id: 'overview', label: 'Overview' },
-      { id: 'runs', label: 'Runs' },
-      { id: 'sources', label: 'Queue' },
-      { id: 'errors', label: 'Errors' },
-    ];
-    if (this.auth.isAdmin) base.push({ id: 'manage', label: 'Manage Sources' });
-    return base;
-  }
+  readonly TABS: { id: TabId; label: string }[] = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'runs', label: 'Runs' },
+    { id: 'sources', label: 'Queue' },
+    { id: 'errors', label: 'Errors' },
+  ];
 
   readonly WINDOWS: WindowOption[] = ['24h', '7d', '30d'];
 
@@ -80,19 +73,11 @@ export class ScrapperAdminPageComponent implements OnInit, OnDestroy {
   sources: SourceHealth[] = [];
   sourceSort: 'name' | 'last_scraped' | 'pending' | 'done' = 'name';
   loadingSources = false;
+  triggeringCrawl = signal(false);
 
   // Errors (cross-run, client-side aggregate)
   errorRuns: ScrapingRunDetail[] = [];
   loadingErrors = false;
-
-  // Manage Sources
-  managedSources: ScrapingSource[] = [];
-  loadingManagedSources = false;
-  sourceModalTarget: ScrapingSource | null = null;
-  showSourceModal = false;
-  savingSource = signal(false);
-  deletingSource = signal<string | null>(null);
-  sourceForm: ScrapingSourceCreateRequest = this.emptySourceForm();
 
   errorMessage = '';
 
@@ -100,7 +85,6 @@ export class ScrapperAdminPageComponent implements OnInit, OnDestroy {
 
   constructor(
     private readonly api: OssApiService,
-    readonly auth: AuthService,
     private readonly route: ActivatedRoute,
     private readonly router: Router,
   ) {}
@@ -167,7 +151,6 @@ export class ScrapperAdminPageComponent implements OnInit, OnDestroy {
     else if (tab === 'runs') void this.loadRuns();
     else if (tab === 'sources') this.loadSources();
     else if (tab === 'errors') this.loadErrors();
-    else if (tab === 'manage') this.loadManagedSources();
   }
 
   // ── Overview ──────────────────────────────────────────────────────────────
@@ -407,6 +390,20 @@ export class ScrapperAdminPageComponent implements OnInit, OnDestroy {
       });
   }
 
+  triggerCrawl(): void {
+    if (this.triggeringCrawl()) return;
+    this.triggeringCrawl.set(true);
+    this.api.triggerCrawl().subscribe({
+      next: () => {
+        setTimeout(() => {
+          this.loadSources();
+          this.triggeringCrawl.set(false);
+        }, 3000);
+      },
+      error: () => this.triggeringCrawl.set(false),
+    });
+  }
+
   get sortedSources(): SourceHealth[] {
     return [...this.sources].sort((a, b) => {
       if (this.sourceSort === 'name') return a.source_key.localeCompare(b.source_key);
@@ -427,88 +424,6 @@ export class ScrapperAdminPageComponent implements OnInit, OnDestroy {
   viewSourceRuns(sourceKey: string): void {
     this.sourceFilter = sourceKey;
     this.selectTab('runs');
-  }
-
-  // ── Manage Sources ────────────────────────────────────────────────────────
-
-  loadManagedSources(): void {
-    this.loadingManagedSources = true;
-    this.api.getScrapingSources().pipe(takeUntil(this.destroy$)).subscribe({
-      next: (res) => { this.managedSources = res.results; this.loadingManagedSources = false; },
-      error: () => { this.loadingManagedSources = false; },
-    });
-  }
-
-  openCreateSource(): void {
-    this.sourceModalTarget = null;
-    this.sourceForm = this.emptySourceForm();
-    this.showSourceModal = true;
-  }
-
-  openEditSource(src: ScrapingSource): void {
-    this.sourceModalTarget = src;
-    this.sourceForm = {
-      key: src.key, name: src.name, url: src.url,
-      organization_token: src.organization_token,
-      target_profile: src.target_profile,
-      country: src.country, domain_names: [...src.domain_names],
-      interval_minutes: src.interval_minutes,
-      llm_fallback_enabled: src.llm_fallback_enabled,
-      enabled: src.enabled, quality: src.quality,
-      crawl_enabled: src.crawl_enabled, crawl_depth: src.crawl_depth,
-      crawl_max_pages: src.crawl_max_pages,
-      crawl_match_patterns: [...src.crawl_match_patterns],
-      crawl_exclude_patterns: [...src.crawl_exclude_patterns],
-    };
-    this.showSourceModal = true;
-  }
-
-  closeSourceModal(): void {
-    this.showSourceModal = false;
-  }
-
-  saveSource(): void {
-    this.savingSource.set(true);
-    const obs = this.sourceModalTarget
-      ? this.api.patchScrapingSource(this.sourceModalTarget.key, this.sourceForm)
-      : this.api.createScrapingSource(this.sourceForm);
-    obs.pipe(takeUntil(this.destroy$)).subscribe({
-      next: () => {
-        this.savingSource.set(false);
-        this.showSourceModal = false;
-        this.loadManagedSources();
-      },
-      error: () => { this.savingSource.set(false); this.errorMessage = 'Failed to save source. Check all required fields.'; },
-    });
-  }
-
-  toggleSourceEnabled(key: string, enabled: boolean): void {
-    this.api.patchScrapingSource(key, { enabled })
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({ next: (s) => { this.managedSources = this.managedSources.map(x => x.key === key ? s : x); } });
-  }
-
-  deleteSource(key: string): void {
-    if (!confirm(`Delete source "${key}"?`)) return;
-    this.deletingSource.set(key);
-    this.api.deleteScrapingSource(key).pipe(takeUntil(this.destroy$)).subscribe({
-      next: () => {
-        this.deletingSource.set(null);
-        this.managedSources = this.managedSources.filter(s => s.key !== key);
-      },
-      error: () => { this.deletingSource.set(null); this.errorMessage = `Failed to delete source "${key}".`; },
-    });
-  }
-
-  emptySourceForm(): ScrapingSourceCreateRequest {
-    return {
-      key: '', name: '', url: '', organization_token: '',
-      target_profile: 'student',
-      country: '', domain_names: [], interval_minutes: 360,
-      llm_fallback_enabled: true, enabled: true, quality: 'real',
-      crawl_enabled: false, crawl_depth: 1, crawl_max_pages: 25,
-      crawl_match_patterns: [], crawl_exclude_patterns: [],
-    };
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────

@@ -55,8 +55,10 @@ urlpatterns = [
     # Admin endpoints
     path("admin/users", views.admin_user_collection, name="admin-user-collection"),
     path("admin/organizations", admin_orgs_views.admin_organization_collection, name="admin-organization-collection"),
+    path("admin/organizations/<str:org_id>", admin_orgs_views.admin_organization_detail, name="admin-organization-detail"),
     path("admin/sources", sources_views.admin_sources_collection, name="admin-sources"),
     path("admin/sources/<str:key>", sources_views.admin_source_detail, name="admin-source-detail"),
+    path("admin/crawl", views.admin_trigger_crawl, name="admin-trigger-crawl"),
     path("admin/offer-types", offer_types_views.admin_offer_types_collection, name="admin-offer-types"),
     path("admin/offer-types/<str:offer_type_id>", offer_types_views.admin_offer_type_detail, name="admin-offer-type-detail"),
     path("admin/mock-opportunities", admin_mock_views.list_create, name="admin-mock-opportunities"),

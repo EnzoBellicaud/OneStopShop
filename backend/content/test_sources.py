@@ -1,8 +1,24 @@
 """Tests for admin scraping-source CRUD endpoints."""
 import json
+import uuid
 from django.test import TestCase, Client, override_settings
-from content.models import ScrapingSource, User
+from content.models import Organization, ScrapingSource, User
 from content.auth import hash_password
+
+_TEST_ORG_ID = str(uuid.UUID("00000000-0000-0000-0000-000000000001"))
+
+
+def _make_org():
+    org, _ = Organization.objects.get_or_create(
+        id=_TEST_ORG_ID,
+        defaults={
+            "name": "Test Org",
+            "type": Organization.OrganizationType.UNIVERSITY,
+            "country": "IT",
+            "website": "https://test.example.com",
+        },
+    )
+    return org
 
 
 def _make_admin(username="admin", password="Admin1234!"):
@@ -45,7 +61,7 @@ def _source_payload(**overrides):
         "key": "test_source",
         "name": "Test Source",
         "url": "https://example.com",
-        "organization_token": "test_org",
+        "organization_id": _TEST_ORG_ID,
         "target_profile": "student",
         "country": "IT",
         "domain_names": ["AI"],
@@ -53,7 +69,6 @@ def _source_payload(**overrides):
         "llm_fallback_enabled": True,
         "enabled": True,
         "quality": "real",
-        "crawl_enabled": False,
         "crawl_depth": 1,
         "crawl_max_pages": 25,
         "crawl_match_patterns": [],
@@ -70,6 +85,7 @@ class SourcesListCreateTestCase(TestCase):
     def setUp(self):
         self.client = Client()
         ScrapingSource.objects.all().delete()
+        _make_org()
         _, pw = _make_admin()
         self.token = _token(self.client, "admin", pw)
         _, spw = _make_student()
@@ -183,7 +199,7 @@ class SourcesListCreateTestCase(TestCase):
                 "key": "minimal_src",
                 "name": "Minimal",
                 "url": "https://min.com",
-                "organization_token": "org",
+                "organization_id": _TEST_ORG_ID,
             }),
             content_type="application/json",
             **self._auth(),
@@ -193,7 +209,7 @@ class SourcesListCreateTestCase(TestCase):
         self.assertEqual(data["interval_minutes"], 360)
         self.assertTrue(data["llm_fallback_enabled"])
         self.assertTrue(data["enabled"])
-        self.assertFalse(data["crawl_enabled"])
+        self.assertNotIn("crawl_enabled", data)
 
 
 @override_settings(RATELIMIT_ENABLE=False)
