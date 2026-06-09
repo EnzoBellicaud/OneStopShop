@@ -29,6 +29,7 @@ Open a new terminal in the project root:
 ```bash
 docker-compose exec api python manage.py migrate
 docker-compose exec api python manage.py seed_lookups
+docker-compose exec api python manage.py seed_offers
 ```
 
 ### Step 4 — Start the frontend
@@ -51,7 +52,7 @@ npm run dev
 
 ## Populate offers (scraper)
 
-Offers are scraped from partner university websites. Run the scraper manually:
+Sample offers are seeded automatically by `seed_offers`. Additional offers can be scraped from partner university websites. Run the scraper manually:
 ```bash
 docker-compose exec api python manage.py run_scrape_once --queue
 ```
@@ -87,6 +88,7 @@ python -m venv .venv
 pip install -r requirements.txt
 python manage.py migrate
 python manage.py seed_lookups
+python manage.py seed_offers
 python manage.py runserver      # http://localhost:8000
 ```
 
