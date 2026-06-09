@@ -32,6 +32,9 @@
           <div class="pending-icon">✓</div>
           <h3>Registration submitted</h3>
           <p>Your account is pending admin approval. You will be able to log in once an admin activates your account.</p>
+          <p v-if="registeredProfile === 'Teacher'" class="email-confirm-note">
+            📧 We also sent a confirmation link to your email address. Please check your inbox and verify your email before logging in.
+          </p>
           <button class="switch-btn" @click="switchMode">Back to login</button>
         </div>
 
@@ -167,6 +170,7 @@ const { login, register, loading, error } = useAuth()
 const mode = ref('login')
 const showPassword = ref(false)
 const pendingApproval = ref(false)
+const registeredProfile = ref('')
 
 const roles = [
   { value: 'Student',        label: 'Student',    icon: '🎓' },
@@ -211,6 +215,7 @@ async function submit() {
       : {}
     const result = await register(form.value.username, form.value.email, form.value.password, form.value.profile, extraFields)
     if (result && result.pending) {
+      registeredProfile.value = form.value.profile
       pendingApproval.value = true
     } else if (result === true) {
       router.push(route.query.redirect || '/')
@@ -563,5 +568,15 @@ async function submit() {
   color: var(--ink-soft);
   margin: 0;
   line-height: 1.6;
+}
+
+.email-confirm-note {
+  font-size: 0.82rem;
+  color: #1e6b3a;
+  background: #f0fff4;
+  border: 1px solid #86efac;
+  border-radius: 6px;
+  padding: 0.6rem 0.8rem;
+  margin-top: 0.25rem;
 }
 </style>
