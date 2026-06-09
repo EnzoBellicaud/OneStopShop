@@ -34,7 +34,7 @@ export function useAuth() {
         } else if (data.error === 'inactive') {
           error.value = 'Your account has been deactivated.'
         } else if (data.error === 'email_not_verified') {
-          error.value = 'Your email address has not been verified yet. Contact an admin.'
+          error.value = 'Please verify your email before logging in. Check your inbox for the confirmation link we sent you.'
         } else {
           error.value = data.detail ?? 'Login failed'
         }
