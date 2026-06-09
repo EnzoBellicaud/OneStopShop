@@ -15,7 +15,7 @@
         <button
           v-for="t in tabs" :key="t.id"
           :class="['admin-tab', { active: activeTab === t.id }]"
-          @click="activeTab = t.id"
+          @click="onTabChange(t.id)"
         >{{ t.label }}</button>
       </div>
 
@@ -242,6 +242,68 @@
           </div>
         </div>
       </section>
+
+      <!-- ── TAB: ALLOWED DOMAINS ── -->
+      <section v-if="activeTab === 'domains'" class="admin-section">
+        <h2 class="section-h2">Allowed Teacher Domains</h2>
+        <p class="section-desc">Only teachers with an email address from these domains can register. Add institutional domains (e.g. <code>mdu.se</code>) to control who can sign up as a teacher.</p>
+
+        <div v-if="domainsError" class="form-error">{{ domainsError }}</div>
+        <div v-if="domainSuccess" class="form-success">{{ domainSuccess }}</div>
+
+        <!-- Add domain form -->
+        <div class="domain-add-form">
+          <h3 class="sub-h3">Add a new domain</h3>
+          <div class="form-row-3">
+            <div>
+              <label class="field-label">Domain *</label>
+              <input v-model="domainForm.domain" class="field-input" placeholder="e.g. mdu.se" />
+            </div>
+            <div>
+              <label class="field-label">University *</label>
+              <select v-model="domainForm.organization_id" class="field-input">
+                <option value="">Select university…</option>
+                <option v-for="org in lookups.organizations" :key="org.id" :value="org.id">{{ org.name }}</option>
+              </select>
+            </div>
+            <div>
+              <label class="field-label">Description</label>
+              <input v-model="domainForm.description" class="field-input" placeholder="Optional note" />
+            </div>
+          </div>
+          <button class="btn-primary" @click="addDomain" :disabled="domainSaving">
+            {{ domainSaving ? 'Adding…' : '+ Add Domain' }}
+          </button>
+        </div>
+
+        <!-- Domains table -->
+        <div v-if="domainsLoading" class="loading-msg">Loading domains…</div>
+        <div v-else-if="allowedDomains.length === 0" class="empty-msg">No allowed domains yet. Add one above.</div>
+        <div v-else class="table-scroll">
+          <table class="manage-table">
+            <thead>
+              <tr>
+                <th>Domain</th>
+                <th>University</th>
+                <th>Description</th>
+                <th>Added</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="d in allowedDomains" :key="d.id">
+                <td><code>{{ d.domain }}</code></td>
+                <td>{{ d.organization }}</td>
+                <td>{{ d.description || '—' }}</td>
+                <td>{{ formatDate(d.created_at) }}</td>
+                <td>
+                  <button class="btn-danger-sm" @click="deleteDomain(d)">Remove</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
     </main>
 
     <AppFooter />
@@ -257,9 +319,10 @@ import { api } from '../services/api.js'
 const BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
 
 const tabs = [
-  { id: 'add',    label: 'Add offer' },
-  { id: 'import', label: 'Bulk import' },
-  { id: 'manage', label: 'Manage offers' },
+  { id: 'add',     label: 'Add offer' },
+  { id: 'import',  label: 'Bulk import' },
+  { id: 'manage',  label: 'Manage offers' },
+  { id: 'domains', label: 'Allowed Domains' },
 ]
 const activeTab = ref('add')
 
@@ -449,6 +512,82 @@ async function deleteOffer(offer) {
 function formatDate(iso) {
   return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
 }
+
+// ── Allowed Domains ──
+const allowedDomains = ref([])
+const domainsLoading = ref(false)
+const domainsError = ref('')
+const domainForm = reactive({ domain: '', organization_id: '', description: '' })
+const domainSaving = ref(false)
+const domainSuccess = ref('')
+
+async function loadAllowedDomains() {
+  domainsLoading.value = true
+  domainsError.value = ''
+  try {
+    const res = await api.get('/api/admin/allowed-domains')
+    if (!res.ok) { domainsError.value = 'Failed to load domains.'; return }
+    const data = await res.json()
+    allowedDomains.value = data.results ?? []
+  } catch {
+    domainsError.value = 'Network error.'
+  } finally {
+    domainsLoading.value = false
+  }
+}
+
+async function addDomain() {
+  if (!domainForm.domain.trim() || !domainForm.organization_id) {
+    domainsError.value = 'Domain and organization are required.'
+    return
+  }
+  domainSaving.value = true
+  domainsError.value = ''
+  domainSuccess.value = ''
+  try {
+    const res = await api.post('/api/admin/allowed-domains', {
+      domain: domainForm.domain.trim(),
+      organization_id: domainForm.organization_id,
+      description: domainForm.description.trim(),
+    })
+    if (res.ok || res.status === 201) {
+      domainForm.domain = ''
+      domainForm.organization_id = ''
+      domainForm.description = ''
+      domainSuccess.value = 'Domain added successfully!'
+      await loadAllowedDomains()
+    } else {
+      const data = await res.json().catch(() => ({}))
+      domainsError.value = data.message ?? 'Failed to add domain.'
+    }
+  } catch {
+    domainsError.value = 'Network error.'
+  } finally {
+    domainSaving.value = false
+  }
+}
+
+async function deleteDomain(domain) {
+  if (!confirm(`Remove domain "${domain.domain}"? Teachers with this domain will no longer be able to register.`)) return
+  try {
+    const res = await api.delete(`/api/admin/allowed-domains/${domain.id}`)
+    if (res.ok || res.status === 204) {
+      allowedDomains.value = allowedDomains.value.filter(d => d.id !== domain.id)
+    } else {
+      alert('Failed to delete domain.')
+    }
+  } catch {
+    alert('Network error.')
+  }
+}
+
+// load domains when tab is clicked
+function onTabChange(tabId) {
+  activeTab.value = tabId
+  if (tabId === 'domains' && allowedDomains.value.length === 0) {
+    loadAllowedDomains()
+  }
+}
 </script>
 
 <style scoped>
@@ -488,6 +627,70 @@ function formatDate(iso) {
 }
 
 .admin-section { max-width: 800px; }
+
+.section-desc {
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+  margin-bottom: 1.5rem;
+  line-height: 1.6;
+}
+.section-desc code {
+  background: #f0f4ff;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+.domain-add-form {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.sub-h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 1rem;
+}
+
+.form-row-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.form-success {
+  padding: 0.75rem 1rem;
+  background: #f0fff4;
+  color: #1e6b3a;
+  border-radius: var(--r);
+  font-size: 0.85rem;
+  border-left: 3px solid #22c55e;
+  margin-bottom: 1rem;
+}
+
+.loading-msg, .empty-msg {
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  padding: 1rem 0;
+}
+
+.btn-danger-sm {
+  padding: 4px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #c0392b;
+  background: #fde8e8;
+  border: 1px solid #f5c2c2;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+}
+.btn-danger-sm:hover { background: #fbd0d0; }
 .section-h2 {
   font-family: 'DM Serif Display', serif;
   font-size: 22px;
