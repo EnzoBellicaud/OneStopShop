@@ -5,17 +5,39 @@ from math import ceil
 from uuid import UUID
 
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, Prefetch
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from content.auth import require_auth, verify_token
-from content.models import Domain, Offer, OfferType, Organization, SourceType, TargetProfile, User, UserOrganization
+from content.models import Domain, Offer, OfferContact, OfferType, Organization, SourceType, TargetProfile, User, UserOrganization
 from content.views._utils import _parse_positive_int
 
 OFFER_MANAGER_PROFILES = [User.ProfileType.TEACHER, User.ProfileType.COMPANY]
 ADMIN_PROFILE = User.ProfileType.ADMIN
+
+
+def _contact_to_dict(contact) -> dict | None:
+    """Convert a Contact object to a dictionary representation. Return the the dict with null fields if contact is None."""
+    if contact is None:
+        return None
+    
+    return {
+        "name": contact.contact_name,
+        "email": contact.email,
+        "phone": contact.phone,
+        "linkedin": getattr(contact, "linkedin", None),
+    }
+
+
+def _primary_contact_for_offer(offer) -> dict | None:
+    """Get the primary contact for an offer, or the first contact if no primary exists."""
+    links = list(getattr(offer, "prefetched_offer_contacts", []))
+    primary = next((link for link in links if link.role_label == "primary_contact"), None)
+    selected = primary or (links[0] if links else None)
+    contact = selected.contact if selected else None
+    return _contact_to_dict(contact)
 
 
 def _offer_to_dict(offer: Offer) -> dict:
@@ -40,6 +62,7 @@ def _offer_to_dict(offer: Offer) -> dict:
         "deadline": offer.deadline.isoformat() if offer.deadline else None,
         "created_at": offer.created_at.isoformat(),
         "updated_at": offer.updated_at.isoformat(),
+        "contact": _primary_contact_for_offer(offer),
     }
 
 
@@ -78,7 +101,14 @@ def offers(request):
                 "source_type",
                 "target_profile",
             )
-            .prefetch_related("domains")
+            .prefetch_related(
+                "domains",
+                Prefetch(
+                    "offercontact_set",
+                    queryset=OfferContact.objects.select_related("contact"),
+                    to_attr="prefetched_offer_contacts",
+                ),
+            )
         )
 
         # Org-scoping for authenticated Teacher/Company
@@ -244,7 +274,14 @@ def _create_offer(request):
 
     offer = (
         Offer.objects.select_related("offer_type", "organization", "source_type", "target_profile")
-        .prefetch_related("domains")
+        .prefetch_related(
+            "domains",
+            Prefetch(
+                "offercontact_set",
+                queryset=OfferContact.objects.select_related("contact"),
+                to_attr="prefetched_offer_contacts",
+            ),
+        )
         .get(id=offer.id)
     )
     return JsonResponse(_offer_to_dict(offer), status=201)
@@ -262,7 +299,14 @@ def offer_detail(request, offer_id: str):
             Offer.objects.select_related(
                 "offer_type", "organization", "source_type", "target_profile",
             )
-            .prefetch_related("domains")
+            .prefetch_related(
+                "domains",
+                Prefetch(
+                    "offercontact_set",
+                    queryset=OfferContact.objects.select_related("contact"),
+                    to_attr="prefetched_offer_contacts",
+                ),
+            )
             .filter(id=parsed_id)
             .first()
         )
@@ -285,7 +329,14 @@ def _update_offer(request, parsed_id: UUID):
 
     offer = (
         Offer.objects.select_related("offer_type", "organization", "source_type", "target_profile")
-        .prefetch_related("domains")
+        .prefetch_related(
+            "domains",
+            Prefetch(
+                "offercontact_set",
+                queryset=OfferContact.objects.select_related("contact"),
+                to_attr="prefetched_offer_contacts",
+            ),
+        )
         .filter(id=parsed_id)
         .first()
     )
@@ -353,7 +404,18 @@ def _update_offer(request, parsed_id: UUID):
             domains_qs = Domain.objects.filter(name__in=domain_names)
             offer.domains.set(domains_qs)
 
-    offer.refresh_from_db()
+    offer = (
+        Offer.objects.select_related("offer_type", "organization", "source_type", "target_profile")
+        .prefetch_related(
+            "domains",
+            Prefetch(
+                "offercontact_set",
+                queryset=OfferContact.objects.select_related("contact"),
+                to_attr="prefetched_offer_contacts",
+            ),
+        )
+        .get(id=parsed_id)
+    )
     return JsonResponse(_offer_to_dict(offer))
 
 
