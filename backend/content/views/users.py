@@ -9,6 +9,7 @@ from django.views.decorators.http import require_http_methods
 
 from content.auth import require_auth
 from content.emails import send_approval_email, send_rejection_email
+from content.matching_triggers import refresh_matches_for_need
 from content.models import (
     AllowedDomain,
     Domain,
@@ -587,6 +588,7 @@ def user_needs(request, user_id: str):
         countries=countries,
     )
     need.domains.set(domains)
+    refresh_matches_for_need(need.id)
     need = UserNeed.objects.select_related("target_profile").prefetch_related("domains").get(id=need.id)
     return JsonResponse(_serialize_need(need), status=201)
 
@@ -653,6 +655,7 @@ def user_need_detail(request, user_id: str, need_id: str):
     need.countries = countries
     need.save()
     need.domains.set(domains)
+    refresh_matches_for_need(need.id)
     need.refresh_from_db()
     return JsonResponse(_serialize_need(need))
 

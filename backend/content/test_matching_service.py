@@ -26,6 +26,7 @@ from content.matching_service import (
     _tokenize,
     run_matching_for_offers,
 )
+from content.matching_triggers import refresh_matches_for_need, refresh_matches_for_offers
 
 
 class TokenizationTests(TestCase):
@@ -473,3 +474,88 @@ class MatchingServiceIntegrationTests(TestCase):
         self.assertGreaterEqual(hit.match_score, Decimal("0"))
         self.assertLessEqual(hit.match_score, Decimal("1"))
         self.assertNotEqual(hit.match_reason, "")
+
+
+class MatchingTriggerTests(TestCase):
+    """Tests for write-path matching refresh helpers."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.domain = Domain.objects.create(name="Trigger AI")
+        cls.target_profile = TargetProfile.objects.create(name="trigger-student")
+        cls.source_type = SourceType.objects.create(name="trigger-manual")
+        cls.offer_type = OfferType.objects.create(name="trigger-course")
+        cls.organization = Organization.objects.create(
+            name="Trigger University",
+            type=Organization.OrganizationType.UNIVERSITY,
+            country="IT",
+            website="https://trigger.edu",
+        )
+        cls.user = User.objects.create(
+            username="trigger-user",
+            email="trigger@example.com",
+            password_hash="hash",
+        )
+
+    def _create_need(self, title="Trigger AI Need"):
+        need = UserNeed.objects.create(
+            user=self.user,
+            title=title,
+            description="Looking for trigger AI machine learning courses",
+            target_profile=self.target_profile,
+            status=UserNeed.NeedStatus.ACTIVE,
+            countries=["IT"],
+        )
+        UserNeedDomain.objects.create(user_need=need, domain=self.domain)
+        return need
+
+    def _create_offer(self, status=Offer.OfferStatus.PUBLISHED):
+        offer = Offer.objects.create(
+            title="Trigger AI Machine Learning Course",
+            summary="A trigger AI machine learning course in Italy",
+            link=f"https://trigger.edu/{status}",
+            country="IT",
+            offer_type=self.offer_type,
+            organization=self.organization,
+            source_type=self.source_type,
+            target_profile=self.target_profile,
+            status=status,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+        OfferDomain.objects.create(offer=offer, domain=self.domain)
+        return offer
+
+    def test_refresh_matches_for_need_rebuilds_need_hits(self):
+        need = self._create_need()
+        offer = self._create_offer()
+        MatchingHit.objects.create(
+            user=self.user,
+            need=need,
+            offer=offer,
+            match_score=Decimal("0.1000"),
+            match_reason="stale",
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            refresh_matches_for_need(need.id)
+
+        hit = MatchingHit.objects.get(need=need, offer=offer)
+        self.assertGreater(hit.match_score, Decimal("0.1000"))
+        self.assertNotEqual(hit.match_reason, "stale")
+
+    def test_refresh_matches_for_draft_offer_removes_stale_hits(self):
+        need = self._create_need()
+        offer = self._create_offer(status=Offer.OfferStatus.DRAFT)
+        MatchingHit.objects.create(
+            user=self.user,
+            need=need,
+            offer=offer,
+            match_score=Decimal("0.9000"),
+            match_reason="stale",
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            refresh_matches_for_offers([offer.id])
+
+        self.assertFalse(MatchingHit.objects.filter(need=need, offer=offer).exists())
