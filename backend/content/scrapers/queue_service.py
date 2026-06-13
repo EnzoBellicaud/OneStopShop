@@ -8,6 +8,7 @@ import requests
 from django.db import transaction
 from django.utils import timezone
 
+from content.matching_triggers import refresh_matches_for_offers
 from content.models import (
     CrawlUrl,
     Offer,
@@ -105,7 +106,7 @@ class UrlScraperService(ScrapeService):
 
         for crawl_url in batch:
             if crawl_url.source_key.startswith("import__"):
-                self._scrape_import_url(crawl_url, ingestion_user, stats, logs)
+                self._scrape_import_url(crawl_url, ingestion_user, stats, logs, matched_offer_ids)
                 continue
 
             source = source_map.get(crawl_url.source_key)
@@ -138,9 +139,8 @@ class UrlScraperService(ScrapeService):
 
         if matched_offer_ids:
             try:
-                from content.matching_service import run_matching_for_offers
-                match_stats = run_matching_for_offers(matched_offer_ids)
-                LOGGER.info("Post-scrape matching — %s", match_stats)
+                refresh_matches_for_offers(matched_offer_ids)
+                LOGGER.info("Scheduled post-scrape matching refresh for %d offer(s)", len(matched_offer_ids))
             except Exception:
                 LOGGER.exception("Post-scrape matching failed — continuing")
 
@@ -266,6 +266,7 @@ class UrlScraperService(ScrapeService):
         ingestion_user,
         stats: dict,
         logs: list[dict],
+        matched_offer_ids: list,
     ) -> None:
         """Handles CrawlUrl entries created by the bulk import flow (source_key starts with 'import__').
         Uses the linked offer's existing org/type metadata instead of a SourceDefinition lookup.
@@ -336,6 +337,8 @@ class UrlScraperService(ScrapeService):
         action = "updated" if changed else "unchanged"
         stats["processed"] += 1
         stats[action] += 1
+        if changed:
+            matched_offer_ids.append(offer.id)
         LOGGER.info("[%s] IMPORT %s — %s (conf=%.2f)", crawl_url.source_key, action.upper(), crawl_url.url, extracted.confidence)
         logs.append({
             "ts": _ts(), "event": "url_processed", "level": "info",

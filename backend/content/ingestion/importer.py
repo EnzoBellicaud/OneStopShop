@@ -9,6 +9,7 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
+from content.matching_triggers import refresh_matches_for_offers
 from content.models import (
     CrawlUrl,
     Domain,
@@ -88,6 +89,7 @@ class ImportService:
         ingestion_user = User.objects.get(username=bot_username)
         source_type = SourceType.objects.get(name="manual")
         drafts = published = 0
+        changed_offer_ids = []
 
         with transaction.atomic():
             for entry in valid_rows:
@@ -95,11 +97,14 @@ class ImportService:
                 row_status = entry.get("status", "draft")
                 status = Offer.OfferStatus.PUBLISHED if row_status == "published" else Offer.OfferStatus.DRAFT
                 offer = self._create_offer(row, status, source_type, ingestion_user)
+                changed_offer_ids.append(offer.id)
                 self._enqueue_url(offer, row["url"])
                 if row_status == "published":
                     published += 1
                 else:
                     drafts += 1
+
+            refresh_matches_for_offers(changed_offer_ids)
 
         return ConfirmResult(drafts=drafts, published=published)
 
