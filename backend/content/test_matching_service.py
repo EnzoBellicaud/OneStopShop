@@ -1,6 +1,7 @@
 """
 Unit tests for the matching service.
 Tests the hybrid matching logic: fast filters and scoring.
+Also includes integration tests for the full matching service and the matching refresh triggers.
 """
 
 from decimal import Decimal
