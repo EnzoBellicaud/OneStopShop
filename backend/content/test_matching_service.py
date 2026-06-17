@@ -544,6 +544,52 @@ class MatchingTriggerTests(TestCase):
         self.assertGreater(hit.match_score, Decimal("0.1000"))
         self.assertNotEqual(hit.match_reason, "stale")
 
+    def test_refresh_matches_for_need_does_not_match_other_needs(self):
+        need = self._create_need()
+        other_need = self._create_need(title="Other Trigger AI Need")
+        offer = self._create_offer()
+        MatchingHit.objects.create(
+            user=self.user,
+            need=need,
+            offer=offer,
+            match_score=Decimal("0.1000"),
+            match_reason="stale",
+        )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            refresh_matches_for_need(need.id)
+
+        self.assertTrue(MatchingHit.objects.filter(need=need, offer=offer).exists())
+        self.assertFalse(
+            MatchingHit.objects.filter(need=other_need, offer=offer).exists()
+        )
+
+    def test_refresh_matches_for_need_only_rebuilds_published_offer_hits(self):
+        need = self._create_need()
+        published_offer = self._create_offer(status=Offer.OfferStatus.PUBLISHED)
+        draft_offer = self._create_offer(status=Offer.OfferStatus.DRAFT)
+        archived_offer = self._create_offer(status=Offer.OfferStatus.ARCHIVED)
+
+        for offer in [published_offer, draft_offer, archived_offer]:
+            MatchingHit.objects.create(
+                user=self.user,
+                need=need,
+                offer=offer,
+                match_score=Decimal("0.1000"),
+                match_reason="stale",
+            )
+
+        with self.captureOnCommitCallbacks(execute=True):
+            refresh_matches_for_need(need.id)
+
+        self.assertTrue(
+            MatchingHit.objects.filter(need=need, offer=published_offer).exists()
+        )
+        self.assertFalse(MatchingHit.objects.filter(need=need, offer=draft_offer).exists())
+        self.assertFalse(
+            MatchingHit.objects.filter(need=need, offer=archived_offer).exists()
+        )
+
     def test_refresh_matches_for_draft_offer_removes_stale_hits(self):
         need = self._create_need()
         offer = self._create_offer(status=Offer.OfferStatus.DRAFT)

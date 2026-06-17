@@ -102,7 +102,6 @@ class ImportService:
                 self._enqueue_url(offer, row["url"])
                 if row_status == "published":
                     published += 1
-                    published_offer_ids.append(offer.id)
                 else:
                     drafts += 1
 

@@ -3,6 +3,7 @@ import logging
 from decimal import Decimal
 from django.db import transaction
 from collections import defaultdict
+from collections.abc import Iterable
 from content.models import MatchingHit, Offer, UserNeed
 
 LOGGER = logging.getLogger(__name__)
@@ -129,7 +130,7 @@ def _passes_fast_filter(need, offer, need_domains, offer_domains) -> bool:
 # MATCHING ENGINE
 # ============================================================
 
-def run_matching_for_offers(offer_ids: list[int]) -> dict:
+def run_matching_for_offers(offer_ids: Iterable, need_ids: Iterable | None = None) -> dict:
     """
     Optimized matching engine.
 
@@ -153,13 +154,18 @@ def run_matching_for_offers(offer_ids: list[int]) -> dict:
     if not offer_ids:
         return stats
 
+    normalized_offer_ids = list(dict.fromkeys(value for value in offer_ids if value))
+    normalized_need_ids = list(dict.fromkeys(need_ids or []))
+    if not normalized_offer_ids:
+        return stats
+
     # --------------------------------------------------------
     # Load offers
     # --------------------------------------------------------
 
     offers = list(
         Offer.objects.filter(
-            id__in=offer_ids,
+            id__in=normalized_offer_ids,
             status=Offer.OfferStatus.PUBLISHED,
         )
         .select_related(
@@ -177,10 +183,12 @@ def run_matching_for_offers(offer_ids: list[int]) -> dict:
     # Load active needs
     # --------------------------------------------------------
 
+    active_needs_query = UserNeed.objects.filter(status=UserNeed.NeedStatus.ACTIVE)
+    if normalized_need_ids:
+        active_needs_query = active_needs_query.filter(id__in=normalized_need_ids)
+
     active_needs = list(
-        UserNeed.objects.filter(
-            status=UserNeed.NeedStatus.ACTIVE
-        )
+        active_needs_query
         .select_related(
             "user",
             "target_profile",

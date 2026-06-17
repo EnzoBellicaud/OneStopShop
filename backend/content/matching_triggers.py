@@ -57,7 +57,7 @@ def refresh_matches_for_need(need_id) -> None:
         )
         if not published_ids:
             return
-        stats = run_matching_for_offers(published_ids)
+        stats = run_matching_for_offers(published_ids, need_ids=[need_id])
         LOGGER.info("Need matching refresh completed: need_id=%s stats=%s", need_id, stats)
 
     transaction.on_commit(_refresh)
