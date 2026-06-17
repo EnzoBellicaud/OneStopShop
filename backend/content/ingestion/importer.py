@@ -52,9 +52,10 @@ class PreviewResult:
 class ConfirmResult:
     drafts: int = 0
     published: int = 0
+    matching: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
-        return {"drafts": self.drafts, "published": self.published}
+        return {"drafts": self.drafts, "published": self.published, "matching": self.matching}
 
 
 class ImportService:
@@ -101,6 +102,7 @@ class ImportService:
                 self._enqueue_url(offer, row["url"])
                 if row_status == "published":
                     published += 1
+                    published_offer_ids.append(offer.id)
                 else:
                     drafts += 1
 

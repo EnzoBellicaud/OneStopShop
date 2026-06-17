@@ -1,16 +1,12 @@
-import { ref } from 'vue'
+import { computed } from 'vue'
+import { i18n, setI18nLocale, SUPPORTED_LOCALES } from '../i18n/index.js'
 
-const LANGUAGES = [
-  { code: 'en', label: 'English' },
-]
-
-const current = ref(localStorage.getItem('locale') || 'en')
+const current = computed(() => i18n.global.locale.value)
 
 function setLocale(code) {
-  current.value = code
-  localStorage.setItem('locale', code)
+  setI18nLocale(code)
 }
 
 export function useLocale() {
-  return { current, languages: LANGUAGES, setLocale }
+  return { current, languages: SUPPORTED_LOCALES, setLocale }
 }
