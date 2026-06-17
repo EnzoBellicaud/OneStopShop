@@ -15,7 +15,7 @@
         <button
           v-for="t in tabs" :key="t.id"
           :class="['admin-tab', { active: activeTab === t.id }]"
-          @click="activeTab = t.id"
+          @click="selectTab(t.id)"
         >{{ t.label }}</button>
       </div>
 
@@ -176,6 +176,9 @@
 
             <div v-if="importResult" class="alert-ok">
               Import complete: {{ importResult.published }} published, {{ importResult.drafts }} drafts.
+              <span v-if="importResult.matching">
+                {{ importResult.matching.created ?? 0 }} match{{ (importResult.matching.created ?? 0) === 1 ? '' : 'es' }} created.
+              </span>
             </div>
 
             <div class="form-actions">
@@ -192,9 +195,78 @@
         </template>
       </section>
 
+      <!-- ── TAB: VALIDATE ── -->
+      <section v-if="activeTab === 'validate'" class="admin-section">
+        <h2 class="section-h2">Validate opportunity data</h2>
+
+        <div class="manage-bar">
+          <button class="btn-outline" @click="loadValidationOffers">Refresh queue</button>
+          <span class="queue-note">{{ validationOffers.length }} draft item{{ validationOffers.length === 1 ? '' : 's' }} awaiting review</span>
+        </div>
+
+        <div v-if="validationLoading" class="state-msg">Loading…</div>
+        <div v-else-if="validationError" class="alert-error">{{ validationError }}</div>
+        <div v-else-if="!validationOffers.length" class="state-msg">No draft opportunities need validation.</div>
+        <div v-else class="validation-list">
+          <article v-for="offer in validationOffers" :key="offer.id" class="validation-card">
+            <div class="validation-head">
+              <div>
+                <h3>{{ offer.title || 'Untitled opportunity' }}</h3>
+                <p>{{ offer.organization.name }} · {{ offer.offer_type }} · {{ offer.country }}</p>
+              </div>
+              <span :class="['status-pill', `status-${offer.status}`]">{{ offer.status }}</span>
+            </div>
+            <p class="validation-summary">{{ offer.summary || 'No summary provided.' }}</p>
+            <ul class="validation-checks">
+              <li :class="{ ok: offer.link }">Link {{ offer.link ? 'present' : 'missing' }}</li>
+              <li :class="{ ok: offer.summary }">Summary {{ offer.summary ? 'present' : 'missing' }}</li>
+              <li :class="{ ok: offer.domains?.length }">Domains {{ offer.domains?.length ? offer.domains.join(', ') : 'missing' }}</li>
+              <li :class="{ ok: offer.deadline }">Deadline {{ offer.deadline || 'not set' }}</li>
+            </ul>
+            <div class="item-actions">
+              <a :href="offer.link" target="_blank" rel="noopener noreferrer" class="btn-link">Open source</a>
+              <button class="btn-ghost-sm" :disabled="updatingOfferId === offer.id" @click="updateOfferStatus(offer, 'published')">Publish</button>
+              <button class="btn-ghost-sm" :disabled="updatingOfferId === offer.id" @click="updateOfferStatus(offer, 'archived')">Archive</button>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- ── TAB: FORUM ── -->
+      <section v-if="activeTab === 'forum'" class="admin-section">
+        <h2 class="section-h2">Moderate forum</h2>
+
+        <div class="manage-bar">
+          <input v-model="forumQ" class="field-input manage-search" placeholder="Search questions…" @keyup.enter="loadForumQuestions" />
+          <button class="btn-outline" @click="loadForumQuestions">Search</button>
+        </div>
+
+        <div v-if="forumLoading" class="state-msg">Loading…</div>
+        <div v-else-if="forumError" class="alert-error">{{ forumError }}</div>
+        <div v-else-if="!forumQuestions.length" class="state-msg">No forum questions found.</div>
+        <div v-else class="forum-list">
+          <article v-for="question in forumQuestions" :key="question.id" class="forum-card">
+            <div class="validation-head">
+              <div>
+                <h3>{{ question.title }}</h3>
+                <p>{{ question.author.username }} · {{ question.answer_count }} answer{{ question.answer_count === 1 ? '' : 's' }} · {{ formatDate(question.created_at) }}</p>
+              </div>
+              <span v-if="question.offer_type" class="status-pill status-draft">{{ question.offer_type }}</span>
+            </div>
+            <p class="validation-summary">{{ question.body }}</p>
+            <div class="item-actions">
+              <RouterLink :to="`/forum/${question.id}`" class="btn-link">Open thread</RouterLink>
+              <button class="btn-delete" :disabled="deletingQuestionId === question.id" @click="deleteQuestion(question)">
+                {{ deletingQuestionId === question.id ? '…' : 'Delete' }}
+              </button>
+            </div>
+          </article>
+        </div>
+      </section>
+
       <!-- ── TAB: MANAGE ── -->
       <section v-if="activeTab === 'manage'" class="admin-section">
-        <h2 class="section-h2">Manage opportunities</h2>
+        <h2 class="section-h2">Moderate opportunities</h2>
 
         <div class="manage-bar">
           <input v-model="manageQ" class="field-input manage-search" placeholder="Search title, org…" @keyup.enter="loadManageOffers" />
@@ -226,6 +298,8 @@
                   <td><span :class="['status-pill', `status-${offer.status}`]">{{ offer.status }}</span></td>
                   <td class="td-date">{{ formatDate(offer.created_at) }}</td>
                   <td class="td-actions">
+                    <button v-if="offer.status !== 'published'" class="btn-ghost-mini" :disabled="updatingOfferId === offer.id" @click="updateOfferStatus(offer, 'published')">Publish</button>
+                    <button v-if="offer.status !== 'archived'" class="btn-ghost-mini" :disabled="updatingOfferId === offer.id" @click="updateOfferStatus(offer, 'archived')">Archive</button>
                     <button class="btn-delete" :disabled="deletingId === offer.id" @click="deleteOffer(offer)">
                       {{ deletingId === offer.id ? '…' : 'Delete' }}
                     </button>
@@ -258,10 +332,19 @@ const BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
 
 const tabs = [
   { id: 'add',    label: 'Add offer' },
+  { id: 'validate', label: 'Validate data' },
   { id: 'import', label: 'Bulk import' },
-  { id: 'manage', label: 'Manage offers' },
+  { id: 'manage', label: 'Moderate offers' },
+  { id: 'forum', label: 'Forum' },
 ]
 const activeTab = ref('add')
+
+function selectTab(tabId) {
+  activeTab.value = tabId
+  if (tabId === 'validate') loadValidationOffers()
+  if (tabId === 'manage') loadManageOffers()
+  if (tabId === 'forum') loadForumQuestions()
+}
 
 // ── Lookups ──
 const lookups = reactive({ offerTypes: [], targetProfiles: [], organizations: [], domains: [] })
@@ -278,6 +361,7 @@ onMounted(async () => {
   lookups.organizations = orgs.results ?? []
   lookups.domains = dm.results ?? []
   loadManageOffers()
+  loadValidationOffers()
 })
 
 // ── Add offer ──
@@ -402,7 +486,18 @@ const manageStatus = ref('')
 const managePage = ref(1)
 const manageTotalPages = ref(1)
 const deletingId = ref(null)
+const updatingOfferId = ref(null)
 const MANAGE_PAGE_SIZE = 20
+
+const validationOffers = ref([])
+const validationLoading = ref(false)
+const validationError = ref('')
+
+const forumQuestions = ref([])
+const forumLoading = ref(false)
+const forumError = ref('')
+const forumQ = ref('')
+const deletingQuestionId = ref(null)
 
 async function loadManageOffers() {
   manageLoading.value = true
@@ -428,6 +523,39 @@ function changePage(p) {
   loadManageOffers()
 }
 
+async function loadValidationOffers() {
+  validationLoading.value = true
+  validationError.value = ''
+  try {
+    const params = new URLSearchParams({ status: 'draft', ordering: '-created_at', page_size: 50 })
+    const res = await api.get(`/api/offers?${params}`)
+    if (!res.ok) { validationError.value = 'Failed to load validation queue.'; return }
+    validationOffers.value = (await res.json()).results ?? []
+  } catch {
+    validationError.value = 'Network error.'
+  } finally {
+    validationLoading.value = false
+  }
+}
+
+async function updateOfferStatus(offer, status) {
+  updatingOfferId.value = offer.id
+  try {
+    const res = await api.patch(`/api/offers/${offer.id}`, { status })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      alert(data.detail ?? 'Status update failed.')
+      return
+    }
+    manageOffers.value = manageOffers.value.map(o => o.id === offer.id ? data : o)
+    validationOffers.value = validationOffers.value.filter(o => o.id !== offer.id)
+  } catch {
+    alert('Network error.')
+  } finally {
+    updatingOfferId.value = null
+  }
+}
+
 async function deleteOffer(offer) {
   if (!confirm(`Delete "${offer.title}"? This cannot be undone.`)) return
   deletingId.value = offer.id
@@ -435,6 +563,7 @@ async function deleteOffer(offer) {
     const res = await api.delete(`/api/offers/${offer.id}`)
     if (res.ok || res.status === 204) {
       manageOffers.value = manageOffers.value.filter(o => o.id !== offer.id)
+      validationOffers.value = validationOffers.value.filter(o => o.id !== offer.id)
     } else {
       const data = await res.json().catch(() => ({}))
       alert(data.detail ?? 'Delete failed.')
@@ -443,6 +572,40 @@ async function deleteOffer(offer) {
     alert('Network error.')
   } finally {
     deletingId.value = null
+  }
+}
+
+async function loadForumQuestions() {
+  forumLoading.value = true
+  forumError.value = ''
+  try {
+    const params = new URLSearchParams({ page_size: 50 })
+    if (forumQ.value.trim()) params.set('q', forumQ.value.trim())
+    const res = await api.get(`/api/forum/questions?${params}`)
+    if (!res.ok) { forumError.value = 'Failed to load forum questions.'; return }
+    forumQuestions.value = (await res.json()).results ?? []
+  } catch {
+    forumError.value = 'Network error.'
+  } finally {
+    forumLoading.value = false
+  }
+}
+
+async function deleteQuestion(question) {
+  if (!confirm(`Delete forum question "${question.title}"?`)) return
+  deletingQuestionId.value = question.id
+  try {
+    const res = await api.delete(`/api/forum/questions/${question.id}`)
+    if (res.ok || res.status === 204) {
+      forumQuestions.value = forumQuestions.value.filter(q => q.id !== question.id)
+    } else {
+      const data = await res.json().catch(() => ({}))
+      alert(data.detail ?? 'Delete failed.')
+    }
+  } catch {
+    alert('Network error.')
+  } finally {
+    deletingQuestionId.value = null
   }
 }
 
@@ -652,9 +815,10 @@ function formatDate(iso) {
 /* Manage */
 .manage-bar { display: flex; gap: 10px; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; }
 .manage-search { flex: 1; min-width: 200px; }
+.queue-note { color: var(--ink-faint); font-size: 13px; }
 .td-title { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .td-date { white-space: nowrap; color: var(--ink-faint); font-size: 12px; }
-.td-actions { white-space: nowrap; }
+.td-actions { white-space: nowrap; display: flex; gap: 6px; align-items: center; }
 
 .status-pill {
   display: inline-block;
@@ -681,6 +845,94 @@ function formatDate(iso) {
 }
 .btn-delete:hover { background: var(--accent-light); }
 .btn-delete:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-ghost-mini {
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  background: var(--white);
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+}
+.btn-ghost-mini:hover { border-color: var(--ink); color: var(--ink); }
+.btn-ghost-mini:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.validation-list,
+.forum-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.validation-card,
+.forum-card {
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  background: var(--white);
+  padding: 16px;
+}
+
+.validation-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+.validation-head h3 {
+  font-size: 15px;
+  color: var(--ink);
+  margin-bottom: 3px;
+}
+.validation-head p,
+.validation-summary {
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+.validation-summary {
+  margin-bottom: 10px;
+}
+.validation-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+  margin-bottom: 12px;
+}
+.validation-checks li {
+  border: 1px solid #f3d5b0;
+  border-radius: 99px;
+  background: #fff8f0;
+  color: #7a3b00;
+  font-size: 12px;
+  padding: 3px 9px;
+}
+.validation-checks li.ok {
+  border-color: #c8ead3;
+  background: #f0faf4;
+  color: #1a6b3c;
+}
+.item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.btn-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+}
+.btn-link:hover { border-color: var(--ink); }
 
 .state-msg { padding: 40px; text-align: center; color: var(--ink-faint); font-size: 14px; }
 </style>

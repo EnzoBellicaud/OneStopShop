@@ -11,6 +11,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from content.auth import require_auth, verify_token
+from content.matching_service import run_matching_for_offers
 from content.models import Domain, Offer, OfferType, Organization, SourceType, TargetProfile, User, UserOrganization
 from content.views._utils import _parse_positive_int
 
@@ -247,6 +248,8 @@ def _create_offer(request):
         .prefetch_related("domains")
         .get(id=offer.id)
     )
+    if offer.status == Offer.OfferStatus.PUBLISHED:
+        run_matching_for_offers([offer.id])
     return JsonResponse(_offer_to_dict(offer), status=201)
 
 
@@ -354,6 +357,8 @@ def _update_offer(request, parsed_id: UUID):
             offer.domains.set(domains_qs)
 
     offer.refresh_from_db()
+    if offer.status == Offer.OfferStatus.PUBLISHED:
+        run_matching_for_offers([offer.id])
     return JsonResponse(_offer_to_dict(offer))
 
 
