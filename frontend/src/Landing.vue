@@ -6,7 +6,9 @@
     import ProfileSelection from './components/sections/ProfileSelection.vue';
     import Desktop from './components/sections/DesktopOnlyInfo.vue'
     import { ref, onMounted } from 'vue'
+    import { useI18n } from 'vue-i18n'
 
+    const { t } = useI18n()
     const show = ref(false)
 
     onMounted(() => {
@@ -21,14 +23,14 @@
         <!-- Hero -->
         <section class="page-hero landing-hero">
             <div class="page-hero-inner">
-                <p class="section-eyebrow">One Stop Shop</p>
-                <h1 class="page-title">Your gateway to <em>university opportunities</em></h1>
+                <p class="section-eyebrow">{{ t('landing.eyebrow') }}</p>
+                <h1 class="page-title">{{ t('landing.title') }}</h1>
                 <p class="page-sub">
-                    Find internships, research groups, trainings, and more across our partner universities — all in one place.
+                    {{ t('landing.subtitle') }}
                 </p>
                 <div class="hero-actions">
-                    <router-link to="/student" class="btn-primary" data-hover="Get started">Get started</router-link>
-                    <router-link to="/forum" class="btn-ghost">Visit Forum →</router-link>
+                    <router-link to="/student" class="btn-primary" :data-hover="t('landing.getStarted')">{{ t('landing.getStarted') }}</router-link>
+                    <router-link to="/forum" class="btn-ghost">{{ t('landing.forum') }} →</router-link>
                 </div>
             </div>
         </section>

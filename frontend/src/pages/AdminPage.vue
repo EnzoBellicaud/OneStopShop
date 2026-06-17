@@ -4,8 +4,8 @@
 
     <section class="page-hero">
       <div class="page-hero-inner">
-        <p class="section-eyebrow">Admin</p>
-        <h1 class="page-title">Admin Panel</h1>
+        <p class="section-eyebrow">{{ t('admin.eyebrow') }}</p>
+        <h1 class="page-title">{{ t('admin.title') }}</h1>
       </div>
     </section>
 
@@ -13,15 +13,15 @@
       <!-- Tabs -->
       <div class="admin-tabs">
         <button
-          v-for="t in tabs" :key="t.id"
-          :class="['admin-tab', { active: activeTab === t.id }]"
-          @click="selectTab(t.id)"
-        >{{ t.label }}</button>
+          v-for="tab in tabs" :key="tab.id"
+          :class="['admin-tab', { active: activeTab === tab.id }]"
+          @click="selectTab(tab.id)"
+        >{{ t(tab.labelKey) }}</button>
       </div>
 
       <!-- ── TAB: ADD OFFER ── -->
       <section v-if="activeTab === 'add'" class="admin-section">
-        <h2 class="section-h2">Add a single opportunity</h2>
+        <h2 class="section-h2">{{ t('admin.addSingle') }}</h2>
 
         <form class="offer-form" @submit.prevent="submitOffer">
           <div class="form-row-2">
@@ -106,7 +106,7 @@
 
       <!-- ── TAB: BULK IMPORT ── -->
       <section v-if="activeTab === 'import'" class="admin-section">
-        <h2 class="section-h2">Bulk import via Excel</h2>
+        <h2 class="section-h2">{{ t('admin.importTitle') }}</h2>
 
         <div class="import-help">
           <p>Download the template, fill it in, then upload to preview before confirming.</p>
@@ -197,16 +197,16 @@
 
       <!-- ── TAB: VALIDATE ── -->
       <section v-if="activeTab === 'validate'" class="admin-section">
-        <h2 class="section-h2">Validate opportunity data</h2>
+        <h2 class="section-h2">{{ t('admin.validateTitle') }}</h2>
 
         <div class="manage-bar">
-          <button class="btn-outline" @click="loadValidationOffers">Refresh queue</button>
+          <button class="btn-outline" @click="loadValidationOffers">{{ t('admin.refreshQueue') }}</button>
           <span class="queue-note">{{ validationOffers.length }} draft item{{ validationOffers.length === 1 ? '' : 's' }} awaiting review</span>
         </div>
 
-        <div v-if="validationLoading" class="state-msg">Loading…</div>
+        <div v-if="validationLoading" class="state-msg">{{ t('admin.loading') }}</div>
         <div v-else-if="validationError" class="alert-error">{{ validationError }}</div>
-        <div v-else-if="!validationOffers.length" class="state-msg">No draft opportunities need validation.</div>
+        <div v-else-if="!validationOffers.length" class="state-msg">{{ t('admin.noDrafts') }}</div>
         <div v-else class="validation-list">
           <article v-for="offer in validationOffers" :key="offer.id" class="validation-card">
             <div class="validation-head">
@@ -224,9 +224,9 @@
               <li :class="{ ok: offer.deadline }">Deadline {{ offer.deadline || 'not set' }}</li>
             </ul>
             <div class="item-actions">
-              <a :href="offer.link" target="_blank" rel="noopener noreferrer" class="btn-link">Open source</a>
-              <button class="btn-ghost-sm" :disabled="updatingOfferId === offer.id" @click="updateOfferStatus(offer, 'published')">Publish</button>
-              <button class="btn-ghost-sm" :disabled="updatingOfferId === offer.id" @click="updateOfferStatus(offer, 'archived')">Archive</button>
+              <a :href="offer.link" target="_blank" rel="noopener noreferrer" class="btn-link">{{ t('admin.openSource') }}</a>
+              <button class="btn-ghost-sm" :disabled="updatingOfferId === offer.id" @click="updateOfferStatus(offer, 'published')">{{ t('admin.publish') }}</button>
+              <button class="btn-ghost-sm" :disabled="updatingOfferId === offer.id" @click="updateOfferStatus(offer, 'archived')">{{ t('admin.archive') }}</button>
             </div>
           </article>
         </div>
@@ -234,16 +234,16 @@
 
       <!-- ── TAB: FORUM ── -->
       <section v-if="activeTab === 'forum'" class="admin-section">
-        <h2 class="section-h2">Moderate forum</h2>
+        <h2 class="section-h2">{{ t('admin.forumTitle') }}</h2>
 
         <div class="manage-bar">
           <input v-model="forumQ" class="field-input manage-search" placeholder="Search questions…" @keyup.enter="loadForumQuestions" />
-          <button class="btn-outline" @click="loadForumQuestions">Search</button>
+          <button class="btn-outline" @click="loadForumQuestions">{{ t('admin.search') }}</button>
         </div>
 
-        <div v-if="forumLoading" class="state-msg">Loading…</div>
+        <div v-if="forumLoading" class="state-msg">{{ t('admin.loading') }}</div>
         <div v-else-if="forumError" class="alert-error">{{ forumError }}</div>
-        <div v-else-if="!forumQuestions.length" class="state-msg">No forum questions found.</div>
+        <div v-else-if="!forumQuestions.length" class="state-msg">{{ t('admin.noQuestions') }}</div>
         <div v-else class="forum-list">
           <article v-for="question in forumQuestions" :key="question.id" class="forum-card">
             <div class="validation-head">
@@ -255,9 +255,9 @@
             </div>
             <p class="validation-summary">{{ question.body }}</p>
             <div class="item-actions">
-              <RouterLink :to="`/forum/${question.id}`" class="btn-link">Open thread</RouterLink>
+              <RouterLink :to="`/forum/${question.id}`" class="btn-link">{{ t('admin.openThread') }}</RouterLink>
               <button class="btn-delete" :disabled="deletingQuestionId === question.id" @click="deleteQuestion(question)">
-                {{ deletingQuestionId === question.id ? '…' : 'Delete' }}
+                {{ deletingQuestionId === question.id ? '…' : t('admin.delete') }}
               </button>
             </div>
           </article>
@@ -266,7 +266,7 @@
 
       <!-- ── TAB: MANAGE ── -->
       <section v-if="activeTab === 'manage'" class="admin-section">
-        <h2 class="section-h2">Moderate opportunities</h2>
+        <h2 class="section-h2">{{ t('admin.manageTitle') }}</h2>
 
         <div class="manage-bar">
           <input v-model="manageQ" class="field-input manage-search" placeholder="Search title, org…" @keyup.enter="loadManageOffers" />
@@ -276,12 +276,12 @@
             <option value="published">Published</option>
             <option value="archived">Archived</option>
           </select>
-          <button class="btn-outline" @click="loadManageOffers">Search</button>
+          <button class="btn-outline" @click="loadManageOffers">{{ t('admin.search') }}</button>
         </div>
 
-        <div v-if="manageLoading" class="state-msg">Loading…</div>
+        <div v-if="manageLoading" class="state-msg">{{ t('admin.loading') }}</div>
         <div v-else-if="manageError" class="alert-error">{{ manageError }}</div>
-        <div v-else-if="!manageOffers.length" class="state-msg">No offers found.</div>
+        <div v-else-if="!manageOffers.length" class="state-msg">{{ t('admin.noOffers') }}</div>
         <div v-else>
           <div class="table-scroll">
             <table class="manage-table">
@@ -298,10 +298,10 @@
                   <td><span :class="['status-pill', `status-${offer.status}`]">{{ offer.status }}</span></td>
                   <td class="td-date">{{ formatDate(offer.created_at) }}</td>
                   <td class="td-actions">
-                    <button v-if="offer.status !== 'published'" class="btn-ghost-mini" :disabled="updatingOfferId === offer.id" @click="updateOfferStatus(offer, 'published')">Publish</button>
-                    <button v-if="offer.status !== 'archived'" class="btn-ghost-mini" :disabled="updatingOfferId === offer.id" @click="updateOfferStatus(offer, 'archived')">Archive</button>
+                    <button v-if="offer.status !== 'published'" class="btn-ghost-mini" :disabled="updatingOfferId === offer.id" @click="updateOfferStatus(offer, 'published')">{{ t('admin.publish') }}</button>
+                    <button v-if="offer.status !== 'archived'" class="btn-ghost-mini" :disabled="updatingOfferId === offer.id" @click="updateOfferStatus(offer, 'archived')">{{ t('admin.archive') }}</button>
                     <button class="btn-delete" :disabled="deletingId === offer.id" @click="deleteOffer(offer)">
-                      {{ deletingId === offer.id ? '…' : 'Delete' }}
+                      {{ deletingId === offer.id ? '…' : t('admin.delete') }}
                     </button>
                   </td>
                 </tr>
@@ -324,18 +324,20 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import AppHeader from '../components/layout/AppHeader.vue'
 import AppFooter from '../components/layout/AppFooter.vue'
 import { api } from '../services/api.js'
 
 const BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
+const { t } = useI18n()
 
 const tabs = [
-  { id: 'add',    label: 'Add offer' },
-  { id: 'validate', label: 'Validate data' },
-  { id: 'import', label: 'Bulk import' },
-  { id: 'manage', label: 'Moderate offers' },
-  { id: 'forum', label: 'Forum' },
+  { id: 'add', labelKey: 'admin.tabs.add' },
+  { id: 'validate', labelKey: 'admin.tabs.validate' },
+  { id: 'import', labelKey: 'admin.tabs.import' },
+  { id: 'manage', labelKey: 'admin.tabs.manage' },
+  { id: 'forum', labelKey: 'admin.tabs.forum' },
 ]
 const activeTab = ref('add')
 
