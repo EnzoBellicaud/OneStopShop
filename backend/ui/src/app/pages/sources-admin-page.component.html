@@ -1,21 +1,21 @@
 <section class="sources-page">
   <header>
-    <p class="eyebrow">Admin</p>
-    <h1>Scraping Sources</h1>
+    <p class="eyebrow">{{ 'dashboard.admin' | translate }}</p>
+    <h1>{{ 'sources.title' | translate }}</h1>
     <div class="header-meta">
-      <p class="lead">Manage websites the scraper monitors for opportunities.</p>
+      <p class="lead">{{ 'sources.lead' | translate }}</p>
     </div>
   </header>
 
   <div class="tab-toolbar">
-    <span class="section-title">Sources</span>
+    <span class="section-title">{{ 'sources.sectionSources' | translate }}</span>
     <div class="toolbar-actions">
-      <button class="btn-primary" (click)="openCreateSource()">+ Add Source</button>
-      <button class="btn-ghost" (click)="loadSources()">Refresh</button>
+      <button class="btn-primary" (click)="openCreateSource()">{{ 'sources.addSource' | translate }}</button>
+      <button class="btn-ghost" (click)="loadSources()">{{ 'common.refresh' | translate }}</button>
     </div>
   </div>
 
-  <p class="hint" *ngIf="loading">Loading sources…</p>
+  <p class="hint" *ngIf="loading">{{ 'sources.loading' | translate }}</p>
 
   <div class="error-banner" *ngIf="errorMessage && !showSourceModal">{{ errorMessage }}</div>
 
@@ -23,13 +23,13 @@
     <table class="data-table">
       <thead>
         <tr>
-          <th>Key</th>
-          <th>Name</th>
-          <th>Organization</th>
-          <th>Country</th>
-          <th>Classification mode</th>
-          <th>Enabled</th>
-          <th>Actions</th>
+          <th>{{ 'sources.thKey' | translate }}</th>
+          <th>{{ 'sources.thName' | translate }}</th>
+          <th>{{ 'sources.thOrganization' | translate }}</th>
+          <th>{{ 'sources.thCountry' | translate }}</th>
+          <th>{{ 'sources.thClassMode' | translate }}</th>
+          <th>{{ 'sources.thEnabled' | translate }}</th>
+          <th>{{ 'common.actions' | translate }}</th>
         </tr>
       </thead>
       <tbody>
@@ -38,21 +38,21 @@
           <td>{{ s.name }}</td>
           <td class="small">{{ s.organization_name || '—' }}</td>
           <td class="small">{{ s.country || '—' }}</td>
-          <td class="small center">{{ s.llm_fallback_enabled ? 'LLM' : 'Deterministic' }}</td>
+          <td class="small center">{{ s.llm_fallback_enabled ? ('sources.llm' | translate) : ('sources.deterministic' | translate) }}</td>
           <td class="center">
             <input type="checkbox" [checked]="s.enabled"
               (change)="toggleSourceEnabled(s.key, $any($event.target).checked)" />
           </td>
           <td>
-            <button class="btn-ghost small" (click)="openEditSource(s)">Edit</button>
+            <button class="btn-ghost small" (click)="openEditSource(s)">{{ 'common.edit' | translate }}</button>
             <button class="btn-ghost small danger" (click)="deleteSource(s.key)"
               [disabled]="deletingSource() === s.key">
-              {{ deletingSource() === s.key ? '…' : 'Delete' }}
+              {{ deletingSource() === s.key ? '…' : ('common.delete' | translate) }}
             </button>
           </td>
         </tr>
         <tr *ngIf="sources.length === 0">
-          <td colspan="7" class="hint">No sources configured.</td>
+          <td colspan="7" class="hint">{{ 'sources.empty' | translate }}</td>
         </tr>
       </tbody>
     </table>
@@ -62,44 +62,44 @@
 <!-- Source modal -->
 <div class="modal-backdrop" *ngIf="showSourceModal" (click)="closeSourceModal()">
   <div class="modal modal-lg" (click)="$event.stopPropagation()">
-    <h2>{{ sourceModalTarget ? 'Edit Source' : 'Add Source' }}</h2>
+    <h2>{{ sourceModalTarget ? ('sources.editTitle' | translate) : ('sources.addTitle' | translate) }}</h2>
 
     <div class="error-banner" *ngIf="errorMessage">{{ errorMessage }}</div>
 
     <div class="form-grid">
       <label class="form-field" *ngIf="!sourceModalTarget">
-        Key
-        <input type="text" [(ngModel)]="sourceForm.key" placeholder="e.g. unibz_erasmus" />
+        {{ 'sources.fieldKey' | translate }}
+        <input type="text" [(ngModel)]="sourceForm.key" [placeholder]="'sources.keyPlaceholder' | translate" />
       </label>
       <label class="form-field">
-        Name
+        {{ 'sources.fieldName' | translate }}
         <input type="text" [(ngModel)]="sourceForm.name" />
       </label>
       <label class="form-field full">
-        URL
+        {{ 'sources.fieldUrl' | translate }}
         <input type="url" [(ngModel)]="sourceForm.url" />
       </label>
       <label class="form-field">
-        Organization
+        {{ 'sources.fieldOrganization' | translate }}
         <select [(ngModel)]="sourceForm.organization_id">
-          <option value="">— none —</option>
+          <option value="">{{ 'sources.orgNone' | translate }}</option>
           <option *ngFor="let o of organizations" [value]="o.id">{{ o.name }}</option>
         </select>
       </label>
       <label class="form-field">
-        Country (ISO code)
+        {{ 'sources.fieldCountry' | translate }}
         <input type="text" [(ngModel)]="sourceForm.country" maxlength="10" />
       </label>
       <label class="form-field">
-        Target profile
+        {{ 'sources.fieldTargetProfile' | translate }}
         <input type="text" [(ngModel)]="sourceForm.target_profile" />
       </label>
       <label class="form-field">
-        Interval (minutes)
+        {{ 'sources.fieldInterval' | translate }}
         <input type="number" [(ngModel)]="sourceForm.interval_minutes" min="1" />
       </label>
       <label class="form-field">
-        Quality
+        {{ 'sources.fieldQuality' | translate }}
         <select [(ngModel)]="sourceForm.quality">
           <option value="real">real</option>
           <option value="test">test</option>
@@ -108,44 +108,44 @@
       </label>
       <div class="form-field radio-group">
         <span class="radio-label">
-          Classification mode
-          <span class="tooltip-anchor" title="LLM uses AI to judge page relevance and classify offer types. If Ollama is unavailable or hits rate limits, it automatically falls back to the deterministic keyword + TF-IDF classifier.">&#9432;</span>
+          {{ 'sources.classModeLabel' | translate }}
+          <span class="tooltip-anchor" [title]="'sources.classModeTooltip' | translate">&#9432;</span>
         </span>
         <div class="radio-options">
           <label class="radio-option">
             <input type="radio" name="llm_mode" [value]="true" [(ngModel)]="sourceForm.llm_fallback_enabled" />
-            LLM <span class="radio-hint">(falls back to deterministic if unavailable)</span>
+            {{ 'sources.llmOption' | translate }} <span class="radio-hint">{{ 'sources.llmHint' | translate }}</span>
           </label>
           <label class="radio-option">
             <input type="radio" name="llm_mode" [value]="false" [(ngModel)]="sourceForm.llm_fallback_enabled" />
-            Deterministic only <span class="radio-hint">(keyword gate + TF-IDF, fully offline)</span>
+            {{ 'sources.detOption' | translate }} <span class="radio-hint">{{ 'sources.detHint' | translate }}</span>
           </label>
         </div>
       </div>
       <label class="form-field toggle-row">
-        Enabled
+        {{ 'sources.fieldEnabled' | translate }}
         <input type="checkbox" [(ngModel)]="sourceForm.enabled" />
       </label>
     </div>
 
     <fieldset class="crawl-group">
-      <legend>Crawl settings</legend>
+      <legend>{{ 'sources.crawlSettings' | translate }}</legend>
       <div class="form-grid">
         <label class="form-field">
-          Crawl depth
+          {{ 'sources.fieldCrawlDepth' | translate }}
           <input type="number" [(ngModel)]="sourceForm.crawl_depth" min="1" />
         </label>
         <label class="form-field">
-          Max pages
+          {{ 'sources.fieldMaxPages' | translate }}
           <input type="number" [(ngModel)]="sourceForm.crawl_max_pages" min="1" />
         </label>
       </div>
     </fieldset>
 
     <div class="modal-actions">
-      <button class="btn-ghost" (click)="closeSourceModal()">Cancel</button>
+      <button class="btn-ghost" (click)="closeSourceModal()">{{ 'common.cancel' | translate }}</button>
       <button class="btn-primary" (click)="saveSource()" [disabled]="savingSource()">
-        {{ savingSource() ? 'Saving…' : (sourceModalTarget ? 'Save Changes' : 'Create Source') }}
+        {{ savingSource() ? ('common.saving' | translate) : (sourceModalTarget ? ('sources.saveChanges' | translate) : ('sources.createSource' | translate)) }}
       </button>
     </div>
   </div>

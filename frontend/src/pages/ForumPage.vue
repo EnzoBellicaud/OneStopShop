@@ -1,12 +1,14 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, RouterLink } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import AppHeader from '../components/layout/AppHeader.vue'
 import AppFooter from '../components/layout/AppFooter.vue'
 import { useAuth } from '../composables/useAuth.js'
 import { useForum } from '../composables/useForum.js'
 
 const router = useRouter()
+const { t } = useI18n()
 const { isLoggedIn } = useAuth()
 const { fetchQuestions, fetchOfferTypes } = useForum()
 
@@ -52,7 +54,7 @@ async function loadQuestions() {
     totalCount.value = data.count || 0
     totalPages.value = data.total_pages || 0
   } catch (err) {
-    error.value = err.message || 'Failed to load questions.'
+    error.value = err.message || t('forum.failedLoad')
     questions.value = []
   } finally {
     loading.value = false
@@ -126,13 +128,13 @@ onMounted(() => {
   <main>
     <section class="page-hero">
       <div class="page-hero-inner">
-        <p class="section-eyebrow">Community</p>
-        <h1 class="page-title">Forum</h1>
+        <p class="section-eyebrow">{{ t('forum.community') }}</p>
+        <h1 class="page-title">{{ t('forum.title') }}</h1>
         <p class="page-sub">
-          Ask questions, share answers, and learn from the community across our partner universities.
+          {{ t('forum.sub') }}
         </p>
         <div class="hero-actions">
-          <button class="btn-primary" @click="goToNew">Ask a question</button>
+          <button class="btn-primary" @click="goToNew">{{ t('forum.ask') }}</button>
         </div>
       </div>
     </section>
@@ -142,23 +144,23 @@ onMounted(() => {
         v-model="searchQuery"
         class="search-input"
         type="text"
-        placeholder="Search questions..."
+        :placeholder="t('forum.searchPlaceholder')"
       />
       <select v-model="selectedOfferType" class="filter-select">
-        <option value="">All offer types</option>
-        <option v-for="t in offerTypes" :key="t.id" :value="t.name">{{ t.name }}</option>
+        <option value="">{{ t('forum.allOfferTypes') }}</option>
+        <option v-for="ot in offerTypes" :key="ot.id" :value="ot.name">{{ ot.name }}</option>
       </select>
       <button
         class="filter-chip"
         :class="{ active: onlyMine }"
         @click="toggleMine"
-      >My questions</button>
+      >{{ t('forum.myQuestions') }}</button>
     </div>
 
     <div class="forum-content">
       <p v-if="error" class="forum-error">{{ error }}</p>
-      <p v-else-if="loading && !hasResults" class="forum-info">Loading…</p>
-      <p v-else-if="!hasResults" class="forum-info">No questions found.</p>
+      <p v-else-if="loading && !hasResults" class="forum-info">{{ t('forum.loading') }}</p>
+      <p v-else-if="!hasResults" class="forum-info">{{ t('forum.noQuestions') }}</p>
 
       <div class="question-list">
         <RouterLink
@@ -173,12 +175,12 @@ onMounted(() => {
               class="type-tag"
               :class="offerTypeClass(q.offer_type)"
             >{{ q.offer_type }}</span>
-            <span class="answer-badge">{{ q.answer_count }} {{ q.answer_count === 1 ? 'answer' : 'answers' }}</span>
+            <span class="answer-badge">{{ q.answer_count }} {{ t('forum.answer', q.answer_count) }}</span>
           </div>
           <h3 class="question-title">{{ q.title }}</h3>
           <p class="question-body">{{ previewBody(q.body) }}</p>
           <div class="question-meta">
-            <span>by {{ q.author.username }}</span>
+            <span>{{ t('forum.by') }} {{ q.author.username }}</span>
             <span>•</span>
             <span>{{ formatDate(q.created_at) }}</span>
           </div>
@@ -190,13 +192,13 @@ onMounted(() => {
           class="btn-ghost pagination-btn"
           :disabled="page <= 1 || loading"
           @click="page = page - 1"
-        >← Prev</button>
-        <span class="pagination-info">Page {{ page }} of {{ totalPages }} · {{ totalCount }} total</span>
+        >{{ t('forum.prev') }}</button>
+        <span class="pagination-info">{{ t('forum.pageInfo', { page, total: totalPages, count: totalCount }) }}</span>
         <button
           class="btn-ghost pagination-btn"
           :disabled="page >= totalPages || loading"
           @click="page = page + 1"
-        >Next →</button>
+        >{{ t('forum.next') }}</button>
       </div>
     </div>
   </main>

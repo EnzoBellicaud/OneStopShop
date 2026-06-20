@@ -9,11 +9,12 @@ import {
   OfferTypeAdminListResponse,
 } from '../shared/api.models';
 import { OssApiService } from '../shared/oss-api.service';
+import { TranslatePipe } from '../shared/i18n/translate.pipe';
 
 @Component({
   selector: 'app-offers-admin-page',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TranslatePipe],
   templateUrl: './offers-admin-page.component.html',
   styleUrl: './offers-admin-page.component.css',
 })

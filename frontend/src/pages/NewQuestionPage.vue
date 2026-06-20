@@ -1,11 +1,13 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import AppHeader from '../components/layout/AppHeader.vue'
 import AppFooter from '../components/layout/AppFooter.vue'
 import { useForum } from '../composables/useForum.js'
 
 const router = useRouter()
+const { t } = useI18n()
 const { createQuestion, fetchOfferTypes } = useForum()
 
 const form = ref({
@@ -31,15 +33,15 @@ async function handleSubmit() {
   const body = form.value.body.trim()
 
   if (title.length < 5) {
-    formError.value = 'Title must be at least 5 characters.'
+    formError.value = t('nq.errTitleMin')
     return
   }
   if (title.length > 255) {
-    formError.value = 'Title must be at most 255 characters.'
+    formError.value = t('nq.errTitleMax')
     return
   }
   if (body.length < 10) {
-    formError.value = 'Body must be at least 10 characters.'
+    formError.value = t('nq.errBodyMin')
     return
   }
 
@@ -50,7 +52,7 @@ async function handleSubmit() {
     const created = await createQuestion(payload)
     router.push({ name: 'QuestionDetail', params: { id: created.id } })
   } catch (err) {
-    formError.value = err.message || 'Failed to create question.'
+    formError.value = err.message || t('nq.failedCreate')
   } finally {
     submitting.value = false
   }
@@ -63,41 +65,41 @@ onMounted(loadOfferTypes)
   <AppHeader />
   <main>
     <div class="form-wrap">
-      <button class="back-btn" @click="router.back()">← Back</button>
-      <h1 class="nq-title">Ask a question</h1>
-      <p class="nq-sub">Share what you need help with — the community can answer below.</p>
+      <button class="back-btn" @click="router.back()">{{ t('nq.back') }}</button>
+      <h1 class="nq-title">{{ t('nq.title') }}</h1>
+      <p class="nq-sub">{{ t('nq.sub') }}</p>
 
       <form class="question-form" @submit.prevent="handleSubmit">
         <div class="nq-group">
-          <label for="title">Title</label>
+          <label for="title">{{ t('nq.titleLabel') }}</label>
           <input
             id="title"
             v-model="form.title"
             type="text"
             class="nq-input"
-            placeholder="What is your question?"
+            :placeholder="t('nq.titlePlaceholder')"
             maxlength="255"
             required
           />
         </div>
 
         <div class="nq-group">
-          <label for="body">Details</label>
+          <label for="body">{{ t('nq.details') }}</label>
           <textarea
             id="body"
             v-model="form.body"
             rows="8"
             class="nq-area"
-            placeholder="Provide more context, what you have tried, and what you are looking for..."
+            :placeholder="t('nq.detailsPlaceholder')"
             required
           ></textarea>
         </div>
 
         <div class="nq-group">
-          <label for="offer_type">Related offer type (optional)</label>
+          <label for="offer_type">{{ t('nq.relatedOfferType') }}</label>
           <select id="offer_type" v-model="form.offer_type_id" class="nq-input">
-            <option value="">— None —</option>
-            <option v-for="t in offerTypes" :key="t.id" :value="t.id">{{ t.name }}</option>
+            <option value="">{{ t('nq.none') }}</option>
+            <option v-for="ot in offerTypes" :key="ot.id" :value="ot.id">{{ ot.name }}</option>
           </select>
         </div>
 
@@ -105,9 +107,9 @@ onMounted(loadOfferTypes)
 
         <div class="nq-actions">
           <button type="submit" class="btn-primary" :disabled="submitting">
-            {{ submitting ? 'Posting…' : 'Post question' }}
+            {{ submitting ? t('nq.posting') : t('nq.post') }}
           </button>
-          <button type="button" class="btn-ghost" @click="router.back()">Cancel</button>
+          <button type="button" class="btn-ghost" @click="router.back()">{{ t('nq.cancel') }}</button>
         </div>
       </form>
     </div>

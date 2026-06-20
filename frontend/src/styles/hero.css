@@ -1,0 +1,132 @@
+/* ── HERO ── */
+.hero {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4rem;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 6rem 3rem 5rem;
+}
+.hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 5px 12px;
+  border-radius: 99px;
+  margin-bottom: 1.5rem;
+}
+.hero-eyebrow::before {
+  content: '';
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--ink);
+  flex-shrink: 0;
+}
+.hero h1 {
+  font-family: 'DM Serif Display', serif;
+  font-size: 52px;
+  line-height: 1.1;
+  letter-spacing: -1px;
+  color: var(--ink);
+  margin-bottom: 1.25rem;
+}
+.hero h1 em { font-style: italic; color: var(--ink); }
+.hero-sub {
+  font-size: 16px;
+  color: var(--ink-soft);
+  line-height: 1.7;
+  max-width: 440px;
+  margin-bottom: 2.5rem;
+}
+.hero-actions { display: flex; gap: 12px; align-items: center; }
+.btn-primary {
+  background: var(--ink);
+  color: var(--white);
+  padding: 12px 28px;
+  border-radius: var(--r);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  letter-spacing: 0.01em;
+  border: none;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  transition: opacity 0.2s;
+}
+.btn-primary:hover { opacity: 0.8; }
+.btn-ghost {
+  padding: 12px 24px;
+  border-radius: var(--r);
+  font-size: 14px;
+  color: var(--ink-soft);
+  text-decoration: none;
+  background: var(--white);
+}
+.hero-img {
+  background: var(--border);
+  border-radius: var(--r-lg);
+  height: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1px solid var(--border);
+}
+.img-icon {
+  width: 48px; height: 48px;
+  background: var(--white);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+}
+.img-icon svg { width: 22px; height: 22px; stroke: var(--ink-faint); fill: none; stroke-width: 1.5; }
+.img-placeholder-label {
+  font-size: 11px;
+  color: var(--ink-faint);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ── PAGE HERO (shared by forum + role pages) ── */
+.page-hero {
+  border-bottom: 1px solid var(--border);
+  padding: 4rem 3rem 3rem;
+  background: var(--white);
+}
+.page-hero-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.page-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 40px;
+  letter-spacing: -0.5px;
+  color: var(--ink);
+  margin: 0.5rem 0 1rem;
+}
+.page-title em { font-style: italic; color: var(--ink); }
+.page-sub {
+  font-size: 15px;
+  color: var(--ink-soft);
+  max-width: 540px;
+  margin-bottom: 1.5rem;
+}
+
+.landing-hero {
+  padding: 6rem 3rem 5rem;
+  border-bottom: none;
+}
+.landing-hero .page-title {
+  font-size: 52px;
+  line-height: 1.1;
+  letter-spacing: -1px;
+}
+.landing-hero .page-sub { font-size: 16px; max-width: 480px; }

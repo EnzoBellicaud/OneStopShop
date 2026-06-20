@@ -1,0 +1,22 @@
+/* ── FOOTER ── */
+footer {
+  background: var(--ink);
+  color: rgba(43, 42, 41,0.5);
+  padding: 2rem 3rem;
+}
+.footer-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.footer-logo {
+  font-family: 'DM Serif Display', serif;
+  font-size: 16px;
+  color: var(--white);
+}
+.footer-logo span { color: var(--accent-mid); }
+.footer-links { display: flex; gap: 2rem; }
+.footer-links a { font-size: 12px; color: rgba(255,255,255,0.4); text-decoration: none; }
+.footer-copy { font-size: 12px; color: rgba(255, 255, 255, 0.4); }

@@ -13,17 +13,38 @@ from django.views.decorators.http import require_http_methods
 from content.auth import require_auth, verify_token
 from content.matching_triggers import refresh_matches_for_offers
 from content.models import Domain, Offer, OfferType, Organization, SourceType, TargetProfile, User, UserOrganization
+from content.scrapers.translation_service import SUPPORTED_LANGUAGES
 from content.views._utils import _parse_positive_int
 
 OFFER_MANAGER_PROFILES = [User.ProfileType.TEACHER, User.ProfileType.COMPANY]
 ADMIN_PROFILE = User.ProfileType.ADMIN
 
 
-def _offer_to_dict(offer: Offer) -> dict:
+def _resolve_lang(request) -> str | None:
+    """Pick a supported language from ?lang= or the Accept-Language header."""
+    raw = (request.GET.get("lang") or "").strip().lower()
+    if raw in SUPPORTED_LANGUAGES:
+        return raw
+    header = request.META.get("HTTP_ACCEPT_LANGUAGE", "")
+    if header:
+        primary = header.split(",")[0].strip().lower()[:2]
+        if primary in SUPPORTED_LANGUAGES:
+            return primary
+    return None
+
+
+def _offer_to_dict(offer: Offer, lang: str | None = None) -> dict:
+    title = offer.title
+    summary = offer.summary
+    if lang:
+        translation = (offer.details or {}).get("i18n", {}).get(lang)
+        if translation:
+            title = translation.get("title") or title
+            summary = translation.get("summary") or summary
     return {
         "id": str(offer.id),
-        "title": offer.title,
-        "summary": offer.summary,
+        "title": title,
+        "summary": summary,
         "link": offer.link,
         "country": offer.country,
         "status": offer.status,
@@ -142,6 +163,7 @@ def offers(request):
         offset = (page - 1) * page_size
 
         rows = list(queryset[offset:offset + page_size])
+        lang = _resolve_lang(request)
         return JsonResponse(
             {
                 "count": total_count,
@@ -149,7 +171,7 @@ def offers(request):
                 "page_size": page_size,
                 "total_pages": total_pages,
                 "limit": page_size,
-                "results": [_offer_to_dict(row) for row in rows],
+                "results": [_offer_to_dict(row, lang) for row in rows],
             }
         )
 
@@ -270,7 +292,7 @@ def offer_detail(request, offer_id: str):
         )
         if offer is None:
             return JsonResponse({"detail": "Offer not found."}, status=404)
-        return JsonResponse(_offer_to_dict(offer))
+        return JsonResponse(_offer_to_dict(offer, _resolve_lang(request)))
 
     if request.method == "PATCH":
         return _update_offer(request, parsed_id)

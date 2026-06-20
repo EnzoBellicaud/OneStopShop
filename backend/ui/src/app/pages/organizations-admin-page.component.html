@@ -1,12 +1,12 @@
 <div class="page">
   <div class="page-header">
     <div>
-      <p class="page-eyebrow">Admin</p>
-      <h1 class="page-title">Organizations</h1>
-      <p class="page-desc">Manage universities and partner organizations.</p>
+      <p class="page-eyebrow">{{ 'dashboard.admin' | translate }}</p>
+      <h1 class="page-title">{{ 'organizations.title' | translate }}</h1>
+      <p class="page-desc">{{ 'organizations.desc' | translate }}</p>
     </div>
     <div class="header-actions">
-      <button class="btn-primary" (click)="openAdd()">+ Add Organization</button>
+      <button class="btn-primary" (click)="openAdd()">{{ 'organizations.add' | translate }}</button>
     </div>
   </div>
 
@@ -15,18 +15,18 @@
   }
 
   @if (loading) {
-    <p class="loading-msg">Loading…</p>
+    <p class="loading-msg">{{ 'common.loading' | translate }}</p>
   } @else {
     <table class="data-table">
       <thead>
         <tr>
-          <th>Name</th>
-          <th>Type</th>
-          <th>Country</th>
-          <th>Website</th>
-          <th class="num">Offers</th>
-          <th class="num">Sources</th>
-          <th>Actions</th>
+          <th>{{ 'organizations.thName' | translate }}</th>
+          <th>{{ 'organizations.thType' | translate }}</th>
+          <th>{{ 'organizations.thCountry' | translate }}</th>
+          <th>{{ 'organizations.thWebsite' | translate }}</th>
+          <th class="num">{{ 'organizations.thOffers' | translate }}</th>
+          <th class="num">{{ 'organizations.thSources' | translate }}</th>
+          <th>{{ 'common.actions' | translate }}</th>
         </tr>
       </thead>
       <tbody>
@@ -45,15 +45,15 @@
             <td class="num">{{ org.offers_count }}</td>
             <td class="num">{{ org.sources_count }}</td>
             <td class="actions-cell">
-              <button class="btn-outline btn-sm" (click)="openEdit(org)">Edit</button>
+              <button class="btn-outline btn-sm" (click)="openEdit(org)">{{ 'common.edit' | translate }}</button>
               <button class="btn-danger btn-sm" (click)="deleteOrg(org)"
                 [disabled]="deletingId === org.id">
-                {{ deletingId === org.id ? '…' : 'Delete' }}
+                {{ deletingId === org.id ? '…' : ('common.delete' | translate) }}
               </button>
             </td>
           </tr>
         } @empty {
-          <tr><td colspan="7" class="empty-row">No organizations found.</td></tr>
+          <tr><td colspan="7" class="empty-row">{{ 'organizations.empty' | translate }}</td></tr>
         }
       </tbody>
     </table>
@@ -64,34 +64,34 @@
   <div class="modal-backdrop" (click)="closeModal()"></div>
   <div class="modal">
     <div class="modal-header">
-      <h2>{{ editingOrg ? 'Edit Organization' : 'Add Organization' }}</h2>
+      <h2>{{ editingOrg ? ('organizations.editTitle' | translate) : ('organizations.addTitle' | translate) }}</h2>
       <button class="close-btn" (click)="closeModal()">✕</button>
     </div>
     <div class="modal-body">
       @if (error) {
         <p class="error-msg">{{ error }}</p>
       }
-      <label>Name <span class="required">*</span>
-        <input type="text" [(ngModel)]="form.name" placeholder="Free University of Bozen-Bolzano" />
+      <label>{{ 'organizations.fieldName' | translate }} <span class="required">*</span>
+        <input type="text" [(ngModel)]="form.name" [placeholder]="'organizations.namePlaceholder' | translate" />
       </label>
-      <label>Type <span class="required">*</span>
+      <label>{{ 'organizations.fieldType' | translate }} <span class="required">*</span>
         <select [(ngModel)]="form.type">
-          <option value="university">University</option>
-          <option value="company">Company</option>
-          <option value="other">Other</option>
+          <option value="university">{{ 'organizations.typeUniversity' | translate }}</option>
+          <option value="company">{{ 'organizations.typeCompany' | translate }}</option>
+          <option value="other">{{ 'organizations.typeOther' | translate }}</option>
         </select>
       </label>
-      <label>Country (ISO 2-letter) <span class="required">*</span>
+      <label>{{ 'organizations.fieldCountry' | translate }} <span class="required">*</span>
         <input type="text" [(ngModel)]="form.country" maxlength="2" placeholder="IT" style="text-transform:uppercase" />
       </label>
-      <label>Website
+      <label>{{ 'organizations.fieldWebsite' | translate }}
         <input type="url" [(ngModel)]="form.website" placeholder="https://www.example.edu/" />
       </label>
     </div>
     <div class="modal-footer">
-      <button class="btn-outline" (click)="closeModal()" [disabled]="saving">Cancel</button>
+      <button class="btn-outline" (click)="closeModal()" [disabled]="saving">{{ 'common.cancel' | translate }}</button>
       <button class="btn-primary" (click)="submit()" [disabled]="saving">
-        {{ saving ? 'Saving…' : (editingOrg ? 'Save Changes' : 'Add Organization') }}
+        {{ saving ? ('common.saving' | translate) : (editingOrg ? ('organizations.saveChanges' | translate) : ('organizations.addTitle' | translate)) }}
       </button>
     </div>
   </div>

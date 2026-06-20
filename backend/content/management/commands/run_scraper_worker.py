@@ -6,6 +6,7 @@ from django.utils import timezone
 
 from content.scrapers.queue_service import run_crawler, run_url_scraper_batch
 from content.scrapers.link_checker import check_offer_links
+from content.scrapers.translation_service import run_offer_translation_batch
 
 
 def _archive_expired_offers():
@@ -37,6 +38,8 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         crawler_interval = int(os.getenv("CRAWLER_INTERVAL_MINUTES", "360"))
         scraper_interval = int(os.getenv("SCRAPER_INTERVAL_MINUTES", "5"))
+        translation_interval = int(os.getenv("TRANSLATION_INTERVAL_MINUTES", "10"))
+        translation_batch = int(os.getenv("TRANSLATION_BATCH_SIZE", "20"))
         run_on_start = os.getenv("SCRAPER_RUN_ON_START", "true").lower() == "true"
 
         if options.get("run_once"):
@@ -69,6 +72,16 @@ class Command(BaseCommand):
             misfire_grace_time=60,
         )
         scheduler.add_job(
+            run_offer_translation_batch,
+            "interval",
+            id="translate-offers",
+            minutes=translation_interval,
+            kwargs={"limit": translation_batch},
+            max_instances=1,
+            coalesce=True,
+            misfire_grace_time=120,
+        )
+        scheduler.add_job(
             _archive_expired_offers,
             "cron",
             id="archive-expired-offers",
@@ -94,10 +107,14 @@ class Command(BaseCommand):
             self.stdout.write("Startup scraper batch...")
             scraper_summary = run_url_scraper_batch()
             self.stdout.write(f"Scraper: {scraper_summary}")
+            self.stdout.write("Startup offer translation...")
+            translation_summary = run_offer_translation_batch(limit=translation_batch)
+            self.stdout.write(f"Translation: {translation_summary}")
 
         self.stdout.write(
             f"Worker running — crawler every {crawler_interval} min, "
-            f"scraper every {scraper_interval} min. Press Ctrl+C to stop."
+            f"scraper every {scraper_interval} min, "
+            f"translation every {translation_interval} min. Press Ctrl+C to stop."
         )
 
         try:

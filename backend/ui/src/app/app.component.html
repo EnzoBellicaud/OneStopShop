@@ -3,32 +3,36 @@
     <aside>
       <p class="brand">{{ title }}</p>
       <nav>
-        <a routerLink="/dashboard" routerLinkActive="active">Dashboard</a>
-        <a routerLink="/offers" routerLinkActive="active">Offers</a>
+        <a routerLink="/dashboard" routerLinkActive="active">{{ 'nav.dashboard' | translate }}</a>
+        <a routerLink="/offers" routerLinkActive="active">{{ 'nav.offers' | translate }}</a>
         @if (auth.isAdmin) {
           <a routerLink="/admin/users" routerLinkActive="active">
-            User Management
+            {{ 'nav.userManagement' | translate }}
             @if (pendingCount > 0) {
               <span class="badge">{{ pendingCount }}</span>
             }
           </a>
-          <a routerLink="/admin/domains" routerLinkActive="active">Allowed Domains</a>
-          <a routerLink="/admin/offers" routerLinkActive="active">Offer Types</a>
-          <a routerLink="/admin/mock-site" routerLinkActive="active">Mock Site</a>
-          <a routerLink="/admin/organizations" routerLinkActive="active">Organizations</a>
-          <a routerLink="/admin/sources" routerLinkActive="active">Sources</a>
-          <a routerLink="/admin/scrapper" routerLinkActive="active">Scrapper Tracking</a>
-          <a routerLink="/admin/import" routerLinkActive="active">Bulk Import</a>
+          <a routerLink="/admin/domains" routerLinkActive="active">{{ 'nav.allowedDomains' | translate }}</a>
+          <a routerLink="/admin/offers" routerLinkActive="active">{{ 'nav.offerTypes' | translate }}</a>
+          <a routerLink="/admin/mock-site" routerLinkActive="active">{{ 'nav.mockSite' | translate }}</a>
+          <a routerLink="/admin/organizations" routerLinkActive="active">{{ 'nav.organizations' | translate }}</a>
+          <a routerLink="/admin/sources" routerLinkActive="active">{{ 'nav.sources' | translate }}</a>
+          <a routerLink="/admin/scrapper" routerLinkActive="active">{{ 'nav.scrapperTracking' | translate }}</a>
+          <a routerLink="/admin/import" routerLinkActive="active">{{ 'nav.bulkImport' | translate }}</a>
         }
       </nav>
       <div class="user-section">
-        <a [href]="publicSiteUrl" target="_blank" class="cross-portal-link" rel="noopener">← Public Site</a>
+        <a [href]="publicSiteUrl" target="_blank" class="cross-portal-link" rel="noopener">{{ 'nav.publicSite' | translate }}</a>
         <span class="username">{{ auth.currentUser?.username }}</span>
-        <button class="change-pw-btn" (click)="showChangePw = true">Change Password</button>
-        <button class="logout-btn" (click)="logout()">Logout</button>
+        <button class="change-pw-btn" (click)="showChangePw = true">{{ 'nav.changePassword' | translate }}</button>
+        <button class="logout-btn" (click)="logout()">{{ 'nav.logout' | translate }}</button>
       </div>
     </aside>
     <main>
+      <div class="topbar">
+        <span class="topbar-label">{{ 'common.language' | translate }}</span>
+        <app-language-switcher></app-language-switcher>
+      </div>
       <router-outlet></router-outlet>
     </main>
   </div>
@@ -39,11 +43,11 @@
 @if (showChangePw) {
   <div class="modal-backdrop" (click)="closeChangePw()">
     <div class="modal modal-sm" (click)="$event.stopPropagation()">
-      <h2>Change Password</h2>
+      <h2>{{ 'shell.changePassword' | translate }}</h2>
       @if (changePwSuccess()) {
-        <p class="success-msg">Password changed successfully.</p>
+        <p class="success-msg">{{ 'shell.changedSuccess' | translate }}</p>
         <div class="modal-actions">
-          <button class="btn-primary" (click)="closeChangePw()">Close</button>
+          <button class="btn-primary" (click)="closeChangePw()">{{ 'common.close' | translate }}</button>
         </div>
       } @else {
         @if (changePwError()) {
@@ -51,22 +55,22 @@
         }
         <div class="change-pw-fields">
           <label class="form-field">
-            Current password
+            {{ 'shell.currentPassword' | translate }}
             <input type="password" [(ngModel)]="changePwForm.old_password" autocomplete="current-password" />
           </label>
           <label class="form-field">
-            New password
+            {{ 'shell.newPassword' | translate }}
             <input type="password" [(ngModel)]="changePwForm.new_password" autocomplete="new-password" />
           </label>
           <label class="form-field">
-            Confirm new password
+            {{ 'shell.confirmNewPassword' | translate }}
             <input type="password" [(ngModel)]="changePwForm.confirm" autocomplete="new-password" />
           </label>
         </div>
         <div class="modal-actions">
-          <button class="btn-ghost" (click)="closeChangePw()">Cancel</button>
+          <button class="btn-ghost" (click)="closeChangePw()">{{ 'common.cancel' | translate }}</button>
           <button class="btn-primary" (click)="submitChangePassword()" [disabled]="submittingPw()">
-            {{ submittingPw() ? 'Saving…' : 'Change Password' }}
+            {{ submittingPw() ? ('common.saving' | translate) : ('shell.changePassword' | translate) }}
           </button>
         </div>
       }

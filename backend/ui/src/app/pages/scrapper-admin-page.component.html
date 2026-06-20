@@ -2,16 +2,16 @@
 
   <!-- Header -->
   <header>
-    <p class="eyebrow">Operations</p>
-    <h1>Scraper Dashboard</h1>
+    <p class="eyebrow">{{ 'scrapper.eyebrow' | translate }}</p>
+    <h1>{{ 'scrapper.title' | translate }}</h1>
     <div class="header-meta">
-      <p class="lead">Read-only telemetry for crawler &amp; scraper runs.</p>
+      <p class="lead">{{ 'scrapper.lead' | translate }}</p>
       <div class="refresh-controls">
-        <span class="last-refresh">Refreshed {{ lastRefreshed | date:'HH:mm:ss' }}</span>
+        <span class="last-refresh">{{ 'scrapper.refreshed' | translate }} {{ lastRefreshed | date:'HH:mm:ss' }}</span>
         <button class="btn-ghost" (click)="toggleAutoRefresh()" [class.active]="autoRefresh()">
-          {{ autoRefresh() ? '⟳ Auto' : '⟳ Paused' }}
+          {{ autoRefresh() ? ('scrapper.auto' | translate) : ('scrapper.paused' | translate) }}
         </button>
-        <button class="btn-primary" (click)="refresh()">Refresh</button>
+        <button class="btn-primary" (click)="refresh()">{{ 'scrapper.refresh' | translate }}</button>
       </div>
     </div>
   </header>
@@ -23,45 +23,45 @@
       class="tab-btn"
       [class.active]="activeTab() === tab.id"
       (click)="selectTab(tab.id)"
-    >{{ i + 1 }}. {{ tab.label }}</button>
+    >{{ i + 1 }}. {{ ('scrapper.tab_' + tab.id) | translate }}</button>
   </nav>
 
   <!-- ───────────────────── OVERVIEW TAB ───────────────────── -->
   <div *ngIf="activeTab() === 'overview'" class="tab-content">
     <div class="tab-toolbar">
-      <span class="section-title">Overview</span>
+      <span class="section-title">{{ 'scrapper.overview' | translate }}</span>
       <div class="window-toggle">
         <button *ngFor="let w of WINDOWS" [class.active]="overviewWindow === w" (click)="changeOverviewWindow(w)">{{ w }}</button>
       </div>
     </div>
 
-    <p class="hint" *ngIf="loadingOverview">Loading overview…</p>
+    <p class="hint" *ngIf="loadingOverview">{{ 'scrapper.loadingOverview' | translate }}</p>
 
     <ng-container *ngIf="!loadingOverview && overview">
       <!-- KPI cards -->
       <div class="kpi-grid">
-        <app-stat-card label="Total runs" [value]="overview.runs_total"></app-stat-card>
-        <app-stat-card label="Success" [value]="overview.runs_success" tone="positive"></app-stat-card>
-        <app-stat-card label="Offers created" [value]="overview.offers_created" tone="positive"></app-stat-card>
-        <app-stat-card label="Offers updated" [value]="overview.offers_updated"></app-stat-card>
-        <app-stat-card label="URLs skipped" [value]="overview.urls_neglected_total" hint="Skipped — generic page or deemed not relevant"></app-stat-card>
-        <app-stat-card label="Errors total" [value]="overview.errors_total" [tone]="overview.errors_total > 0 ? 'danger' : 'neutral'"></app-stat-card>
-        <app-stat-card label="AI confidence" [value]="overviewConfLlm" hint="How confident the AI was when extracting offers (0–1)"></app-stat-card>
-        <app-stat-card label="Rules confidence" [value]="overviewConfDet" hint="How confident the rules-based extractor was (0–1)"></app-stat-card>
+        <app-stat-card [label]="'scrapper.kpi_totalRuns' | translate" [value]="overview.runs_total"></app-stat-card>
+        <app-stat-card [label]="'scrapper.kpi_success' | translate" [value]="overview.runs_success" tone="positive"></app-stat-card>
+        <app-stat-card [label]="'scrapper.kpi_offersCreated' | translate" [value]="overview.offers_created" tone="positive"></app-stat-card>
+        <app-stat-card [label]="'scrapper.kpi_offersUpdated' | translate" [value]="overview.offers_updated"></app-stat-card>
+        <app-stat-card [label]="'scrapper.kpi_urlsSkipped' | translate" [value]="overview.urls_neglected_total" [hint]="'scrapper.kpi_skippedHint' | translate"></app-stat-card>
+        <app-stat-card [label]="'scrapper.kpi_errorsTotal' | translate" [value]="overview.errors_total" [tone]="overview.errors_total > 0 ? 'danger' : 'neutral'"></app-stat-card>
+        <app-stat-card [label]="'scrapper.kpi_aiConfidence' | translate" [value]="overviewConfLlm" [hint]="'scrapper.kpi_aiHint' | translate"></app-stat-card>
+        <app-stat-card [label]="'scrapper.kpi_rulesConfidence' | translate" [value]="overviewConfDet" [hint]="'scrapper.kpi_rulesHint' | translate"></app-stat-card>
       </div>
 
       <!-- Timeline charts -->
       <div class="charts-row">
         <app-mini-bar-chart
           [data]="timelineRunChart"
-          [title]="'Scrape runs — ' + overviewWindow"
+          [title]="('scrapper.chart_scrapeRuns' | translate) + ' — ' + overviewWindow"
           color="#23638f"
           [width]="300"
           [barHeight]="72">
         </app-mini-bar-chart>
         <app-mini-bar-chart
           [data]="timelineErrorChart"
-          [title]="'URL errors — ' + overviewWindow"
+          [title]="('scrapper.chart_urlErrors' | translate) + ' — ' + overviewWindow"
           color="#c0392b"
           [width]="300"
           [barHeight]="72">
@@ -70,7 +70,7 @@
 
       <!-- Method split -->
       <div class="method-split-bar" *ngIf="overviewMethodSplit.length">
-        <span class="section-title">Method split</span>
+        <span class="section-title">{{ 'scrapper.methodSplit' | translate }}</span>
         <div class="method-bars">
           <div
             *ngFor="let m of overviewMethodSplit"
@@ -94,7 +94,7 @@
   <div *ngIf="activeTab() === 'runs'" class="tab-content">
     <div class="tab-toolbar">
       <label>
-        Max runs
+        {{ 'scrapper.maxRuns' | translate }}
         <select [(ngModel)]="limit" (change)="refreshRuns()">
           <option [value]="10">10</option>
           <option [value]="20">20</option>
@@ -103,62 +103,62 @@
         </select>
       </label>
       <label>
-        Status
+        {{ 'scrapper.status' | translate }}
         <select [(ngModel)]="statusFilter">
-          <option value="">All</option>
+          <option value="">{{ 'scrapper.all' | translate }}</option>
           <option *ngFor="let s of statuses" [value]="s">{{ s }}</option>
         </select>
       </label>
       <label>
-        Source
-        <input type="text" [(ngModel)]="sourceFilter" placeholder="filter…" />
+        {{ 'scrapper.source' | translate }}
+        <input type="text" [(ngModel)]="sourceFilter" [placeholder]="'scrapper.filterPlaceholder' | translate" />
       </label>
       <label class="toggle-label">
         <input type="checkbox" [(ngModel)]="pinFailures" />
-        Pin failures
+        {{ 'scrapper.pinFailures' | translate }}
       </label>
-      <button class="btn-primary" (click)="refreshRuns()">Refresh</button>
+      <button class="btn-primary" (click)="refreshRuns()">{{ 'scrapper.refresh' | translate }}</button>
     </div>
 
-    <p class="hint" *ngIf="loadingRuns">Loading runs…</p>
+    <p class="hint" *ngIf="loadingRuns">{{ 'scrapper.loadingRuns' | translate }}</p>
 
     <!-- Scoring legend — static, shown regardless of selected run -->
     <details class="scoring-legend" open>
-      <summary>How are scores calculated? &#9432;</summary>
+      <summary>{{ 'scrapper.howScores' | translate }} &#9432;</summary>
       <div class="legend-grid">
         <section>
-          <h4>Confidence Score (0–1)</h4>
-          <p>Measures how much structured data was extracted from the page.</p>
+          <h4>{{ 'scrapper.confScoreTitle' | translate }}</h4>
+          <p>{{ 'scrapper.confScoreDesc' | translate }}</p>
           <table class="legend-table">
-            <tr><th>Signal</th><th>Deterministic</th><th>LLM</th></tr>
-            <tr><td>Base</td><td>+0.25</td><td rowspan="5" class="llm-cell">Returned directly<br>by the model<br>(0.0 – 1.0)</td></tr>
-            <tr><td>&lt;h1&gt; found</td><td>+0.30</td></tr>
-            <tr><td>Meta description</td><td>+0.20</td></tr>
-            <tr><td>JSON-LD data</td><td>+0.10</td></tr>
-            <tr><td>Content &gt; 150 chars</td><td>+0.15</td></tr>
-            <tr><td><strong>Max</strong></td><td><strong>1.00</strong></td><td></td></tr>
+            <tr><th>{{ 'scrapper.signal' | translate }}</th><th>{{ 'scrapper.deterministic' | translate }}</th><th>{{ 'scrapper.llm' | translate }}</th></tr>
+            <tr><td>{{ 'scrapper.base' | translate }}</td><td>+0.25</td><td rowspan="5" class="llm-cell">{{ 'scrapper.llmReturned' | translate }}</td></tr>
+            <tr><td>{{ 'scrapper.h1Found' | translate }}</td><td>+0.30</td></tr>
+            <tr><td>{{ 'scrapper.metaDesc' | translate }}</td><td>+0.20</td></tr>
+            <tr><td>{{ 'scrapper.jsonld' | translate }}</td><td>+0.10</td></tr>
+            <tr><td>{{ 'scrapper.contentChars' | translate }}</td><td>+0.15</td></tr>
+            <tr><td><strong>{{ 'scrapper.max' | translate }}</strong></td><td><strong>1.00</strong></td><td></td></tr>
           </table>
-          <p class="legend-note">LLM assesses page relevance and extracts offer data when enabled. If LLM is disabled, TF-IDF gate filters and classifies instead.</p>
+          <p class="legend-note">{{ 'scrapper.confNote' | translate }}</p>
         </section>
         <section>
-          <h4>TF-IDF Gate Score (0–1)</h4>
-          <p>Cosine similarity between the page text and the OfferType keyword corpus. Filters irrelevant pages before classification.</p>
+          <h4>{{ 'scrapper.tfidfTitle' | translate }}</h4>
+          <p>{{ 'scrapper.tfidfDesc' | translate }}</p>
           <table class="legend-table">
-            <tr><th>Score range</th><th>Result</th></tr>
-            <tr><td>&lt; 0.05</td><td><span class="chip-inline chip-fail">neglected</span> — page discarded, too little academic content</td></tr>
-            <tr><td>0.05 – 0.30</td><td><span class="chip-inline chip-warn">skipped</span> — passes gate but no offer type assigned</td></tr>
-            <tr><td>&ge; 0.30</td><td><span class="chip-inline chip-ok">classified</span> — offer type determined, offer created/updated</td></tr>
+            <tr><th>{{ 'scrapper.scoreRange' | translate }}</th><th>{{ 'scrapper.result' | translate }}</th></tr>
+            <tr><td>&lt; 0.05</td><td><span class="chip-inline chip-fail">{{ 'scrapper.neglected' | translate }}</span> — {{ 'scrapper.neglectedDesc' | translate }}</td></tr>
+            <tr><td>0.05 – 0.30</td><td><span class="chip-inline chip-warn">{{ 'scrapper.skipped' | translate }}</span> — {{ 'scrapper.skippedGateDesc' | translate }}</td></tr>
+            <tr><td>&ge; 0.30</td><td><span class="chip-inline chip-ok">{{ 'scrapper.classified' | translate }}</span> — {{ 'scrapper.classifiedDesc' | translate }}</td></tr>
           </table>
-          <p class="legend-note">Gate score appears in the <strong>Note</strong> column for neglected and skipped URLs.</p>
+          <p class="legend-note">{{ 'scrapper.tfidfNote' | translate }}</p>
         </section>
         <section>
-          <h4>Action Types</h4>
+          <h4>{{ 'scrapper.actionTypes' | translate }}</h4>
           <table class="legend-table">
-            <tr><td><span class="chip-inline chip-ok">created</span></td><td>New offer added to OneStopShop</td></tr>
-            <tr><td><span class="chip-inline chip-ok">updated</span></td><td>Existing offer content changed</td></tr>
-            <tr><td><span class="chip-inline chip-ok">unchanged</span></td><td>Offer exists, no changes detected</td></tr>
-            <tr><td><span class="chip-inline chip-warn">skipped</span></td><td>No offer type could be determined</td></tr>
-            <tr><td><span class="chip-inline chip-fail">failed</span></td><td>Fetch error, missing fields, or exception</td></tr>
+            <tr><td><span class="chip-inline chip-ok">{{ 'scrapper.created' | translate }}</span></td><td>{{ 'scrapper.createdDesc' | translate }}</td></tr>
+            <tr><td><span class="chip-inline chip-ok">{{ 'scrapper.updated' | translate }}</span></td><td>{{ 'scrapper.updatedDesc' | translate }}</td></tr>
+            <tr><td><span class="chip-inline chip-ok">{{ 'scrapper.unchanged' | translate }}</span></td><td>{{ 'scrapper.unchangedDesc' | translate }}</td></tr>
+            <tr><td><span class="chip-inline chip-warn">{{ 'scrapper.skipped' | translate }}</span></td><td>{{ 'scrapper.skippedActionDesc' | translate }}</td></tr>
+            <tr><td><span class="chip-inline chip-fail">{{ 'scrapper.failed' | translate }}</span></td><td>{{ 'scrapper.failedDesc' | translate }}</td></tr>
           </table>
         </section>
       </div>
@@ -179,15 +179,15 @@
           </div>
           <h3>{{ run.source_key }}</h3>
           <p class="counters">
-            {{ run.offers_created }} new · {{ run.offers_updated }} updated · {{ run.offers_skipped }} skipped · {{ run.errors_count }} errors
+            {{ 'scrapper.counters' | translate:{ new: run.offers_created, updated: run.offers_updated, skipped: run.offers_skipped, errors: run.errors_count } }}
           </p>
         </article>
-        <p class="hint" *ngIf="filteredRuns.length === 0">No runs match.</p>
+        <p class="hint" *ngIf="filteredRuns.length === 0">{{ 'scrapper.noRunsMatch' | translate }}</p>
       </aside>
 
       <!-- Run detail -->
       <section class="run-detail">
-        <p class="hint" *ngIf="loadingDetail">Loading run details…</p>
+        <p class="hint" *ngIf="loadingDetail">{{ 'scrapper.loadingDetail' | translate }}</p>
 
         <ng-container *ngIf="!loadingDetail && selectedRun as run">
           <!-- Summary strip -->
@@ -196,28 +196,28 @@
             <app-status-chip [status]="run.status"></app-status-chip>
           </div>
           <div class="stats" [class.has-errors]="run.errors_count > 0">
-            <div><span>Processed</span><strong>{{ run.offers_processed }}</strong></div>
-            <div><span>Created</span><strong>{{ run.offers_created }}</strong></div>
-            <div><span>Updated</span><strong>{{ run.offers_updated }}</strong></div>
-            <div><span>Unchanged</span><strong>{{ run.offers_unchanged }}</strong></div>
-            <div><span>Skipped</span><strong>{{ run.offers_skipped }}</strong></div>
-            <div><span>Errors</span><strong [class.red]="run.errors_count > 0">{{ run.errors_count }}</strong></div>
+            <div><span>{{ 'scrapper.processed' | translate }}</span><strong>{{ run.offers_processed }}</strong></div>
+            <div><span>{{ 'scrapper.createdStat' | translate }}</span><strong>{{ run.offers_created }}</strong></div>
+            <div><span>{{ 'scrapper.updatedStat' | translate }}</span><strong>{{ run.offers_updated }}</strong></div>
+            <div><span>{{ 'scrapper.unchangedStat' | translate }}</span><strong>{{ run.offers_unchanged }}</strong></div>
+            <div><span>{{ 'scrapper.skippedStat' | translate }}</span><strong>{{ run.offers_skipped }}</strong></div>
+            <div><span>{{ 'scrapper.errorsStat' | translate }}</span><strong [class.red]="run.errors_count > 0">{{ run.errors_count }}</strong></div>
           </div>
 
           <!-- URL results table -->
           <div class="table-toolbar">
-            <span class="section-title">URL Results ({{ selectedRunUrlResults.length }})</span>
+            <span class="section-title">{{ 'scrapper.urlResults' | translate }} ({{ selectedRunUrlResults.length }})</span>
             <div class="table-controls">
               <label>
-                <input type="radio" [(ngModel)]="runUrlFilter" value="all" /> All
+                <input type="radio" [(ngModel)]="runUrlFilter" value="all" /> {{ 'scrapper.all' | translate }}
               </label>
               <label>
-                <input type="radio" [(ngModel)]="runUrlFilter" value="failures" /> Errors only
+                <input type="radio" [(ngModel)]="runUrlFilter" value="failures" /> {{ 'scrapper.errorsOnly' | translate }}
               </label>
               <label>
-                <input type="radio" [(ngModel)]="runUrlFilter" value="skipped" /> Skipped only
+                <input type="radio" [(ngModel)]="runUrlFilter" value="skipped" /> {{ 'scrapper.skippedOnly' | translate }}
               </label>
-              <button class="btn-ghost" (click)="exportRunCsv()">Export CSV</button>
+              <button class="btn-ghost" (click)="exportRunCsv()">{{ 'scrapper.exportCsv' | translate }}</button>
             </div>
           </div>
 
@@ -226,11 +226,11 @@
               <thead>
                 <tr>
                   <th (click)="sortRunResults('url')">URL {{ runSortCol === 'url' ? (runSortAsc ? '▲' : '▼') : '' }}</th>
-                  <th (click)="sortRunResults('method')">Method</th>
-                  <th (click)="sortRunResults('http_status')">HTTP</th>
-                  <th (click)="sortRunResults('confidence')">Conf</th>
-                  <th>Status</th>
-                  <th>Note</th>
+                  <th (click)="sortRunResults('method')">{{ 'scrapper.thMethod' | translate }}</th>
+                  <th (click)="sortRunResults('http_status')">{{ 'scrapper.thHttp' | translate }}</th>
+                  <th (click)="sortRunResults('confidence')">{{ 'scrapper.thConf' | translate }}</th>
+                  <th>{{ 'scrapper.status' | translate }}</th>
+                  <th>{{ 'scrapper.thNote' | translate }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -247,7 +247,7 @@
                         [class.chip-ok]="!r.failed && !r.neglected"
                         [class.chip-warn]="r.neglected"
                         [class.chip-fail]="r.failed">
-                        {{ r.failed ? 'error' : r.neglected ? 'skipped' : r.action ?? 'ok' }}
+                        {{ r.failed ? ('scrapper.statusError' | translate) : r.neglected ? ('scrapper.skipped' | translate) : (r.action ?? ('scrapper.ok' | translate)) }}
                       </span>
                     </td>
                     <td class="muted small">{{ r.message ?? r.reason ?? '' }}</td>
@@ -259,7 +259,7 @@
                   </tr>
                 </ng-container>
                 <tr *ngIf="selectedRunUrlResults.length === 0">
-                  <td colspan="6" class="hint">No URL results in this run.</td>
+                  <td colspan="6" class="hint">{{ 'scrapper.noUrlResults' | translate }}</td>
                 </tr>
               </tbody>
             </table>
@@ -267,12 +267,12 @@
 
           <!-- Raw log -->
           <details class="raw-log-details">
-            <summary>Raw log ({{ run.log.length }} entries)</summary>
+            <summary>{{ 'scrapper.rawLog' | translate:{ n: run.log.length } }}</summary>
             <pre>{{ run.log | json }}</pre>
           </details>
         </ng-container>
 
-        <p class="hint" *ngIf="!loadingDetail && !selectedRun">Select a run to inspect details.</p>
+        <p class="hint" *ngIf="!loadingDetail && !selectedRun">{{ 'scrapper.selectRun' | translate }}</p>
       </section>
     </div>
   </div>
@@ -280,67 +280,67 @@
   <!-- ───────────────────── SOURCES TAB ───────────────────── -->
   <div *ngIf="activeTab() === 'sources'" class="tab-content">
     <div class="tab-toolbar">
-      <span class="section-title">Queue Health</span>
+      <span class="section-title">{{ 'scrapper.queueHealth' | translate }}</span>
       <div class="sort-controls">
-        Sort:
+        {{ 'scrapper.sort' | translate }}
         <button *ngFor="let opt of SOURCE_SORTS"
           [class.active]="sourceSort === opt.id"
-          (click)="sourceSort = opt.id">{{ opt.label }}</button>
+          (click)="sourceSort = opt.id">{{ ('scrapper.sort_' + opt.id) | translate }}</button>
       </div>
       <button class="btn btn-primary" (click)="triggerCrawl()" [disabled]="triggeringCrawl()">
-        {{ triggeringCrawl() ? 'Triggering…' : 'Trigger Crawl Now' }}
+        {{ triggeringCrawl() ? ('scrapper.triggering' | translate) : ('scrapper.triggerCrawl' | translate) }}
       </button>
     </div>
 
-    <p class="hint" *ngIf="loadingSources">Loading sources…</p>
+    <p class="hint" *ngIf="loadingSources">{{ 'scrapper.loadingSources' | translate }}</p>
 
     <div class="source-grid" *ngIf="!loadingSources">
       <article class="source-card" *ngFor="let s of sortedSources">
         <div class="card-top">
           <h3>{{ formatSourceKey(s.source_key) }}</h3>
-          <span class="badge-total">{{ s.total_urls }} URLs</span>
+          <span class="badge-total">{{ s.total_urls }} {{ 'scrapper.urls' | translate }}</span>
         </div>
-        <p class="muted small">Last scraped: {{ relativeTime(s.last_scraped_at) }}</p>
+        <p class="muted small">{{ 'scrapper.lastScraped' | translate }} {{ relativeTime(s.last_scraped_at) }}</p>
 
         <!-- Progress bar: done vs total -->
         <div class="queue-progress">
           <div class="queue-bar-fill" [style.width.%]="sourceDonePercent(s)" [title]="sourceDonePercent(s) + '% done'"></div>
         </div>
-        <p class="queue-pct muted small">{{ sourceDonePercent(s) }}% done</p>
+        <p class="queue-pct muted small">{{ 'scrapper.donePercent' | translate:{ n: sourceDonePercent(s) } }}</p>
 
         <div class="source-metrics">
-          <span class="metric-pill metric-done">✓ {{ s.done }} done</span>
-          <span class="metric-pill metric-pending" *ngIf="s.pending > 0">⏳ {{ s.pending }} pending</span>
-          <span class="metric-pill metric-error" *ngIf="s.error > 0">⚠ {{ s.error }} error</span>
-          <span class="metric-pill metric-archived" *ngIf="s.archived > 0">✕ {{ s.archived }} archived</span>
+          <span class="metric-pill metric-done">✓ {{ s.done }} {{ 'scrapper.done' | translate }}</span>
+          <span class="metric-pill metric-pending" *ngIf="s.pending > 0">⏳ {{ s.pending }} {{ 'scrapper.pending' | translate }}</span>
+          <span class="metric-pill metric-error" *ngIf="s.error > 0">⚠ {{ s.error }} {{ 'scrapper.error' | translate }}</span>
+          <span class="metric-pill metric-archived" *ngIf="s.archived > 0">✕ {{ s.archived }} {{ 'scrapper.archived' | translate }}</span>
         </div>
 
-        <button class="btn-ghost" (click)="viewSourceRuns(s.source_key)">View runs →</button>
+        <button class="btn-ghost" (click)="viewSourceRuns(s.source_key)">{{ 'scrapper.viewRuns' | translate }}</button>
       </article>
-      <p class="hint" *ngIf="sortedSources.length === 0">No source data yet.</p>
+      <p class="hint" *ngIf="sortedSources.length === 0">{{ 'scrapper.noSourceData' | translate }}</p>
     </div>
   </div>
 
   <!-- ───────────────────── ERRORS TAB ───────────────────── -->
   <div *ngIf="activeTab() === 'errors'" class="tab-content">
     <div class="tab-toolbar">
-      <span class="section-title">URL fetch errors — last 50 runs</span>
-      <button class="btn-primary" (click)="loadErrors()">Reload</button>
+      <span class="section-title">{{ 'scrapper.errorsTitle' | translate }}</span>
+      <button class="btn-primary" (click)="loadErrors()">{{ 'scrapper.reload' | translate }}</button>
     </div>
 
-    <p class="hint" *ngIf="loadingErrors">Loading error data… (fetches up to 50 run logs)</p>
+    <p class="hint" *ngIf="loadingErrors">{{ 'scrapper.loadingErrors' | translate }}</p>
 
     <ng-container *ngIf="!loadingErrors">
-      <p class="hint muted">{{ crossRunErrors.length }} fetch errors found. (Skipped/neglected URLs are not listed here.)</p>
+      <p class="hint muted">{{ 'scrapper.errorsFound' | translate:{ n: crossRunErrors.length } }}</p>
       <div class="url-table-wrap">
         <table class="data-table">
           <thead>
             <tr>
-              <th>Time</th>
-              <th>Source</th>
+              <th>{{ 'scrapper.thTime' | translate }}</th>
+              <th>{{ 'scrapper.thSource' | translate }}</th>
               <th>URL</th>
-              <th>HTTP</th>
-              <th>Message</th>
+              <th>{{ 'scrapper.thHttp' | translate }}</th>
+              <th>{{ 'scrapper.thMessage' | translate }}</th>
               <th></th>
             </tr>
           </thead>
@@ -351,10 +351,10 @@
               <td class="url-cell small" [title]="e.url">{{ e.url ?? '—' }}</td>
               <td class="num">{{ e.http_status ?? '—' }}</td>
               <td class="small muted">{{ e.message ?? '—' }}</td>
-              <td><button class="btn-ghost small" (click)="openRunFromError(e.runId)">→ Run</button></td>
+              <td><button class="btn-ghost small" (click)="openRunFromError(e.runId)">{{ 'scrapper.run' | translate }}</button></td>
             </tr>
             <tr *ngIf="crossRunErrors.length === 0">
-              <td colspan="6" class="hint">No errors found in last 50 runs.</td>
+              <td colspan="6" class="hint">{{ 'scrapper.noErrors' | translate }}</td>
             </tr>
           </tbody>
         </table>

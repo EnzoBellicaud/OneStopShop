@@ -1,0 +1,213 @@
+/* ── OPPORTUNITY CARDS ── */
+.cards-grid {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 3rem 5rem;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+}
+.opp-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  transition: border-color 0.15s;
+}
+.opp-card:hover { border-color: #bbb; }
+.card-top { display: flex; align-items: center; justify-content: space-between; }
+.type-tag {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 99px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.tag-thesis { background: var(--tag-thesis); color: var(--tag-thesis-text); }
+.tag-intern { background: var(--tag-intern); color: var(--tag-intern-text); }
+.tag-job    { background: var(--tag-job);    color: var(--tag-job-text); }
+.tag-course { background: var(--tag-course); color: var(--tag-course-text); }
+
+.uni-logo-sm {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+.card-title {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink);
+  line-height: 1.4;
+}
+.card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.card-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.card-meta-row svg { width: 13px; height: 13px; stroke: var(--ink-faint); fill: none; stroke-width: 1.8; flex-shrink: 0; }
+.card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+.deadline { font-size: 11px; color: var(--ink-faint); }
+.btn-view {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--accent-mid);
+  text-decoration: none;
+  padding: 6px 14px;
+  border: 1px solid var(--accent-light);
+  border-radius: var(--r);
+  background: var(--accent-light);
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.btn-view::after { content: '↗'; font-size: 11px; }
+
+/* ── ROLE PAGE CARDS ── */
+.opportunity-card {
+  display: flex;
+  flex-direction: column;
+  background: white;
+  border: 1px solid #e8e4e0;
+  padding: 20px;
+  border-radius: 12px;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+}
+
+.opportunity-card:hover {
+  border-color: #bbb;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.11);
+}
+
+.skeleton {
+  height: 120px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s infinite;
+  border-radius: 12px;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.card-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.card-tag {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 99px;
+  background: var(--accent-light, #f3dada);
+  color: var(--accent-mid, #9b2020);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.card-country { font-size: 11px; color: #888; }
+
+.card-summary {
+  font-size: 13px;
+  color: #666;
+  line-height: 1.5;
+  margin-bottom: 12px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.card-footer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 10px;
+  border-top: 1px solid #eee;
+}
+
+.card-org { font-size: 12px; color: #888; }
+
+.card-domains {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.domain-chip {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: #f0f4ff;
+  color: #3a5bd9;
+  border: 1px solid #d0d9f5;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.card-link-hint {
+  font-size: 12px;
+  color: var(--accent-mid, #9b2020);
+  font-weight: 500;
+}
+
+.card-link-area {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  flex: 1;
+}
+
+.fav-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  color: #ccc;
+  padding: 0 2px;
+  line-height: 1;
+  transition: color 0.15s, transform 0.1s;
+  margin-left: auto;
+}
+.fav-btn:hover { color: var(--accent-mid, #9b2020); transform: scale(1.15); }
+.fav-btn.saved { color: var(--accent-mid, #9b2020); }
+.fav-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.empty-state {
+  padding: 40px;
+  text-align: center;
+  color: #888;
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #eee;
+}

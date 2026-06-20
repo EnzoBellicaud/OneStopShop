@@ -96,6 +96,25 @@ main {
 	min-height: 100vh;
 }
 
+.topbar {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 0.6rem;
+	margin: -2rem -2.5rem 1.75rem;
+	padding: 0.7rem 2.5rem;
+	background: #fff;
+	border-bottom: 1px solid var(--border, #e4e4e0);
+}
+
+.topbar-label {
+	font-size: 0.78rem;
+	font-weight: 500;
+	color: var(--ink-soft, #6b6b63);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
 .badge {
 	background: #9b2020;
 	color: #fff;

@@ -1,19 +1,24 @@
 <template>
   <div class="auth-page">
 
+    <!-- Language switcher (top-right) -->
+    <div class="auth-lang">
+      <LanguageSwitcher />
+    </div>
+
     <!-- Left branding panel -->
     <div class="auth-brand">
       <router-link class="brand-logo" to="/">OneStop<span>Shop</span></router-link>
       <div class="brand-body">
-        <h2>Your gateway to academic opportunities</h2>
-        <p>Scholarships, internships, thesis projects, and research partnerships — all in one place.</p>
+        <h2>{{ t('auth.brandTitle') }}</h2>
+        <p>{{ t('auth.brandSub') }}</p>
         <ul class="brand-features">
-          <li><span class="feat-dot"></span>9 partner universities</li>
-          <li><span class="feat-dot"></span>Smart need-matching</li>
-          <li><span class="feat-dot"></span>Save & track favourites</li>
+          <li><span class="feat-dot"></span>{{ t('auth.f1') }}</li>
+          <li><span class="feat-dot"></span>{{ t('auth.f2') }}</li>
+          <li><span class="feat-dot"></span>{{ t('auth.f3') }}</li>
         </ul>
       </div>
-      <p class="brand-footer">SUNRISE Academic Network · 2026</p>
+      <p class="brand-footer">{{ t('auth.brandFooter') }}</p>
     </div>
 
     <!-- Right form panel -->
@@ -21,8 +26,8 @@
       <div class="auth-card">
 
         <div class="auth-card-header">
-          <h1>{{ mode === 'login' ? 'Welcome back' : 'Create account' }}</h1>
-          <p>{{ mode === 'login' ? 'Sign in to your OneStopShop account' : 'Join the OneStopShop network' }}</p>
+          <h1>{{ mode === 'login' ? t('auth.welcomeBack') : t('auth.createAccount') }}</h1>
+          <p>{{ mode === 'login' ? t('auth.signInSub') : t('auth.joinSub') }}</p>
         </div>
 
         <div v-if="error" class="auth-error">{{ error }}</div>
@@ -30,20 +35,20 @@
         <!-- Pending approval success card — shown instead of form after Teacher/Company registers -->
         <div v-if="pendingApproval" class="pending-card">
           <div class="pending-icon">✓</div>
-          <h3>Registration submitted</h3>
-          <p>Your account is pending admin approval. You will be able to log in once an admin activates your account.</p>
-          <button class="switch-btn" @click="switchMode">Back to login</button>
+          <h3>{{ t('auth.regSubmitted') }}</h3>
+          <p>{{ t('auth.pendingMsg') }}</p>
+          <button class="switch-btn" @click="switchMode">{{ t('auth.backToLogin') }}</button>
         </div>
 
         <form v-if="!pendingApproval" @submit.prevent="submit" class="auth-form">
 
           <div class="field">
-            <label for="username">Username</label>
+            <label for="username">{{ t('auth.username') }}</label>
             <input
               id="username"
               v-model="form.username"
               type="text"
-              placeholder="your_username"
+              :placeholder="t('auth.usernamePlaceholder')"
               required
               autocomplete="username"
             />
@@ -51,40 +56,40 @@
 
           <template v-if="mode === 'register'">
             <div class="field">
-              <label for="email">Email</label>
+              <label for="email">{{ t('auth.email') }}</label>
               <input
                 id="email"
                 v-model="form.email"
                 type="email"
-                placeholder="you@university.edu"
+                :placeholder="t('auth.emailPlaceholder')"
                 required
                 autocomplete="email"
               />
               <p v-if="form.profile === 'Teacher'" class="field-hint">
-                ℹ Use your university email (e.g. you@mdu.se)
+                {{ t('auth.emailHint') }}
               </p>
             </div>
 
             <template v-if="form.profile === 'Company'">
               <div class="field">
-                <label for="company_name">Company Name *</label>
+                <label for="company_name">{{ t('auth.companyName') }}</label>
                 <input
                   id="company_name"
                   v-model="form.company_name"
                   type="text"
-                  placeholder="Acme Corp"
+                  :placeholder="t('auth.companyNamePlaceholder')"
                   autocomplete="organization"
                 />
               </div>
               <div class="field">
-                <label for="company_country">Country *</label>
+                <label for="company_country">{{ t('auth.country') }}</label>
                 <select id="company_country" v-model="form.company_country">
-                  <option value="">Select country…</option>
+                  <option value="">{{ t('auth.selectCountry') }}</option>
                   <option v-for="c in ALL_COUNTRIES" :key="c.code" :value="c.code">{{ c.name }}</option>
                 </select>
               </div>
               <div class="field">
-                <label for="company_website">Website</label>
+                <label for="company_website">{{ t('auth.website') }}</label>
                 <input
                   id="company_website"
                   v-model="form.company_website"
@@ -96,7 +101,7 @@
           </template>
 
           <div class="field">
-            <label for="password">Password</label>
+            <label for="password">{{ t('auth.password') }}</label>
             <div class="password-wrap">
               <input
                 id="password"
@@ -107,14 +112,14 @@
                 :autocomplete="mode === 'login' ? 'current-password' : 'new-password'"
               />
               <button type="button" class="pwd-toggle" @click="showPassword = !showPassword" tabindex="-1">
-                {{ showPassword ? 'Hide' : 'Show' }}
+                {{ showPassword ? t('auth.hide') : t('auth.show') }}
               </button>
             </div>
           </div>
 
           <template v-if="mode === 'register'">
             <div class="field">
-              <label>I am a…</label>
+              <label>{{ t('auth.iam') }}</label>
               <div class="role-picker">
                 <button
                   v-for="role in roles"
@@ -124,27 +129,27 @@
                   @click="form.profile = role.value"
                 >
                   <span class="role-icon">{{ role.icon }}</span>
-                  <span class="role-label">{{ role.label }}</span>
+                  <span class="role-label">{{ t(role.labelKey) }}</span>
                 </button>
               </div>
             </div>
           </template>
 
           <p v-if="mode === 'register' && (form.profile === 'Teacher' || form.profile === 'Company')" class="approval-note">
-            ℹ Teacher and Company accounts require admin approval before you can log in.
+            {{ t('auth.approvalNote') }}
           </p>
 
           <button type="submit" class="auth-submit" :disabled="loading">
             <span v-if="loading" class="spinner"></span>
-            {{ loading ? 'Please wait…' : (mode === 'login' ? 'Log in' : 'Create account') }}
+            {{ loading ? t('auth.pleaseWait') : (mode === 'login' ? t('auth.login') : t('auth.createAccountBtn')) }}
           </button>
 
         </form>
 
         <p class="auth-switch">
-          {{ mode === 'login' ? "Don't have an account?" : 'Already have an account?' }}
+          {{ mode === 'login' ? t('auth.noAccount') : t('auth.haveAccount') }}
           <button class="switch-btn" @click="switchMode">
-            {{ mode === 'login' ? 'Register' : 'Log in' }}
+            {{ mode === 'login' ? t('auth.register') : t('auth.login') }}
           </button>
         </p>
 
@@ -157,11 +162,14 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAuth } from './composables/useAuth.js'
 import { ALL_COUNTRIES } from './data/countries.js'
+import LanguageSwitcher from './components/layout/LanguageSwitcher.vue'
 
 const router = useRouter()
 const route = useRoute()
+const { t } = useI18n()
 const { login, register, loading, error } = useAuth()
 
 const mode = ref('login')
@@ -169,10 +177,10 @@ const showPassword = ref(false)
 const pendingApproval = ref(false)
 
 const roles = [
-  { value: 'Student',        label: 'Student',    icon: '🎓' },
-  { value: 'Academic staff', label: 'Researcher', icon: '🔬' },
-  { value: 'Teacher',        label: 'Teacher',    icon: '📚' },
-  { value: 'Company',        label: 'Company',    icon: '🏢' },
+  { value: 'Student',        labelKey: 'auth.roleStudent',    icon: '🎓' },
+  { value: 'Academic staff', labelKey: 'auth.roleResearcher', icon: '🔬' },
+  { value: 'Teacher',        labelKey: 'auth.roleTeacher',    icon: '📚' },
+  { value: 'Company',        labelKey: 'auth.roleCompany',    icon: '🏢' },
 ]
 
 const form = ref({
@@ -194,11 +202,11 @@ async function submit() {
   } else {
     if (form.value.profile === 'Company') {
       if (!form.value.company_name.trim()) {
-        error.value = 'Company name is required.'
+        error.value = t('auth.companyNameRequired')
         return
       }
       if (!form.value.company_country) {
-        error.value = 'Please select a country.'
+        error.value = t('auth.selectCountryError')
         return
       }
     }
@@ -224,6 +232,15 @@ async function submit() {
   min-height: 100vh;
   display: grid;
   grid-template-columns: 1fr 1fr;
+  position: relative;
+}
+
+/* Language switcher pinned to the top-right (over the light form panel) */
+.auth-lang {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.5rem;
+  z-index: 10;
 }
 
 /* ── Left panel ── */

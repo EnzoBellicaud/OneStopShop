@@ -5,11 +5,12 @@ import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { MockOpportunity, MockOpportunityCreateRequest } from '../shared/api.models';
 import { OssApiService } from '../shared/oss-api.service';
+import { TranslatePipe } from '../shared/i18n/translate.pipe';
 
 @Component({
   selector: 'app-mock-site-admin-page',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TranslatePipe],
   templateUrl: './mock-site-admin-page.component.html',
   styleUrl: './mock-site-admin-page.component.css',
 })

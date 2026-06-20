@@ -1,0 +1,86 @@
+/* ── NAV ── */
+nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  /* background: rgba(255, 255, 255, 0); */
+  background: var(--blank);
+  backdrop-filter: blur(12px);
+  /* border-bottom: 1px solid var(--border); */
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 0 3rem;
+  height: 60px;
+  transition: background 0.55s ease, color 0.15s ease;
+}
+.nav-logo {
+  font-family: 'DM Serif Display', serif;
+  font-size: 19px;
+  color: var(--ink);
+  text-decoration: none;
+  letter-spacing: -0.3px;
+}
+.nav-logo span { color: var(--accent-mid); justify-self: start;}
+.nav-links {
+  display: flex;
+  gap: 2rem;
+  list-style: none;
+}
+.nav-links a {
+  font-size: 13px;
+  justify-self: center;
+  color: var(--ink-soft);
+  text-decoration: none;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+.nav-links a:hover { color: var(--ink); }
+.nav-right { display: flex; align-items: center; gap: 12px; justify-self: end; }
+.btn-nav {
+  font-size: 13px;
+  font-weight: 500;
+  padding: 7px 18px;
+  border-radius: var(--r);
+  text-decoration: none;
+  background: var(--ink);
+  color: var(--surface);
+  letter-spacing: 0.01em;
+}
+
+/* ── APP HEADER ── */
+.nav-username {
+  font-size: 13px;
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+
+.btn-logout {
+  background: none;
+  border: 1px solid var(--border, #ddd);
+  color: var(--ink-soft);
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+}
+.btn-logout:hover {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.role-pill {
+  font-size: 12px;
+  padding: 5px 14px;
+  border-radius: 99px;
+  border: 1px solid transparent;
+  color: var(--ink-soft);
+  text-decoration: none;
+  font-weight: 500;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.role-pill:hover { border-color: var(--ink-soft); }
+.role-pill.active {
+  background: var(--ink);
+  color: var(--surface, #fafaf8);
+  border-color: var(--ink);
+}

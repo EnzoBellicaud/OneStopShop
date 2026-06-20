@@ -16,11 +16,12 @@ import {
 import { AuthService } from '../shared/auth.service';
 import { ALL_COUNTRIES, Country } from '../shared/countries';
 import { OssApiService } from '../shared/oss-api.service';
+import { TranslatePipe } from '../shared/i18n/translate.pipe';
 
 @Component({
   selector: 'app-offers-page',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TranslatePipe],
   templateUrl: './offers-page.component.html',
   styleUrl: './offers-page.component.css',
 })

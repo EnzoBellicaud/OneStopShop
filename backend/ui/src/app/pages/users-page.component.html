@@ -1,37 +1,37 @@
 <div class="page">
   <div class="page-header">
-    <h1>User Management</h1>
-    <button class="btn-primary" (click)="openCreateModal()">+ Create User</button>
+    <h1>{{ 'users.title' | translate }}</h1>
+    <button class="btn-primary" (click)="openCreateModal()">{{ 'users.createUser' | translate }}</button>
   </div>
 
   <div class="filters">
     <input
       type="text"
-      placeholder="Search username or email…"
+      [placeholder]="'users.searchPlaceholder' | translate"
       [(ngModel)]="searchInput"
       (keyup.enter)="applySearch()"
       class="filter-input"
     />
-    <button class="btn-outline" (click)="applySearch()">Search</button>
+    <button class="btn-outline" (click)="applySearch()">{{ 'common.search' | translate }}</button>
 
     <select (change)="setFilter('profile', $any($event.target).value)" class="filter-select">
-      <option value="">All profiles</option>
+      <option value="">{{ 'users.allProfiles' | translate }}</option>
       @for (p of profiles; track p) {
         <option [value]="p">{{ p }}</option>
       }
     </select>
 
     <select (change)="setFilter('approval_status', $any($event.target).value)" class="filter-select">
-      <option value="">All statuses</option>
-      <option value="pending">Pending</option>
-      <option value="approved">Approved</option>
-      <option value="rejected">Rejected</option>
+      <option value="">{{ 'users.allStatuses' | translate }}</option>
+      <option value="pending">{{ 'users.statusPending' | translate }}</option>
+      <option value="approved">{{ 'users.statusApproved' | translate }}</option>
+      <option value="rejected">{{ 'users.statusRejected' | translate }}</option>
     </select>
 
     <select (change)="setFilter('status', $any($event.target).value)" class="filter-select">
-      <option value="">Active & inactive</option>
-      <option value="active">Active only</option>
-      <option value="inactive">Inactive only</option>
+      <option value="">{{ 'users.activeInactive' | translate }}</option>
+      <option value="active">{{ 'users.activeOnly' | translate }}</option>
+      <option value="inactive">{{ 'users.inactiveOnly' | translate }}</option>
     </select>
   </div>
 
@@ -40,20 +40,20 @@
   }
 
   @if (loading()) {
-    <p class="loading-msg">Loading…</p>
+    <p class="loading-msg">{{ 'common.loading' | translate }}</p>
   } @else {
     <div class="table-card">
     <table class="data-table">
       <thead>
         <tr>
-          <th>Username</th>
-          <th>Email</th>
-          <th>Profile</th>
-          <th>Approval</th>
-          <th>Email verified</th>
-          <th>Active</th>
-          <th>Joined</th>
-          <th>Actions</th>
+          <th>{{ 'users.thUsername' | translate }}</th>
+          <th>{{ 'users.thEmail' | translate }}</th>
+          <th>{{ 'users.thProfile' | translate }}</th>
+          <th>{{ 'users.thApproval' | translate }}</th>
+          <th>{{ 'users.thEmailVerified' | translate }}</th>
+          <th>{{ 'users.thActive' | translate }}</th>
+          <th>{{ 'users.thJoined' | translate }}</th>
+          <th>{{ 'common.actions' | translate }}</th>
         </tr>
       </thead>
       <tbody>
@@ -68,22 +68,22 @@
             <td>
               <button
                 class="btn-icon"
-                [title]="user.email_verified ? 'Mark unverified' : 'Mark verified'"
+                [title]="user.email_verified ? ('users.markUnverified' | translate) : ('users.markVerified' | translate)"
                 (click)="toggleEmailVerified(user)"
               >{{ user.email_verified ? '✔' : '✗' }}</button>
             </td>
-            <td>{{ user.is_active ? 'Yes' : 'No' }}</td>
+            <td>{{ user.is_active ? ('common.yes' | translate) : ('common.no' | translate) }}</td>
             <td class="date-cell">{{ user.created_at | date:'yyyy-MM-dd' }}</td>
             <td class="actions-cell">
               @if (user.approval_status === 'pending') {
-                <button class="btn-sm btn-success" (click)="approve(user)">Approve</button>
-                <button class="btn-sm btn-danger" (click)="openReject(user)">Reject</button>
+                <button class="btn-sm btn-success" (click)="approve(user)">{{ 'users.approve' | translate }}</button>
+                <button class="btn-sm btn-danger" (click)="openReject(user)">{{ 'users.reject' | translate }}</button>
               }
               @if (user.username !== 'admin') {
                 @if (user.is_active) {
-                  <button class="btn-sm btn-outline" (click)="toggleActive(user)">Deactivate</button>
+                  <button class="btn-sm btn-outline" (click)="toggleActive(user)">{{ 'users.deactivate' | translate }}</button>
                 } @else {
-                  <button class="btn-sm btn-outline" (click)="toggleActive(user)">Reactivate</button>
+                  <button class="btn-sm btn-outline" (click)="toggleActive(user)">{{ 'users.reactivate' | translate }}</button>
                 }
               }
               @if (user.username !== 'admin') {
@@ -99,14 +99,14 @@
               }
               @if (['Teacher', 'Company'].includes(user.profile)) {
                 <button class="btn-sm btn-outline" [title]="user.organization_name ?? 'No org'" (click)="openAssignOrg(user)">
-                  {{ user.organization_name ? '🏢 ' + user.organization_name : '⚠ Assign Org' }}
+                  {{ user.organization_name ? '🏢 ' + user.organization_name : ('users.assignOrg' | translate) }}
                 </button>
               }
             </td>
           </tr>
         }
         @if (users.length === 0) {
-          <tr><td colspan="8" class="empty-row">No users found.</td></tr>
+          <tr><td colspan="8" class="empty-row">{{ 'users.empty' | translate }}</td></tr>
         }
       </tbody>
     </table>
@@ -114,9 +114,9 @@
     </div><!-- /table-card -->
 
     <div class="pagination">
-      <button class="btn-outline btn-sm" (click)="prevPage()" [disabled]="(filters.page ?? 1) <= 1">← Prev</button>
-      <span>Page {{ filters.page ?? 1 }} · {{ total }} total</span>
-      <button class="btn-outline btn-sm" (click)="nextPage()" [disabled]="(filters.page ?? 1) * (filters.page_size ?? 20) >= total">Next →</button>
+      <button class="btn-outline btn-sm" (click)="prevPage()" [disabled]="(filters.page ?? 1) <= 1">{{ 'users.prev' | translate }}</button>
+      <span>{{ 'users.pageInfo' | translate:{ page: (filters.page ?? 1), total: total } }}</span>
+      <button class="btn-outline btn-sm" (click)="nextPage()" [disabled]="(filters.page ?? 1) * (filters.page_size ?? 20) >= total">{{ 'users.next' | translate }}</button>
     </div>
   }
 </div>
@@ -125,11 +125,11 @@
 @if (rejectTarget) {
   <div class="modal-backdrop" (click)="rejectTarget = null">
     <div class="modal" (click)="$event.stopPropagation()">
-      <h2>Reject {{ rejectTarget.username }}?</h2>
-      <textarea [(ngModel)]="rejectNotes" placeholder="Reason (optional)" rows="3" class="modal-textarea"></textarea>
+      <h2>{{ 'users.rejectTitle' | translate:{ name: rejectTarget.username } }}</h2>
+      <textarea [(ngModel)]="rejectNotes" [placeholder]="'users.rejectPlaceholder' | translate" rows="3" class="modal-textarea"></textarea>
       <div class="modal-actions">
-        <button class="btn-outline" (click)="rejectTarget = null">Cancel</button>
-        <button class="btn-danger" (click)="confirmReject()">Confirm Reject</button>
+        <button class="btn-outline" (click)="rejectTarget = null">{{ 'common.cancel' | translate }}</button>
+        <button class="btn-danger" (click)="confirmReject()">{{ 'users.confirmReject' | translate }}</button>
       </div>
     </div>
   </div>
@@ -139,47 +139,47 @@
 @if (assignOrgTarget) {
   <div class="modal-backdrop" (click)="assignOrgTarget = null">
     <div class="modal" (click)="$event.stopPropagation()">
-      <h2>Assign Organization — {{ assignOrgTarget.username }}</h2>
+      <h2>{{ 'users.assignOrgTitle' | translate:{ name: assignOrgTarget.username } }}</h2>
       @if (!showNewOrgForm) {
         <div class="form-group">
-          <label>Organization</label>
+          <label>{{ 'users.fieldOrganization' | translate }}</label>
           <select [(ngModel)]="assignOrgId" class="modal-input">
-            <option value="">— select existing —</option>
+            <option value="">{{ 'users.selectExisting' | translate }}</option>
             @for (org of organizations; track org.id) {
               <option [value]="org.id">{{ org.name }} ({{ org.type }})</option>
             }
           </select>
         </div>
-        <button class="btn-sm btn-outline" (click)="showNewOrgForm = true">+ Create new organization</button>
+        <button class="btn-sm btn-outline" (click)="showNewOrgForm = true">{{ 'users.createNewOrg' | translate }}</button>
         <div class="modal-actions">
-          <button class="btn-outline" (click)="assignOrgTarget = null">Cancel</button>
-          <button class="btn-primary" [disabled]="!assignOrgId" (click)="confirmAssignOrg()">Assign</button>
+          <button class="btn-outline" (click)="assignOrgTarget = null">{{ 'common.cancel' | translate }}</button>
+          <button class="btn-primary" [disabled]="!assignOrgId" (click)="confirmAssignOrg()">{{ 'users.assign' | translate }}</button>
         </div>
       } @else {
         <div class="form-group">
-          <label>Company / Org Name *</label>
+          <label>{{ 'users.fieldOrgName' | translate }}</label>
           <input type="text" [(ngModel)]="newOrgForm.name" class="modal-input" placeholder="Acme Corp" />
         </div>
         <div class="form-group">
-          <label>Type *</label>
+          <label>{{ 'users.fieldType' | translate }}</label>
           <select [(ngModel)]="newOrgForm.type" class="modal-input">
-            <option value="company">Company</option>
-            <option value="university">University</option>
-            <option value="other">Other</option>
+            <option value="company">{{ 'organizations.typeCompany' | translate }}</option>
+            <option value="university">{{ 'organizations.typeUniversity' | translate }}</option>
+            <option value="other">{{ 'organizations.typeOther' | translate }}</option>
           </select>
         </div>
         <div class="form-group">
-          <label>Country (2-letter code) *</label>
+          <label>{{ 'users.fieldCountry2' | translate }}</label>
           <input type="text" [(ngModel)]="newOrgForm.country" class="modal-input" maxlength="2" placeholder="DE" />
         </div>
         <div class="form-group">
-          <label>Website</label>
+          <label>{{ 'users.fieldWebsite' | translate }}</label>
           <input type="url" [(ngModel)]="newOrgForm.website" class="modal-input" placeholder="https://example.com" />
         </div>
         <div class="modal-actions">
-          <button class="btn-outline" (click)="showNewOrgForm = false">← Back</button>
+          <button class="btn-outline" (click)="showNewOrgForm = false">{{ 'users.back' | translate }}</button>
           <button class="btn-primary" [disabled]="!newOrgForm.name || !newOrgForm.country || creatingOrg()" (click)="createAndSelectOrg()">
-            {{ creatingOrg() ? 'Creating…' : 'Create & Select' }}
+            {{ creatingOrg() ? ('users.creating' | translate) : ('users.createSelect' | translate) }}
           </button>
         </div>
       }
@@ -192,55 +192,55 @@
   <div class="modal-backdrop" (click)="closeCreateModal()">
     <div class="modal" (click)="$event.stopPropagation()">
       @if (createdUser) {
-        <h2>User Created</h2>
+        <h2>{{ 'users.userCreated' | translate }}</h2>
         <p class="success-msg">
-          <strong>{{ createdUser.username }}</strong> ({{ createdUser.profile }}) created successfully.
+          <strong>{{ createdUser.username }}</strong> ({{ createdUser.profile }}) {{ 'users.createdSuccessSuffix' | translate }}
         </p>
-        <p class="modal-label">Share this password securely — it will not be shown again.</p>
+        <p class="modal-label">{{ 'users.sharePassword' | translate }}</p>
         <div class="pw-reveal-row">
           <input type="text" class="modal-input pw-reveal-input" [value]="createdPassword" readonly />
           <button class="btn-outline" (click)="copyCreatedPassword()">
-            {{ copiedPassword() ? 'Copied!' : 'Copy' }}
+            {{ copiedPassword() ? ('users.copied' | translate) : ('users.copy' | translate) }}
           </button>
         </div>
         <div class="modal-actions">
-          <button class="btn-outline" (click)="openCreateModal()">Create Another</button>
-          <button class="btn-primary" (click)="closeCreateModal()">Done</button>
+          <button class="btn-outline" (click)="openCreateModal()">{{ 'users.createAnother' | translate }}</button>
+          <button class="btn-primary" (click)="closeCreateModal()">{{ 'users.done' | translate }}</button>
         </div>
       } @else {
-        <h2>Create User</h2>
+        <h2>{{ 'users.createUserTitle' | translate }}</h2>
         @if (createError()) {
           <p class="error-msg">{{ createError() }}</p>
         }
-        <label>Username
+        <label>{{ 'users.fieldUsername' | translate }}
           <input type="text" [(ngModel)]="createForm.username" class="modal-input" />
         </label>
-        <label>Email
+        <label>{{ 'users.fieldEmail' | translate }}
           <input type="email" [(ngModel)]="createForm.email" class="modal-input" />
         </label>
-        <label>Password
+        <label>{{ 'users.fieldPassword' | translate }}
           <div class="pw-gen-row">
             <input type="text" [value]="createForm.password" class="modal-input pw-gen-input" readonly />
-            <button class="btn-outline" type="button" (click)="regeneratePassword()">Regenerate</button>
+            <button class="btn-outline" type="button" (click)="regeneratePassword()">{{ 'users.regenerate' | translate }}</button>
           </div>
         </label>
-        <label>Profile
+        <label>{{ 'users.fieldProfile' | translate }}
           <select [(ngModel)]="createForm.profile" class="modal-input">
             @for (p of profiles; track p) {
               <option [value]="p">{{ p }}</option>
             }
           </select>
         </label>
-        <label>First name
+        <label>{{ 'users.fieldFirstName' | translate }}
           <input type="text" [(ngModel)]="createForm.first_name" class="modal-input" />
         </label>
-        <label>Last name
+        <label>{{ 'users.fieldLastName' | translate }}
           <input type="text" [(ngModel)]="createForm.last_name" class="modal-input" />
         </label>
         <div class="modal-actions">
-          <button class="btn-outline" (click)="closeCreateModal()">Cancel</button>
+          <button class="btn-outline" (click)="closeCreateModal()">{{ 'common.cancel' | translate }}</button>
           <button class="btn-primary" (click)="submitCreate()" [disabled]="creatingUser()">
-            {{ creatingUser() ? 'Creating…' : 'Create' }}
+            {{ creatingUser() ? ('users.creating' | translate) : ('common.create' | translate) }}
           </button>
         </div>
       }

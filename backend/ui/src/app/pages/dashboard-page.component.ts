@@ -17,11 +17,12 @@ import {
 } from '../shared/api.models';
 import { OssApiService } from '../shared/oss-api.service';
 import { AuthService } from '../shared/auth.service';
+import { TranslatePipe } from '../shared/i18n/translate.pipe';
 
 @Component({
   selector: 'app-dashboard-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, TranslatePipe],
   templateUrl: './dashboard-page.component.html',
   styleUrl: './dashboard-page.component.css',
 })

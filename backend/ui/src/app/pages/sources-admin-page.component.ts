@@ -9,11 +9,12 @@ import {
   ScrapingSourceCreateRequest,
 } from '../shared/api.models';
 import { OssApiService } from '../shared/oss-api.service';
+import { TranslatePipe } from '../shared/i18n/translate.pipe';
 
 @Component({
   selector: 'app-sources-admin-page',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TranslatePipe],
   templateUrl: './sources-admin-page.component.html',
   styleUrl: './sources-admin-page.component.css',
 })
