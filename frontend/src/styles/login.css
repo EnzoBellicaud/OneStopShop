@@ -43,7 +43,7 @@
 
 .tab.active {
   background: var(--white);
-  color: var(--ink);
+  color: var(--red);
   box-shadow: 0 1px 4px rgba(0,0,0,0.1);
 }
 
@@ -76,7 +76,10 @@
 }
 
 .login-form input:focus,
-.login-form select:focus { border-color: var(--ink); }
+.login-form select:focus {
+  border-color: var(--red);
+  box-shadow: 0 0 0 3px var(--ring);
+}
 
 .form-error {
   padding: 10px 14px;
@@ -88,7 +91,7 @@
 
 .btn-submit-login {
   padding: 12px;
-  background: var(--ink);
+  background: var(--red-grad);
   color: var(--white);
   border: none;
   border-radius: var(--r);
@@ -96,7 +99,13 @@
   font-weight: 500;
   font-family: 'DM Sans', sans-serif;
   cursor: pointer;
-  transition: opacity 0.2s;
+  box-shadow: 0 2px 6px rgba(124, 26, 26, 0.22);
+  transition: filter 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+.btn-submit-login:hover:not(:disabled) {
+  filter: brightness(1.07);
+  box-shadow: 0 5px 14px rgba(124, 26, 26, 0.28);
+  transform: translateY(-1px);
 }
 
 .btn-submit-login:disabled { opacity: 0.5; cursor: not-allowed; }

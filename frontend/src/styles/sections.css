@@ -72,10 +72,10 @@
 }
 .section-eyebrow {
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: black;
+  color: var(--red);
   margin-bottom: 6px;
 }
 .section-title {
@@ -145,7 +145,7 @@
   letter-spacing: -0.5px;
   margin-bottom: 1.25rem;
 }
-.about h2 em { font-style: italic; color: var(--ink); }
+.about h2 em { font-style: italic; color: var(--red); }
 .about p {
   font-size: 15px;
   color: var(--ink-soft);
@@ -263,12 +263,14 @@
 .btn-submit {
   padding: 13px 28px;
   background: var(--white);
-  color: var(--accent);
+  color: var(--red);
   border-radius: var(--r);
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   border: none;
   cursor: pointer;
   font-family: 'DM Sans', sans-serif;
   align-self: flex-start;
+  transition: background 0.15s ease, color 0.15s ease;
 }
+.btn-submit:hover { background: var(--red); color: var(--white); }

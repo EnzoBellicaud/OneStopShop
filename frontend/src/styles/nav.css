@@ -43,9 +43,16 @@ nav {
   padding: 7px 18px;
   border-radius: var(--r);
   text-decoration: none;
-  background: var(--ink);
-  color: var(--surface);
+  background: var(--red-grad);
+  color: var(--white);
   letter-spacing: 0.01em;
+  box-shadow: 0 1px 2px rgba(94, 20, 20, 0.25);
+  transition: filter 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+.btn-nav:hover {
+  filter: brightness(1.07);
+  box-shadow: 0 3px 10px rgba(124, 26, 26, 0.28);
+  transform: translateY(-1px);
 }
 
 /* ── APP HEADER ── */
@@ -78,9 +85,10 @@ nav {
   transition: all 0.15s;
   white-space: nowrap;
 }
-.role-pill:hover { border-color: var(--ink-soft); }
+.role-pill:hover { border-color: var(--red); color: var(--red); }
 .role-pill.active {
-  background: var(--ink);
-  color: var(--surface, #fafaf8);
-  border-color: var(--ink);
+  background: var(--red);
+  color: var(--white);
+  border-color: var(--red);
 }
+.role-pill.active:hover { color: var(--white); }

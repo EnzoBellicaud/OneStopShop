@@ -20,7 +20,13 @@
   background: var(--white);
   color: var(--ink);
   outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
+.search-input:focus {
+  border-color: var(--red);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+.filter-select:focus { border-color: var(--red); }
 .filter-select {
   height: 40px;
   border: 1px solid var(--border);
@@ -44,11 +50,13 @@
   color: var(--ink-soft);
   cursor: pointer;
 }
+.filter-chip:hover { border-color: var(--red); color: var(--red); }
 .filter-chip.active {
-  background: var(--ink);
+  background: var(--red);
   color: var(--white);
-  border-color: var(--ink);
+  border-color: var(--red);
 }
+.filter-chip.active:hover { color: var(--white); }
 
 .tiles-move {
   transition: transform 0.4s ease;
@@ -104,12 +112,13 @@
   transition: all 0.15s;
   box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
-.sort-btn:hover { border-color: var(--ink-soft); }
+.sort-btn:hover { border-color: var(--red); color: var(--red); }
 .sort-btn.active {
-  background: var(--ink, #111);
+  background: var(--red);
   color: white;
-  border-color: var(--ink, #111);
+  border-color: var(--red);
 }
+.sort-btn.active:hover { color: white; }
 
 .sort-order-btn {
   font-size: 12px;

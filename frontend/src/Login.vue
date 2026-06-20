@@ -245,7 +245,10 @@ async function submit() {
 
 /* ── Left panel ── */
 .auth-brand {
-  background: var(--ink);
+  background:
+    radial-gradient(120% 80% at 0% 0%, rgba(168, 38, 38, 0.55) 0%, transparent 55%),
+    radial-gradient(110% 90% at 100% 100%, rgba(94, 20, 20, 0.6) 0%, transparent 55%),
+    linear-gradient(155deg, #5e1414 0%, #2a0e0e 100%);
   display: flex;
   flex-direction: column;
   padding: 3rem;
@@ -257,7 +260,7 @@ async function submit() {
   content: '';
   position: absolute;
   inset: 0;
-  background-image: radial-gradient(rgba(255,255,255,0.07) 1px, transparent 1px);
+  background-image: radial-gradient(rgba(255,255,255,0.08) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
@@ -455,8 +458,8 @@ async function submit() {
 }
 
 .role-card.selected {
-  border-color: var(--ink);
-  background: var(--ink);
+  border-color: var(--red);
+  background: var(--red);
 }
 
 .role-icon { font-size: 1.4rem; }
@@ -474,7 +477,7 @@ async function submit() {
 /* ── Submit ── */
 .auth-submit {
   padding: 0.75rem;
-  background: var(--ink);
+  background: var(--red-grad);
   color: var(--white);
   border: none;
   border-radius: var(--r);

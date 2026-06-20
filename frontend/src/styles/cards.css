@@ -17,7 +17,10 @@
   gap: 1rem;
   transition: border-color 0.15s;
 }
-.opp-card:hover { border-color: #bbb; }
+.opp-card:hover {
+  border-color: var(--red);
+  box-shadow: 0 6px 18px rgba(155, 32, 32, 0.08);
+}
 .card-top { display: flex; align-items: center; justify-content: space-between; }
 .type-tag {
   font-size: 11px;
@@ -97,9 +100,9 @@
 }
 
 .opportunity-card:hover {
-  border-color: #bbb;
+  border-color: var(--red);
   transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(0,0,0,0.11);
+  box-shadow: 0 6px 18px rgba(155, 32, 32, 0.12);
 }
 
 .skeleton {

@@ -406,9 +406,9 @@ onMounted(() => {
   transition: all 0.15s;
 }
 .chip.active, .chip:hover {
-  background: var(--ink);
+  background: var(--red);
   color: var(--white);
-  border-color: var(--ink);
+  border-color: var(--red);
 }
 
 .db-select {
@@ -503,16 +503,17 @@ onMounted(() => {
 
 .btn-primary {
   padding: 0.5rem 1.1rem;
-  background: var(--ink);
+  background: var(--red-grad);
   color: var(--white);
   border: none;
   border-radius: var(--r);
   font-size: 0.88rem;
   cursor: pointer;
   font-family: inherit;
-  transition: opacity 0.15s;
+  box-shadow: 0 2px 6px rgba(124, 26, 26, 0.22);
+  transition: filter 0.15s ease, box-shadow 0.15s ease;
 }
-.btn-primary:hover { opacity: 0.85; }
+.btn-primary:hover { filter: brightness(1.07); box-shadow: 0 5px 14px rgba(124, 26, 26, 0.28); }
 
 .btn-ghost {
   padding: 0.35rem 0.75rem;
@@ -526,9 +527,9 @@ onMounted(() => {
   transition: all 0.15s;
 }
 .btn-ghost:hover, .btn-ghost.active {
-  background: var(--ink);
+  background: var(--red);
   color: var(--white);
-  border-color: var(--ink);
+  border-color: var(--red);
 }
 .btn-ghost:disabled { opacity: 0.45; cursor: not-allowed; }
 

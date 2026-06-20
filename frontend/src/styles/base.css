@@ -9,8 +9,19 @@
   --white: #ffffff;
   --border: #e4e4e0;
   --accent: #1a3a2a;
-  --accent-light: #f3dada;
-  --accent-mid: #9b2020;
+
+  /* ── Dark-red accent scale (brand / primary) ── */
+  --red: #9b2020;          /* primary dark red */
+  --red-deep: #7c1a1a;     /* hover / pressed */
+  --red-darker: #5e1414;   /* deepest, gradients */
+  --red-soft: #f3dada;     /* tinted fill */
+  --red-wash: #fbf0f0;     /* faint background wash */
+  --red-grad: linear-gradient(180deg, #a82626 0%, #851b1b 100%);
+  --ring: rgba(155, 32, 32, 0.32);   /* focus ring */
+  /* legacy aliases (kept so existing rules still resolve) */
+  --accent-light: var(--red-soft);
+  --accent-mid: var(--red);
+
   --tag-thesis: #eef3ff;
   --tag-thesis-text: #2b4bab;
   --tag-intern: #fef3e8;
@@ -58,4 +69,22 @@ body {
 
 ::-webkit-scrollbar {
    display: none;
+}
+
+/* ── Accessible focus ring (dark red) ── */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
+  border-radius: var(--r);
+}
+
+/* ── Text selection ── */
+::selection {
+  background: var(--red-soft);
+  color: var(--red-darker);
 }

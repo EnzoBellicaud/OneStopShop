@@ -72,7 +72,10 @@
   cursor: pointer;
   font-size: 12px;
   font-family: 'DM Sans', sans-serif;
+  color: var(--ink-soft);
+  transition: border-color 0.15s ease, color 0.15s ease;
 }
+.reset-btn:hover { border-color: var(--red); color: var(--red); }
 
 .results-header {
   font-size: 13px;
@@ -106,6 +109,6 @@
   box-shadow: 0 1px 4px rgba(0,0,0,0.09);
 }
 
-.page-btn:hover:not(:disabled) { border-color: var(--ink, #111); }
+.page-btn:hover:not(:disabled) { border-color: var(--red); color: var(--red); }
 .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .page-info { font-size: 13px; color: #888; }
