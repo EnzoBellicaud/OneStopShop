@@ -11,7 +11,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from content.auth import require_auth, verify_token
-from content.models import Domain, Offer, OfferContact, OfferType, Organization, SourceType, TargetProfile, User, UserOrganization
+from content.matching_service import run_matching_for_offers
+from content.models import Domain, Offer, OfferType, Organization, SourceType, TargetProfile, User, UserOrganization, OfferContact
 from content.views._utils import _parse_positive_int
 
 OFFER_MANAGER_PROFILES = [User.ProfileType.TEACHER, User.ProfileType.COMPANY]
@@ -284,6 +285,8 @@ def _create_offer(request):
         )
         .get(id=offer.id)
     )
+    if offer.status == Offer.OfferStatus.PUBLISHED:
+        run_matching_for_offers([offer.id])
     return JsonResponse(_offer_to_dict(offer), status=201)
 
 
@@ -404,18 +407,9 @@ def _update_offer(request, parsed_id: UUID):
             domains_qs = Domain.objects.filter(name__in=domain_names)
             offer.domains.set(domains_qs)
 
-    offer = (
-        Offer.objects.select_related("offer_type", "organization", "source_type", "target_profile")
-        .prefetch_related(
-            "domains",
-            Prefetch(
-                "offercontact_set",
-                queryset=OfferContact.objects.select_related("contact"),
-                to_attr="prefetched_offer_contacts",
-            ),
-        )
-        .get(id=parsed_id)
-    )
+    offer.refresh_from_db()
+    if offer.status == Offer.OfferStatus.PUBLISHED:
+        run_matching_for_offers([offer.id])
     return JsonResponse(_offer_to_dict(offer))
 
 

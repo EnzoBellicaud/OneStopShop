@@ -4,32 +4,32 @@
 
     <ul class="nav-links">
       <template v-if="route.name === 'landing'">
-        <li><a href="#about">About</a></li>
-        <li><a href="#how">How it works</a></li>
-        <li><a href="#contact">Contact</a></li>
+        <li><a href="#about">{{ t('nav.about') }}</a></li>
+        <li><a href="#how">{{ t('nav.how') }}</a></li>
+        <li><a href="#contact">{{ t('nav.contact') }}</a></li>
         <li>
-          <router-link to="/forum" class="role-pill">Forum</router-link>
+          <router-link to="/forum" class="role-pill">{{ t('nav.forum') }}</router-link>
         </li>
       </template>
       <template v-else>
         <li>
           <router-link to="/student" class="role-pill" :class="{ active: route.name === 'student' }">
-            Student
+            {{ t('nav.student') }}
           </router-link>
         </li>
         <li>
           <router-link to="/staff" class="role-pill" :class="{ active: route.name === 'staff' }">
-            Academic Staff
+            {{ t('nav.staff') }}
           </router-link>
         </li>
         <li>
           <router-link to="/external_user" class="role-pill" :class="{ active: route.name === 'externaluser' }">
-            External
+            {{ t('nav.external') }}
           </router-link>
         </li>
         <li>
           <router-link to="/forum" class="role-pill" :class="{ active: route.name === 'Forum' || route.name === 'QuestionDetail' || route.name === 'NewQuestion' }">
-            Forum
+            {{ t('nav.forum') }}
           </router-link>
         </li>
       </template>
@@ -38,7 +38,7 @@
     <div class="nav-right">
       <!-- Language picker -->
       <div class="lang-picker" ref="langPickerRef">
-        <button class="lang-btn" @click="langOpen = !langOpen" :aria-expanded="langOpen">
+        <button class="lang-btn" @click="langOpen = !langOpen" :aria-expanded="langOpen" :aria-label="t('nav.language')">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="8" cy="8" r="6.5"/>
             <path d="M8 1.5C8 1.5 6 4.5 6 8s2 6.5 2 6.5M8 1.5C8 1.5 10 4.5 10 8s-2 6.5-2 6.5M1.5 8h13"/>
@@ -68,13 +68,13 @@
 
       <template v-if="user">
         <span class="nav-username">{{ user.first_name || user.username }}</span>
-        <a v-if="['Admin','Teacher','Company'].includes(user.profile)" :href="adminPortalUrlWithSso" target="_blank" class="btn-nav btn-portal">Admin Panel ↗</a>
-        <router-link to="/dashboard" class="btn-nav">Dashboard</router-link>
-        <router-link to="/user_profile" class="btn-nav">Profile</router-link>
-        <button class="btn-nav btn-logout" @click="handleLogout">Log out</button>
+        <a v-if="['Admin','Teacher','Company'].includes(user.profile)" :href="adminPortalUrlWithSso" target="_blank" class="btn-nav btn-portal">{{ t('nav.admin') }} ↗</a>
+        <router-link to="/dashboard" class="btn-nav">{{ t('nav.dashboard') }}</router-link>
+        <router-link to="/user_profile" class="btn-nav">{{ t('nav.profile') }}</router-link>
+        <button class="btn-nav btn-logout" @click="handleLogout">{{ t('nav.logout') }}</button>
       </template>
       <template v-else>
-        <router-link to="/login" class="btn-nav">Log in / Register</router-link>
+        <router-link to="/login" class="btn-nav">{{ t('nav.login') }}</router-link>
       </template>
     </div>
   </nav>
@@ -83,11 +83,13 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAuth } from '../../composables/useAuth.js'
 import { useLocale } from '../../composables/useLocale.js'
 
 const router = useRouter()
 const route = useRoute()
+const { t } = useI18n()
 const { user, token, logout } = useAuth()
 const { current, languages, setLocale } = useLocale()
 

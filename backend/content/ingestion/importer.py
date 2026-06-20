@@ -9,6 +9,7 @@ from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
+from content.matching_service import run_matching_for_offers
 from content.models import (
     CrawlUrl,
     Domain,
@@ -51,9 +52,10 @@ class PreviewResult:
 class ConfirmResult:
     drafts: int = 0
     published: int = 0
+    matching: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
-        return {"drafts": self.drafts, "published": self.published}
+        return {"drafts": self.drafts, "published": self.published, "matching": self.matching}
 
 
 class ImportService:
@@ -88,6 +90,7 @@ class ImportService:
         ingestion_user = User.objects.get(username=bot_username)
         source_type = SourceType.objects.get(name="manual")
         drafts = published = 0
+        published_offer_ids = []
 
         with transaction.atomic():
             for entry in valid_rows:
@@ -98,10 +101,12 @@ class ImportService:
                 self._enqueue_url(offer, row["url"])
                 if row_status == "published":
                     published += 1
+                    published_offer_ids.append(offer.id)
                 else:
                     drafts += 1
 
-        return ConfirmResult(drafts=drafts, published=published)
+        matching = run_matching_for_offers(published_offer_ids) if published_offer_ids else {}
+        return ConfirmResult(drafts=drafts, published=published, matching=matching)
 
     # ── Private ──────────────────────────────────────────────────────────────
 

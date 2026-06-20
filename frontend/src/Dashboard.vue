@@ -4,29 +4,29 @@
 
     <section class="page-hero db-page-hero">
       <div class="page-hero-inner">
-        <p class="section-eyebrow">My Dashboard</p>
-        <h1 class="page-title">Needs · Favorites · Matches</h1>
+        <p class="section-eyebrow">{{ t('dashboard.eyebrow') }}</p>
+        <h1 class="page-title">{{ t('dashboard.title') }}</h1>
       </div>
     </section>
 
     <main class="db-wrap">
       <div v-if="!user" class="db-empty">
-        Please <router-link to="/login">log in</router-link> to view your dashboard.
+        {{ t('dashboard.loginPrompt') }} <router-link to="/login">{{ t('dashboard.loginLink') }}</router-link>
       </div>
 
       <template v-else>
         <div class="db-stats">
           <div class="db-stat">
             <strong>{{ stats.active_needs_count }}</strong>
-            <span>Active needs</span>
+            <span>{{ t('dashboard.activeNeeds') }}</span>
           </div>
           <div class="db-stat">
             <strong>{{ stats.total_favorites }}</strong>
-            <span>Favorites</span>
+            <span>{{ t('dashboard.favorites') }}</span>
           </div>
           <div class="db-stat">
             <strong>{{ stats.new_matches_count }}</strong>
-            <span>New matches</span>
+            <span>{{ t('dashboard.newMatches') }}</span>
           </div>
         </div>
 
@@ -35,14 +35,14 @@
           <!-- NEEDS -->
           <section class="db-panel">
             <div class="panel-head">
-              <h2>My Needs</h2>
+              <h2>{{ t('dashboard.needs') }}</h2>
               <div class="filter-chips">
                 <button
                   v-for="s in ['active','fulfilled','archived']" :key="s"
                   :class="['chip', { active: needFilter === s }]"
                   @click="setNeedFilter(s)"
                 >{{ s }}</button>
-                <button :class="['chip', { active: needFilter === '' }]" @click="setNeedFilter('')">all</button>
+                <button :class="['chip', { active: needFilter === '' }]" @click="setNeedFilter('')">{{ t('dashboard.all') }}</button>
               </div>
             </div>
 
@@ -50,18 +50,18 @@
               <input
                 v-model="needDraft.title"
                 class="db-input"
-                placeholder="Need title"
+                :placeholder="t('dashboard.needTitlePlaceholder')"
                 required
                 maxlength="255"
               />
               <textarea
                 v-model="needDraft.description"
                 class="db-input"
-                placeholder="Description (optional)"
+                :placeholder="t('dashboard.needDescriptionPlaceholder')"
                 rows="2"
               ></textarea>
               <label v-if="editingNeedId" class="db-label">
-                Status
+                {{ t('dashboard.status') }}
                 <select v-model="needDraft.status" class="db-input">
                   <option value="active">active</option>
                   <option value="fulfilled">fulfilled</option>
@@ -70,15 +70,15 @@
               </label>
               <div class="form-row">
                 <button type="submit" class="btn-primary">
-                  {{ editingNeedId ? 'Update need' : 'Add need' }}
+                  {{ editingNeedId ? t('dashboard.updateNeed') : t('dashboard.addNeed') }}
                 </button>
                 <button v-if="editingNeedId" type="button" class="btn-ghost" @click="cancelNeedEdit">
-                  Cancel
+                  {{ t('dashboard.cancel') }}
                 </button>
               </div>
             </form>
 
-            <div v-if="needsLoading" class="db-loading">Loading…</div>
+            <div v-if="needsLoading" class="db-loading">{{ t('dashboard.loading') }}</div>
             <ul v-else class="item-list">
               <li v-for="need in needs" :key="need.id" class="item-card">
                 <div class="item-top">
@@ -86,36 +86,36 @@
                   <span class="pill">{{ need.status }}</span>
                 </div>
                 <p v-if="need.description" class="item-desc">{{ need.description }}</p>
-                <p class="item-meta">{{ need.matching_hits_count }} match{{ need.matching_hits_count !== 1 ? 'es' : '' }}</p>
+                <p class="item-meta">{{ t('dashboard.matchCount', need.matching_hits_count) }}</p>
                 <div class="item-actions">
                   <button class="btn-ghost" @click="startEditNeed(need)">Edit</button>
                   <button class="btn-danger" @click="deleteNeed(need.id)">Delete</button>
                 </div>
               </li>
-              <li v-if="needs.length === 0" class="db-empty-state">No needs yet. Add one above.</li>
+              <li v-if="needs.length === 0" class="db-empty-state">{{ t('dashboard.noNeeds') }}</li>
             </ul>
           </section>
 
           <!-- FAVORITES -->
           <section class="db-panel">
             <div class="panel-head">
-              <h2>Saved Favorites</h2>
+              <h2>{{ t('dashboard.savedFavorites') }}</h2>
             </div>
-            <div v-if="favsLoading" class="db-loading">Loading…</div>
+            <div v-if="favsLoading" class="db-loading">{{ t('dashboard.loading') }}</div>
             <ul v-else class="item-list">
               <li v-for="fav in favorites" :key="fav.id" class="item-card">
                 <div class="item-top">
                   <strong>{{ fav.offer.title }}</strong>
-                  <button class="btn-danger" @click="removeFavorite(fav.offer.id)">Remove</button>
+                  <button class="btn-danger" @click="removeFavorite(fav.offer.id)">{{ t('dashboard.remove') }}</button>
                 </div>
                 <p class="item-meta">{{ fav.offer.organization }}</p>
                 <p v-if="fav.note" class="item-desc">{{ fav.note }}</p>
                 <a :href="fav.offer.link" target="_blank" rel="noopener noreferrer" class="ext-link">
-                  Open offer ↗
+                  {{ t('dashboard.openOffer') }} ↗
                 </a>
               </li>
               <li v-if="favorites.length === 0" class="db-empty-state">
-                No favorites yet. Save offers while browsing.
+                {{ t('dashboard.noFavorites') }}
               </li>
             </ul>
           </section>
@@ -123,20 +123,20 @@
           <!-- MATCHING HITS -->
           <section class="db-panel matches-panel">
             <div class="panel-head">
-              <h2>Matches</h2>
+              <h2>{{ t('dashboard.matches') }}</h2>
               <div class="filter-chips">
                 <select v-model="matchFilter" class="db-select" @change="loadMatches">
-                  <option value="">All statuses</option>
+                  <option value="">{{ t('dashboard.allStatuses') }}</option>
                   <option v-for="s in ['new','viewed','interested','declined']" :key="s" :value="s">{{ s }}</option>
                 </select>
                 <select v-model="matchSort" class="db-select" @change="loadMatches">
-                  <option value="-match_score">Best score first</option>
-                  <option value="created_at">Newest first</option>
+                  <option value="-match_score">{{ t('dashboard.bestScoreFirst') }}</option>
+                  <option value="created_at">{{ t('dashboard.newestFirst') }}</option>
                 </select>
               </div>
             </div>
 
-            <div v-if="hitsLoading" class="db-loading">Loading…</div>
+            <div v-if="hitsLoading" class="db-loading">{{ t('dashboard.loading') }}</div>
             <ul v-else class="item-list">
               <li v-for="hit in matchingHits" :key="hit.id" class="item-card match-card">
                 <div class="item-top">
@@ -149,7 +149,7 @@
                 </p>
                 <p class="item-desc">{{ hit.match_reason }}</p>
                 <a :href="hit.offer.link" target="_blank" rel="noopener noreferrer" class="ext-link">
-                  Open offer ↗
+                  {{ t('dashboard.openOffer') }} ↗
                 </a>
                 <div class="item-actions">
                   <button
@@ -161,7 +161,7 @@
                 </div>
               </li>
               <li v-if="matchingHits.length === 0" class="db-empty-state">
-                No matches for the current filter.
+                {{ t('dashboard.noMatches') }}
               </li>
             </ul>
           </section>
@@ -176,12 +176,14 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useAuth } from './composables/useAuth.js'
 import { api } from './services/api.js'
 import AppHeader from './components/layout/AppHeader.vue'
 import AppFooter from './components/layout/AppFooter.vue'
 
 const { user } = useAuth()
+const { t } = useI18n()
 
 const stats = ref({ active_needs_count: 0, total_favorites: 0, new_matches_count: 0 })
 

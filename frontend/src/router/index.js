@@ -11,6 +11,7 @@ import Dashboard from '../Dashboard.vue'
 import ForumPage from '../pages/ForumPage.vue'
 import QuestionDetailPage from '../pages/QuestionDetailPage.vue'
 import NewQuestionPage from '../pages/NewQuestionPage.vue'
+import AdminPage from '../pages/AdminPage.vue'
 
 const routes = [
   { path: '/home', name: 'home', component: HomeView },
@@ -34,8 +35,7 @@ const routes = [
   { path: '/forum', name: 'Forum', component: ForumPage },
   { path: '/forum/new', name: 'NewQuestion', component: NewQuestionPage, meta: { requiresAuth: true } },
   { path: '/forum/:id', name: 'QuestionDetail', component: QuestionDetailPage },
-  // /admin redirects to dashboard — admin functionality lives in the Angular portal
-  { path: '/admin', redirect: '/dashboard' },
+  { path: '/admin', name: 'admin', component: AdminPage, meta: { requiresAuth: true } },
 ]
 
 const router = createRouter({
