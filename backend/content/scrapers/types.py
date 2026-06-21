@@ -20,6 +20,7 @@ class SourceDefinition:
     crawl_max_pages: int = 25
     crawl_match_patterns: list[str] = field(default_factory=list)
     crawl_exclude_patterns: list[str] = field(default_factory=list)
+    auto_publish_enabled: bool = False
 
 
 @dataclass
