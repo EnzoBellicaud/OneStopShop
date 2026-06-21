@@ -577,6 +577,7 @@ class ScrapingSource(models.Model):
 	crawl_max_pages        = models.IntegerField(default=25)
 	crawl_match_patterns   = models.JSONField(default=list)
 	crawl_exclude_patterns = models.JSONField(default=list)
+	auto_publish_enabled   = models.BooleanField(default=False)
 	created_at             = models.DateTimeField(auto_now_add=True)
 	updated_at             = models.DateTimeField(auto_now=True)
 
