@@ -606,3 +606,200 @@ class MatchingTriggerTests(TestCase):
             refresh_matches_for_offers([offer.id])
 
         self.assertFalse(MatchingHit.objects.filter(need=need, offer=offer).exists())
+
+
+class MatchingAccuracyEdgeCaseTests(TestCase):
+    """Focused accuracy and edge-case tests for the matching service."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.domain_data = Domain.objects.create(name="Accuracy Data Science")
+        cls.domain_robotics = Domain.objects.create(name="Accuracy Robotics")
+        cls.profile_student = TargetProfile.objects.create(name="accuracy-student")
+        cls.profile_researcher = TargetProfile.objects.create(name="accuracy-researcher")
+        cls.source_type = SourceType.objects.create(name="accuracy-manual")
+        cls.offer_type = OfferType.objects.create(name="accuracy-course")
+        cls.organization = Organization.objects.create(
+            name="Accuracy University",
+            type=Organization.OrganizationType.UNIVERSITY,
+            country="IT",
+            website="https://accuracy.example.edu",
+        )
+        cls.user = User.objects.create(
+            username="accuracy_user",
+            email="accuracy@example.com",
+            password_hash="hash",
+        )
+
+    def _need(
+        self,
+        title,
+        description,
+        *,
+        target_profile=None,
+        countries=None,
+        domains=None,
+        status=UserNeed.NeedStatus.ACTIVE,
+    ):
+        need = UserNeed.objects.create(
+            user=self.user,
+            title=title,
+            description=description,
+            target_profile=target_profile,
+            countries=countries or [],
+            status=status,
+        )
+        if domains:
+            need.domains.set(domains)
+        return need
+
+    def _offer(
+        self,
+        title,
+        summary,
+        *,
+        target_profile=None,
+        country="IT",
+        domains=None,
+        status=Offer.OfferStatus.PUBLISHED,
+        link_suffix="offer",
+    ):
+        offer = Offer.objects.create(
+            title=title,
+            summary=summary,
+            link=f"https://accuracy.example.edu/{link_suffix}",
+            country=country,
+            offer_type=self.offer_type,
+            organization=self.organization,
+            source_type=self.source_type,
+            target_profile=target_profile or self.profile_student,
+            status=status,
+            created_by=self.user,
+            updated_by=self.user,
+        )
+        if domains:
+            offer.domains.set(domains)
+        return offer
+
+    def test_matching_accuracy_creates_hit_only_for_relevant_need(self):
+        """A precise offer should match the relevant need and ignore unrelated active needs."""
+        matching_need = self._need(
+            "Data science internship",
+            "Looking for Python analytics and machine learning practice",
+            target_profile=self.profile_student,
+            countries=["IT"],
+            domains=[self.domain_data],
+        )
+        unrelated_need = self._need(
+            "Robotics hardware lab",
+            "Need embedded systems and sensor prototyping",
+            target_profile=self.profile_student,
+            countries=["IT"],
+            domains=[self.domain_robotics],
+        )
+        profile_mismatch_need = self._need(
+            "Data science researcher placement",
+            "Python analytics and machine learning",
+            target_profile=self.profile_researcher,
+            countries=["IT"],
+            domains=[self.domain_data],
+        )
+        offer = self._offer(
+            "Python Data Science Internship",
+            "Hands-on analytics and machine learning with Python",
+            target_profile=self.profile_student,
+            domains=[self.domain_data],
+            link_suffix="data-science-internship",
+        )
+
+        stats = run_matching_for_offers([offer.id])
+        hits = list(MatchingHit.objects.filter(offer=offer))
+
+        self.assertEqual(stats["created"], 1)
+        self.assertEqual(len(hits), 1)
+        self.assertEqual(hits[0].need_id, matching_need.id)
+        self.assertNotEqual(hits[0].need_id, unrelated_need.id)
+        self.assertNotEqual(hits[0].need_id, profile_mismatch_need.id)
+
+    def test_fast_filter_treats_missing_need_target_profile_as_wildcard(self):
+        """A need without target_profile should still match when other filters pass."""
+        need = self._need(
+            "Machine learning course",
+            "Python analytics practice",
+            target_profile=None,
+            countries=["IT"],
+            domains=[self.domain_data],
+        )
+        offer = self._offer(
+            "Machine Learning Course",
+            "Python analytics for students",
+            target_profile=self.profile_student,
+            domains=[self.domain_data],
+            link_suffix="wildcard-profile",
+        )
+
+        result = _passes_fast_filter(
+            need,
+            offer,
+            {self.domain_data.id},
+            {self.domain_data.id},
+        )
+
+        self.assertTrue(result)
+
+    def test_fast_filter_treats_empty_country_and_domain_filters_as_permissive(self):
+        """Needs with no country/domain preferences should not reject a keyword match."""
+        need = self._need(
+            "Analytics scholarship",
+            "Seeking data science funding",
+            target_profile=self.profile_student,
+        )
+        offer = self._offer(
+            "Data Science Scholarship",
+            "Analytics funding for students",
+            country="SE",
+            target_profile=self.profile_student,
+            domains=[],
+            link_suffix="permissive-filters",
+        )
+
+        result = _passes_fast_filter(need, offer, set(), set())
+
+        self.assertTrue(result)
+
+    def test_fast_filter_rejects_stopword_only_overlap(self):
+        """Text with only stopwords should not accidentally pass as a match."""
+        need = self._need(
+            "The and for",
+            "With the and to",
+            target_profile=self.profile_student,
+        )
+        offer = self._offer(
+            "The and for",
+            "With the and to",
+            target_profile=self.profile_student,
+            link_suffix="stopwords",
+        )
+
+        result = _passes_fast_filter(need, offer, set(), set())
+
+        self.assertFalse(result)
+
+    def test_keyword_score_caps_at_point_nine_for_many_shared_terms(self):
+        """Large overlap should increase confidence but never exceed the scoring cap."""
+        need = self._need(
+            "Python data science machine learning analytics internship",
+            "Neural networks statistics visualization research project",
+            target_profile=self.profile_student,
+        )
+        offer = self._offer(
+            "Python data science machine learning analytics internship",
+            "Neural networks statistics visualization research project",
+            target_profile=self.profile_student,
+            link_suffix="score-cap",
+        )
+
+        score, reason = _keyword_score(need, offer)
+
+        self.assertEqual(score, Decimal("0.9"))
+        self.assertIn("shared terms", reason)
