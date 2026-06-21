@@ -11,7 +11,6 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from content.auth import require_auth, verify_token
-from content.matching_service import run_matching_for_offers
 from content.models import Domain, Offer, OfferType, Organization, SourceType, TargetProfile, User, UserOrganization
 from content.services.offer_contact_service import (
     primary_offer_contact_prefetch,
@@ -60,6 +59,15 @@ def _offer_for_response(offer_id):
         )
         .get(id=offer_id)
     )
+
+
+def _run_matching_if_published(offer: Offer) -> None:
+    if offer.status != Offer.OfferStatus.PUBLISHED:
+        return
+
+    from content.matching_service import run_matching_for_offers
+
+    run_matching_for_offers([offer.id])
 
 
 def _try_verify_token(request) -> dict | None:
@@ -270,8 +278,7 @@ def _create_offer(request):
         return JsonResponse({"detail": str(exc)}, status=400)
 
     offer = _offer_for_response(offer.id)
-    if offer.status == Offer.OfferStatus.PUBLISHED:
-        run_matching_for_offers([offer.id])
+    _run_matching_if_published(offer)
     return JsonResponse(_offer_to_dict(offer), status=201)
 
 
@@ -391,8 +398,7 @@ def _update_offer(request, parsed_id: UUID):
         return JsonResponse({"detail": str(exc)}, status=400)
 
     offer = _offer_for_response(offer.id)
-    if offer.status == Offer.OfferStatus.PUBLISHED:
-        run_matching_for_offers([offer.id])
+    _run_matching_if_published(offer)
     return JsonResponse(_offer_to_dict(offer))
 
 
