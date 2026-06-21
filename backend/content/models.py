@@ -182,6 +182,7 @@ class Contact(TimeStampedModel):
 	contact_name = models.CharField(max_length=255)
 	email = models.EmailField(blank=True, null=True)
 	phone = models.CharField(max_length=50, blank=True, null=True)
+	linkedin = models.URLField(max_length=500, blank=True, null=True)
 	role = models.ForeignKey(ContactRole, on_delete=models.PROTECT, related_name="contacts")
 	organization = models.ForeignKey(
 		Organization,

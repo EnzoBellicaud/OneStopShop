@@ -11,10 +11,13 @@ from django.test import Client, TestCase
 from content.auth import generate_tokens, hash_password
 from content.models import (
 	AllowedDomain,
+	Contact,
+	ContactRole,
 	CrawlUrl,
 	Domain,
 	MatchingHit,
 	Offer,
+	OfferContact,
 	OfferDomain,
 	OfferType,
 	Organization,
@@ -120,6 +123,14 @@ class ReadApiTests(TestCase):
 		self.assertEqual(response.status_code, 200)
 		self.assertEqual(payload["openapi"], "3.0.3")
 		self.assertIn("/api/offers", payload["paths"])
+		self.assertIn("post", payload["paths"]["/api/offers"])
+		self.assertIn("patch", payload["paths"]["/api/offers/{offer_id}"])
+		self.assertIn("delete", payload["paths"]["/api/offers/{offer_id}"])
+		self.assertIn("OfferCreateRequest", payload["components"]["schemas"])
+		self.assertIn("OfferContactInput", payload["components"]["schemas"])
+		self.assertEqual(payload["paths"]["/api/offers"]["post"]["tags"], ["Offers"])
+		self.assertEqual(payload["paths"]["/api/users/{user_id}/needs"]["post"]["tags"], ["Needs"])
+		self.assertEqual(payload["paths"]["/api/scraping/runs"]["get"]["tags"], ["Scraping"])
 		self.assertIn("/api/users/{user_id}/needs/{need_id}", payload["paths"])
 		self.assertIn("/api/users/{user_id}/favorites/{offer_id}", payload["paths"])
 		self.assertIn("/api/users/{user_id}/matching-hits/{hit_id}", payload["paths"])
@@ -2126,6 +2137,7 @@ class OfferPermissionTests(TestCase):
 		cls.source_type = SourceType.objects.create(name="manual", description="")
 		cls.offer_type = OfferType.objects.create(name="scholarship", description="")
 		cls.target_profile = TargetProfile.objects.create(name="student", description="")
+		cls.contact_role = ContactRole.objects.create(value="general_contact", description="General contact")
 
 		cls.org_a = Organization.objects.create(
 			name="OrgA", type=Organization.OrganizationType.UNIVERSITY, country="SE",
@@ -2244,6 +2256,45 @@ class OfferPermissionTests(TestCase):
 		self.assertEqual(resp.status_code, 201)
 		self.assertEqual(resp.json()["organization"]["name"], "OrgB")
 
+	def test_teacher_creates_offer_with_primary_contact(self):
+		resp = self._post_offer(
+			self.teacher_token,
+			self._base_offer_payload(
+				contact={
+					"name": "Jane Contact",
+					"email": "jane@orga.edu",
+					"phone": "+39000123",
+					"linkedin": "https://www.linkedin.com/in/jane-contact",
+				},
+			),
+		)
+		payload = resp.json()
+		self.assertEqual(resp.status_code, 201)
+		self.assertEqual(payload["contact"]["name"], "Jane Contact")
+		self.assertEqual(payload["contact"]["email"], "jane@orga.edu")
+		self.assertEqual(payload["contact"]["linkedin"], "https://www.linkedin.com/in/jane-contact")
+		self.assertEqual(payload["contact"]["role_label"], "primary_contact")
+
+		offer = Offer.objects.get(id=payload["id"])
+		link = OfferContact.objects.get(offer=offer)
+		self.assertEqual(link.role_label, "primary_contact")
+		self.assertEqual(link.contact.organization_id, self.org_a.id)
+		self.assertEqual(link.contact.linkedin, "https://www.linkedin.com/in/jane-contact")
+
+	def test_create_offer_rejects_invalid_contact_linkedin(self):
+		resp = self._post_offer(
+			self.teacher_token,
+			self._base_offer_payload(
+				contact={
+					"name": "Jane Contact",
+					"email": "jane@orga.edu",
+					"linkedin": "not-a-url",
+				},
+			),
+		)
+		self.assertEqual(resp.status_code, 400)
+		self.assertEqual(resp.json()["detail"], "contact.linkedin must be a valid URL.")
+
 	def test_student_cannot_create_offer(self):
 		resp = self._post_offer(self.student_token, self._base_offer_payload())
 		self.assertEqual(resp.status_code, 403)
@@ -2289,6 +2340,135 @@ class OfferPermissionTests(TestCase):
 		self.assertEqual(resp.status_code, 200)
 		self.assertEqual(resp.json()["status"], "published")
 
+	def test_offer_detail_returns_only_primary_contact(self):
+		secondary = Contact.objects.create(
+			contact_name="Secondary Contact",
+			email="secondary@orga.edu",
+			role=self.contact_role,
+			organization=self.org_a,
+		)
+		OfferContact.objects.create(
+			offer=self.offer_org_a,
+			contact=secondary,
+			role_label="secondary_contact",
+		)
+
+		resp = self.client.get(f"/api/offers/{self.offer_org_a.id}")
+		self.assertEqual(resp.status_code, 200)
+		self.assertIsNone(resp.json()["contact"])
+
+		primary = Contact.objects.create(
+			contact_name="Primary Contact",
+			email="primary@orga.edu",
+			linkedin="https://www.linkedin.com/in/primary-contact",
+			role=self.contact_role,
+			organization=self.org_a,
+		)
+		OfferContact.objects.create(
+			offer=self.offer_org_a,
+			contact=primary,
+			role_label="primary_contact",
+		)
+
+		resp = self.client.get(f"/api/offers/{self.offer_org_a.id}")
+		self.assertEqual(resp.status_code, 200)
+		self.assertEqual(resp.json()["contact"]["name"], "Primary Contact")
+		self.assertEqual(resp.json()["contact"]["linkedin"], "https://www.linkedin.com/in/primary-contact")
+
+	def test_offer_list_returns_only_primary_contact(self):
+		secondary = Contact.objects.create(
+			contact_name="List Secondary",
+			email="list-secondary@orga.edu",
+			role=self.contact_role,
+			organization=self.org_a,
+		)
+		primary = Contact.objects.create(
+			contact_name="List Primary",
+			email="list-primary@orga.edu",
+			linkedin="https://www.linkedin.com/in/list-primary",
+			role=self.contact_role,
+			organization=self.org_a,
+		)
+		OfferContact.objects.create(
+			offer=self.offer_org_a,
+			contact=secondary,
+			role_label="secondary_contact",
+		)
+		OfferContact.objects.create(
+			offer=self.offer_org_a,
+			contact=primary,
+			role_label="primary_contact",
+		)
+
+		resp = self.client.get("/api/offers")
+		self.assertEqual(resp.status_code, 200)
+		offers_by_id = {offer["id"]: offer for offer in resp.json()["results"]}
+		contact = offers_by_id[str(self.offer_org_a.id)]["contact"]
+		self.assertEqual(contact["name"], "List Primary")
+		self.assertEqual(contact["linkedin"], "https://www.linkedin.com/in/list-primary")
+		self.assertEqual(contact["role_label"], "primary_contact")
+
+	def test_teacher_updates_offer_primary_contact(self):
+		contact = Contact.objects.create(
+			contact_name="Old Contact",
+			email="old@orga.edu",
+			role=self.contact_role,
+			organization=self.org_a,
+		)
+		OfferContact.objects.create(
+			offer=self.offer_org_a,
+			contact=contact,
+			role_label="primary_contact",
+		)
+
+		resp = self.client.patch(
+			f"/api/offers/{self.offer_org_a.id}",
+			data=json.dumps({
+				"contact": {
+					"name": "Updated Contact",
+					"email": "updated@orga.edu",
+					"phone": "+39111",
+					"linkedin": "https://www.linkedin.com/in/updated-contact",
+				},
+			}),
+			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.teacher_token}",
+		)
+		payload = resp.json()
+		self.assertEqual(resp.status_code, 200)
+		self.assertEqual(payload["contact"]["name"], "Updated Contact")
+		self.assertEqual(payload["contact"]["email"], "updated@orga.edu")
+		self.assertEqual(payload["contact"]["linkedin"], "https://www.linkedin.com/in/updated-contact")
+
+		contact.refresh_from_db()
+		self.assertEqual(contact.contact_name, "Updated Contact")
+		self.assertEqual(contact.email, "updated@orga.edu")
+		self.assertEqual(contact.linkedin, "https://www.linkedin.com/in/updated-contact")
+
+	def test_patch_contact_null_removes_primary_contact(self):
+		contact = Contact.objects.create(
+			contact_name="Remove Me",
+			email="remove@orga.edu",
+			role=self.contact_role,
+			organization=self.org_a,
+		)
+		OfferContact.objects.create(
+			offer=self.offer_org_a,
+			contact=contact,
+			role_label="primary_contact",
+		)
+
+		resp = self.client.patch(
+			f"/api/offers/{self.offer_org_a.id}",
+			data=json.dumps({"contact": None}),
+			content_type="application/json",
+			HTTP_AUTHORIZATION=f"Bearer {self.teacher_token}",
+		)
+		self.assertEqual(resp.status_code, 200)
+		self.assertIsNone(resp.json()["contact"])
+		self.assertFalse(OfferContact.objects.filter(offer=self.offer_org_a).exists())
+		self.assertFalse(Contact.objects.filter(id=contact.id).exists())
+
 	# ── DELETE ───────────────────────────────────────────────────────────────
 
 	def test_teacher_deletes_own_org_offer(self):
@@ -2321,6 +2501,28 @@ class OfferPermissionTests(TestCase):
 			HTTP_AUTHORIZATION=f"Bearer {self.admin_token}",
 		)
 		self.assertEqual(resp.status_code, 204)
+
+	def test_delete_offer_removes_contact_link_and_orphan_contact(self):
+		offer = Offer.objects.create(
+			title="Delete Contact", summary="s", link="https://delete-contact.com", country="SE",
+			offer_type=self.offer_type, organization=self.org_a, source_type=self.source_type,
+			target_profile=self.target_profile, created_by=self.admin, updated_by=self.admin, details={},
+		)
+		contact = Contact.objects.create(
+			contact_name="Offer Owned",
+			email="owned@orga.edu",
+			role=self.contact_role,
+			organization=self.org_a,
+		)
+		OfferContact.objects.create(offer=offer, contact=contact, role_label="primary_contact")
+
+		resp = self.client.delete(
+			f"/api/offers/{offer.id}",
+			HTTP_AUTHORIZATION=f"Bearer {self.teacher_token}",
+		)
+		self.assertEqual(resp.status_code, 204)
+		self.assertFalse(OfferContact.objects.filter(offer=offer).exists())
+		self.assertFalse(Contact.objects.filter(id=contact.id).exists())
 
 	# ── Email placeholder tests ───────────────────────────────────────────────
 
