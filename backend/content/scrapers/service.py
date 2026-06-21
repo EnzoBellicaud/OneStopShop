@@ -12,6 +12,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 from django.db.models import Q
 from django.utils import timezone
 
+from content.matching_triggers import refresh_matches_for_offers
 from content.models import (
     Domain,
     Offer,
@@ -99,6 +100,7 @@ class ScrapeService:
         seen_keys: set[tuple[str, str, str]] = set()
         successful_source_keys: set[str] = set()
         successful_source_urls: set[str] = set()
+        changed_offer_ids: list = []
 
         for source in sources:
             stats["sources"] += 1
@@ -135,6 +137,7 @@ class ScrapeService:
                 stats["model_switches"] += result["model_switches"]
                 seen_keys.update(result["seen_keys"])
                 successful_source_urls.update(result["skip_links"])
+                changed_offer_ids.extend(result["changed_offer_ids"])
 
                 LOGGER.info(
                     "[%s] Done — discovered=%d skipped=%d neglected=%d mapped=%d created=%d updated=%d unchanged=%d llm_calls=%d errors=%d",
@@ -218,6 +221,13 @@ class ScrapeService:
         )
         stats["offers_deleted"] += deleted_invalid_count
 
+        if changed_offer_ids:
+            refresh_matches_for_offers(changed_offer_ids)
+            LOGGER.info(
+                "Scheduled post-scrape matching refresh for %d offer(s)",
+                len(changed_offer_ids),
+            )
+
         return stats
 
     def _get_ingestion_user(self) -> User:
@@ -281,6 +291,7 @@ class ScrapeService:
         seen_keys: set[tuple[str, str, str]] = set()
         seen_canonical_urls: set[str] = set()
         skip_links: set[str] = set(page_urls)
+        changed_offer_ids: list = []
 
         for page_url in page_urls:
             try:
@@ -397,7 +408,7 @@ class ScrapeService:
                 )
                 continue
 
-            action, natural_key, _ = self._upsert_offer(page_source, source_type, ingestion_user, extracted)
+            action, natural_key, offer = self._upsert_offer(page_source, source_type, ingestion_user, extracted)
             LOGGER.info("[%s] MAP %s — %s (conf=%.2f method=%s)", source.key, action.upper(), page_url, extracted.confidence, extracted.method)
             event: dict = {
                 "ts": _ts(),
@@ -422,6 +433,8 @@ class ScrapeService:
             offers_created += int(action == "created")
             offers_updated += int(action == "updated")
             offers_unchanged += int(action == "unchanged")
+            if offer is not None and action in {"created", "updated"}:
+                changed_offer_ids.append(offer.id)
             seen_keys.add(natural_key)
 
         return {
@@ -439,6 +452,7 @@ class ScrapeService:
             "page_errors": page_errors,
             "seen_keys": seen_keys,
             "skip_links": skip_links | seen_canonical_urls,
+            "changed_offer_ids": changed_offer_ids,
             "logs": logs,
         }
 

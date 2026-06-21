@@ -11,7 +11,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from content.auth import require_auth, verify_token
-from content.matching_service import run_matching_for_offers
+from content.matching_triggers import refresh_matches_for_offers
 from content.models import Domain, Offer, OfferType, Organization, SourceType, TargetProfile, User, UserOrganization
 from content.services.offer_contact_service import (
     primary_offer_contact_prefetch,
