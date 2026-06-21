@@ -301,6 +301,7 @@ class SourcesDetailTestCase(TestCase):
         self.assertEqual(resp.status_code, 200)
         data = json.loads(resp.content)
         self.assertFalse(data["llm_fallback_enabled"])
+        self.assertEqual(data["auto_publish_mode"], "deterministic")
         self.source.refresh_from_db()
         self.assertFalse(self.source.llm_fallback_enabled)
 

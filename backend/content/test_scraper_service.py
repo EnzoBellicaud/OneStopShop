@@ -179,6 +179,23 @@ class ScrapeServiceBehaviorTests(TestCase):
         self.assertEqual(offer.details["scraping"]["auto_publish_threshold"], 0.90)
         self.assertEqual(offer.details["scraping"]["auto_publish_result"], "published")
 
+    def test_deterministic_auto_publish_below_threshold_creates_draft(self):
+        source = replace(self.source, auto_publish_enabled=True, llm_fallback_enabled=False)
+        offer = self._upsert_extracted(
+            source,
+            ExtractedPayload(
+                offer_type="training",
+                title="Research Training Programme",
+                summary="A structured opportunity for students.",
+                details={},
+                confidence=0.89,
+                method="deterministic",
+            ),
+        )
+
+        self.assertEqual(offer.status, Offer.OfferStatus.DRAFT)
+        self.assertEqual(offer.details["scraping"]["auto_publish_result"], "draft")
+
     def test_deterministic_auto_publish_fallback_summary_creates_draft(self):
         source = replace(self.source, auto_publish_enabled=True, llm_fallback_enabled=False)
         offer = self._upsert_extracted(
@@ -190,6 +207,40 @@ class ScrapeServiceBehaviorTests(TestCase):
                 details={},
                 confidence=0.95,
                 method="deterministic",
+            ),
+        )
+
+        self.assertEqual(offer.status, Offer.OfferStatus.DRAFT)
+        self.assertEqual(offer.details["scraping"]["auto_publish_result"], "draft")
+
+    def test_auto_publish_generic_title_creates_draft(self):
+        source = replace(self.source, auto_publish_enabled=True, llm_fallback_enabled=True)
+        offer = self._upsert_extracted(
+            source,
+            ExtractedPayload(
+                offer_type="training",
+                title="Contact Us",
+                summary="A structured opportunity for students.",
+                details={},
+                confidence=0.95,
+                method="llm_primary",
+            ),
+        )
+
+        self.assertEqual(offer.status, Offer.OfferStatus.DRAFT)
+        self.assertEqual(offer.details["scraping"]["auto_publish_result"], "draft")
+
+    def test_auto_publish_missing_summary_creates_draft(self):
+        source = replace(self.source, auto_publish_enabled=True, llm_fallback_enabled=True)
+        offer = self._upsert_extracted(
+            source,
+            ExtractedPayload(
+                offer_type="training",
+                title="Research Training Programme",
+                summary="",
+                details={},
+                confidence=0.95,
+                method="llm_primary",
             ),
         )
 
