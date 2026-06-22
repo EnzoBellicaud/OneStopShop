@@ -767,8 +767,8 @@ class MatchingAccuracyEdgeCaseTests(TestCase):
 
         self.assertTrue(result)
 
-    def test_fast_filter_rejects_stopword_only_overlap(self):
-        """Text with only stopwords should not accidentally pass as a match."""
+    def test_matching_rejects_stopword_only_overlap(self):
+        """Text with only stopwords should not create a match."""
         need = self._need(
             "The and for",
             "With the and to",
@@ -781,9 +781,11 @@ class MatchingAccuracyEdgeCaseTests(TestCase):
             link_suffix="stopwords",
         )
 
-        result = _passes_fast_filter(need, offer, set(), set())
+        stats = run_matching_for_offers([offer.id])
 
-        self.assertFalse(result)
+        self.assertEqual(stats["candidates"], 0)
+        self.assertEqual(stats["created"], 0)
+        self.assertFalse(MatchingHit.objects.filter(need=need, offer=offer).exists())
 
     def test_keyword_score_caps_at_point_nine_for_many_shared_terms(self):
         """Large overlap should increase confidence but never exceed the scoring cap."""
