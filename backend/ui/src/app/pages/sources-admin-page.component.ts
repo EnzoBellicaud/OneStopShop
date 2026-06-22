@@ -114,6 +114,12 @@ export class SourcesAdminPageComponent implements OnInit, OnDestroy {
       .subscribe({ next: (s) => { this.sources = this.sources.map(x => x.key === key ? s : x); } });
   }
 
+  toggleSourceAutoPublish(key: string, auto_publish_enabled: boolean): void {
+    this.api.patchScrapingSource(key, { auto_publish_enabled })
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({ next: (s) => { this.sources = this.sources.map(x => x.key === key ? s : x); } });
+  }
+
   deleteSource(key: string): void {
     if (!confirm(`Delete source "${key}"?`)) return;
     this.deletingSource.set(key);

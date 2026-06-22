@@ -28,6 +28,7 @@
           <th>Organization</th>
           <th>Country</th>
           <th>Classification mode</th>
+          <th>Auto-publish</th>
           <th>Enabled</th>
           <th>Actions</th>
         </tr>
@@ -39,6 +40,10 @@
           <td class="small">{{ s.organization_name || '—' }}</td>
           <td class="small">{{ s.country || '—' }}</td>
           <td class="small center">{{ s.llm_fallback_enabled ? 'LLM' : 'Deterministic' }}</td>
+          <td class="center">
+            <input type="checkbox" [checked]="s.auto_publish_enabled"
+              (change)="toggleSourceAutoPublish(s.key, $any($event.target).checked)" />
+          </td>
           <td class="center">
             <input type="checkbox" [checked]="s.enabled"
               (change)="toggleSourceEnabled(s.key, $any($event.target).checked)" />
@@ -52,7 +57,7 @@
           </td>
         </tr>
         <tr *ngIf="sources.length === 0">
-          <td colspan="7" class="hint">No sources configured.</td>
+          <td colspan="8" class="hint">No sources configured.</td>
         </tr>
       </tbody>
     </table>
@@ -125,6 +130,10 @@
       <label class="form-field toggle-row">
         Enabled
         <input type="checkbox" [(ngModel)]="sourceForm.enabled" />
+      </label>
+      <label class="form-field toggle-row">
+        Auto-publish scraped offers
+        <input type="checkbox" [(ngModel)]="sourceForm.auto_publish_enabled" />
       </label>
     </div>
 
