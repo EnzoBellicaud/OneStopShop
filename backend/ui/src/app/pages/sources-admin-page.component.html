@@ -40,9 +40,10 @@
           <td class="small">{{ s.organization_name || '—' }}</td>
           <td class="small">{{ s.country || '—' }}</td>
           <td class="small center">{{ s.llm_fallback_enabled ? 'LLM' : 'Deterministic' }}</td>
-          <td class="center">
+          <td class="center auto-publish-cell">
             <input type="checkbox" [checked]="s.auto_publish_enabled"
               (change)="toggleSourceAutoPublish(s.key, $any($event.target).checked)" />
+            <button type="button" class="criteria-link" (click)="openCriteriaModal(s)">Criteria</button>
           </td>
           <td class="center">
             <input type="checkbox" [checked]="s.enabled"
@@ -137,6 +138,16 @@
       </label>
     </div>
 
+    <div class="criteria-summary" *ngIf="sourceForm.auto_publish_enabled">
+      <div class="criteria-summary-head">
+        <span>Auto-publish criteria</span>
+        <strong>{{ criteriaMode(sourceForm) }} · {{ criteriaThreshold(sourceForm) }}</strong>
+      </div>
+      <ul>
+        <li *ngFor="let check of criteriaChecks(sourceForm)">{{ check }}</li>
+      </ul>
+    </div>
+
     <fieldset class="crawl-group">
       <legend>Crawl settings</legend>
       <div class="form-grid">
@@ -156,6 +167,32 @@
       <button class="btn-primary" (click)="saveSource()" [disabled]="savingSource()">
         {{ savingSource() ? 'Saving…' : (sourceModalTarget ? 'Save Changes' : 'Create Source') }}
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- Criteria modal -->
+<div class="modal-backdrop" *ngIf="criteriaModalSource as criteriaSource" (click)="closeCriteriaModal()">
+  <div class="modal criteria-modal" (click)="$event.stopPropagation()">
+    <h2>Auto-publish criteria</h2>
+    <div class="criteria-facts">
+      <div>
+        <span>Mode</span>
+        <strong>{{ criteriaMode(criteriaSource) }}</strong>
+      </div>
+      <div>
+        <span>Minimum confidence</span>
+        <strong>{{ criteriaThreshold(criteriaSource) }}</strong>
+      </div>
+    </div>
+
+    <h3>Required checks</h3>
+    <ul class="criteria-list">
+      <li *ngFor="let check of criteriaChecks(criteriaSource)">{{ check }}</li>
+    </ul>
+
+    <div class="modal-actions">
+      <button class="btn-primary" (click)="closeCriteriaModal()">Close</button>
     </div>
   </div>
 </div>

@@ -22,6 +22,7 @@ export class SourcesAdminPageComponent implements OnInit, OnDestroy {
   organizations: OrganizationLookup[] = [];
   loading = false;
   sourceModalTarget: ScrapingSource | null = null;
+  criteriaModalSource: ScrapingSource | null = null;
   showSourceModal = false;
   savingSource = signal(false);
   deletingSource = signal<string | null>(null);
@@ -87,6 +88,41 @@ export class SourcesAdminPageComponent implements OnInit, OnDestroy {
   closeSourceModal(): void {
     this.showSourceModal = false;
     this.errorMessage = '';
+  }
+
+  openCriteriaModal(src: ScrapingSource): void {
+    this.criteriaModalSource = src;
+  }
+
+  closeCriteriaModal(): void {
+    this.criteriaModalSource = null;
+  }
+
+  criteriaMode(source: Pick<ScrapingSource, 'llm_fallback_enabled'> | ScrapingSourceCreateRequest): 'LLM' | 'Deterministic' {
+    return source.llm_fallback_enabled ? 'LLM' : 'Deterministic';
+  }
+
+  criteriaThreshold(source: Pick<ScrapingSource, 'llm_fallback_enabled'> | ScrapingSourceCreateRequest): string {
+    return source.llm_fallback_enabled ? '0.80' : '0.90';
+  }
+
+  criteriaChecks(source: Pick<ScrapingSource, 'llm_fallback_enabled'> | ScrapingSourceCreateRequest): string[] {
+    if (source.llm_fallback_enabled) {
+      return [
+        'LLM says the page is an offer',
+        'Offer type is resolved',
+        'Title is present',
+        'Summary is present',
+        'Title is not generic',
+      ];
+    }
+    return [
+      'Offer type is resolved by the classifier',
+      'Title is present',
+      'Summary is present',
+      'Summary is not fallback text',
+      'Title is not generic',
+    ];
   }
 
   saveSource(): void {

@@ -90,6 +90,28 @@ describe('SourcesAdminPageComponent', () => {
     expect(component.showSourceModal).toBeFalse();
   });
 
+  it('openCriteriaModal stores source and closeCriteriaModal clears it', () => {
+    const src = makeSource('criteria') as any;
+    component.openCriteriaModal(src);
+    expect(component.criteriaModalSource).toBe(src);
+    component.closeCriteriaModal();
+    expect(component.criteriaModalSource).toBeNull();
+  });
+
+  it('criteria helpers return LLM criteria', () => {
+    const src = makeSource('llm', { llm_fallback_enabled: true }) as any;
+    expect(component.criteriaMode(src)).toBe('LLM');
+    expect(component.criteriaThreshold(src)).toBe('0.80');
+    expect(component.criteriaChecks(src)).toContain('LLM says the page is an offer');
+  });
+
+  it('criteria helpers return deterministic criteria', () => {
+    const src = makeSource('det', { llm_fallback_enabled: false }) as any;
+    expect(component.criteriaMode(src)).toBe('Deterministic');
+    expect(component.criteriaThreshold(src)).toBe('0.90');
+    expect(component.criteriaChecks(src)).toContain('Summary is not fallback text');
+  });
+
   // ── saveSource ────────────────────────────────────────────────────────────
 
   it('saveSource POSTs when no sourceModalTarget (create mode)', () => {
