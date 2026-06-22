@@ -39,6 +39,7 @@ def _offer_to_dict(offer: Offer) -> dict:
             "name": offer.organization.name,
             "type": offer.organization.type,
             "country": offer.organization.country,
+            "website": offer.organization.website,
         },
         "source_type": offer.source_type.name,
         "target_profile": offer.target_profile.name,
