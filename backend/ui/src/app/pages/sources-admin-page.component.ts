@@ -77,6 +77,8 @@ export class SourcesAdminPageComponent implements OnInit, OnDestroy {
       crawl_max_pages: src.crawl_max_pages,
       crawl_match_patterns: [...src.crawl_match_patterns],
       crawl_exclude_patterns: [...src.crawl_exclude_patterns],
+      auto_publish_enabled: src.auto_publish_enabled,
+      auto_publish_mode: src.auto_publish_mode,
     };
     this.errorMessage = '';
     this.showSourceModal = true;
@@ -144,6 +146,8 @@ export class SourcesAdminPageComponent implements OnInit, OnDestroy {
       crawl_max_pages: 25,
       crawl_match_patterns: [],
       crawl_exclude_patterns: [],
+      auto_publish_enabled: false,
+      auto_publish_mode: 'llm',
     };
   }
 }
