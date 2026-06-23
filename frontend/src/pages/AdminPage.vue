@@ -120,6 +120,32 @@
             ℹ As a teacher, you can only add opportunities for <strong>{{ teacherOrgName ?? 'your institution' }}</strong>.
           </div>
 
+          <div class="contact-section">
+            <h3 class="section-h3">Contact Information <span class="field-hint">(optional)</span></h3>
+            <p class="field-hint">Add a contact so users can reach a real person about this opportunity.</p>
+            <div class="form-row-2">
+              <label class="field-label">
+                Full Name
+                <input v-model="form.contact_name" class="field-input" placeholder="e.g. Sarah J. Peterson" />
+              </label>
+              <label class="field-label">
+                Phone
+                <input v-model="form.contact_phone" class="field-input" type="tel" placeholder="(415) 555-0199" />
+              </label>
+            </div>
+            <div class="form-row-2">
+              <label class="field-label">
+                Email
+                <input v-model="form.contact_email" class="field-input" type="email" placeholder="sjp.email@example.com" />
+              </label>
+              <label class="field-label">
+                LinkedIn Profile
+                <input v-model="form.contact_linkedin" class="field-input" type="url" placeholder="linkedin.com/in/sjpeterson" />
+              </label>
+            </div>
+            <p v-if="contactError" class="field-hint contact-error">{{ contactError }}</p>
+          </div>
+
           <div v-if="addError" class="alert-error">{{ addError }}</div>
           <div v-if="addSuccess" class="alert-ok">Offer created successfully.</div>
 
@@ -423,22 +449,51 @@ const BLANK_FORM = () => ({
   title: '', summary: '', link: '', country: '',
   offer_type: '', organization_id: '', target_profile: '',
   status: 'draft', deadline: '', domains: [],
+  contact_name: '', contact_email: '', contact_phone: '', contact_linkedin: '',
 })
 const form = reactive(BLANK_FORM())
 const addLoading = ref(false)
 const addError = ref('')
 const addSuccess = ref(false)
+const contactError = ref('')
 
 function resetForm() {
   Object.assign(form, BLANK_FORM())
   addError.value = ''
   addSuccess.value = false
+  contactError.value = ''
+}
+
+function buildContactPayload() {
+  const name = form.contact_name.trim()
+  const email = form.contact_email.trim()
+  const phone = form.contact_phone.trim()
+  const linkedin = form.contact_linkedin.trim()
+
+  if (!name && !email && !phone && !linkedin) return { contact: undefined, error: null }
+
+  if (!name) return { contact: undefined, error: 'Contact name is required if any contact field is filled in.' }
+  if (!email && !phone) return { contact: undefined, error: 'Provide a contact email or phone number.' }
+
+  return {
+    contact: { name, email: email || null, phone: phone || null, linkedin: linkedin || null },
+    error: null,
+  }
 }
 
 async function submitOffer() {
   addLoading.value = true
   addError.value = ''
   addSuccess.value = false
+  contactError.value = ''
+
+  const { contact, error: contactValidationError } = buildContactPayload()
+  if (contactValidationError) {
+    contactError.value = contactValidationError
+    addLoading.value = false
+    return
+  }
+
   try {
     const res = await api.post('/api/offers', {
       title: form.title,
@@ -451,6 +506,7 @@ async function submitOffer() {
       status: form.status,
       deadline: form.deadline || null,
       domains: form.domains,
+      ...(contact ? { contact } : {}),
     })
     if (res.ok) {
       addSuccess.value = true
@@ -761,6 +817,21 @@ function formatDate(iso) {
   color: var(--ink);
   margin-bottom: 1.5rem;
 }
+
+.contact-section {
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.section-h3 {
+  font-family: 'DM Serif Display', serif;
+  font-size: 16px;
+  color: var(--ink);
+}
+.contact-error { color: var(--accent-mid); }
 
 /* Form */
 .offer-form { display: flex; flex-direction: column; gap: 16px; }
