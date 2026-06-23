@@ -9,7 +9,17 @@
       </div>
     </section>
 
-    <main class="admin-wrap">
+    <!-- Access denied for non-admin/non-teacher users -->
+    <div v-if="!isTeacher && !isAdmin" class="access-denied">
+      <div class="access-denied-card">
+        <div class="access-denied-icon">🔒</div>
+        <h2>Access Restricted</h2>
+        <p>This page is only available to administrators and teachers.</p>
+        <router-link to="/" class="btn-primary">Go back home</router-link>
+      </div>
+    </div>
+
+    <main v-else class="admin-wrap">
       <!-- Tabs -->
       <div class="admin-tabs">
         <button
@@ -64,7 +74,16 @@
           <div class="form-row-3">
             <label class="field-label">
               Organization <span class="req">*</span>
-              <select v-model="form.organization_id" class="field-input" required>
+              <!-- Teachers locked to their institution -->
+              <div v-if="isTeacher && teacherOrgName" class="field-input org-locked">
+                🏛 {{ teacherOrgName }}
+                <span class="org-locked-badge">Your institution</span>
+              </div>
+              <!-- Teacher has no org linked -->
+              <div v-else-if="isTeacher && !teacherOrgName" class="org-no-link-warning">
+                ⚠️ Your account is not linked to an institution yet. Please contact an admin to set up your affiliation before adding opportunities.
+              </div>
+              <select v-else v-model="form.organization_id" class="field-input" required>
                 <option value="" disabled>Select organization</option>
                 <option v-for="o in lookups.organizations" :key="o.id" :value="o.id">{{ o.name }}</option>
               </select>
@@ -75,7 +94,12 @@
             </label>
             <label class="field-label">
               Status
-              <select v-model="form.status" class="field-input">
+              <!-- Teachers can only submit as Draft -->
+              <div v-if="isTeacher" class="field-input org-locked">
+                Draft
+                <span class="org-locked-badge">Pending review</span>
+              </div>
+              <select v-else v-model="form.status" class="field-input">
                 <option value="draft">Draft</option>
                 <option value="published">Published</option>
               </select>
@@ -92,11 +116,41 @@
             </div>
           </div>
 
+          <div v-if="isTeacher" class="teacher-scope-note">
+            ℹ As a teacher, you can only add opportunities for <strong>{{ teacherOrgName ?? 'your institution' }}</strong>.
+          </div>
+
+          <div class="contact-section">
+            <h3 class="section-h3">Contact Information <span class="field-hint">(optional)</span></h3>
+            <p class="field-hint">Add a contact so users can reach a real person about this opportunity.</p>
+            <div class="form-row-2">
+              <label class="field-label">
+                Full Name
+                <input v-model="form.contact_name" class="field-input" placeholder="e.g. Sarah J. Peterson" />
+              </label>
+              <label class="field-label">
+                Phone
+                <input v-model="form.contact_phone" class="field-input" type="tel" placeholder="(415) 555-0199" />
+              </label>
+            </div>
+            <div class="form-row-2">
+              <label class="field-label">
+                Email
+                <input v-model="form.contact_email" class="field-input" type="email" placeholder="sjp.email@example.com" />
+              </label>
+              <label class="field-label">
+                LinkedIn Profile
+                <input v-model="form.contact_linkedin" class="field-input" type="url" placeholder="linkedin.com/in/sjpeterson" />
+              </label>
+            </div>
+            <p v-if="contactError" class="field-hint contact-error">{{ contactError }}</p>
+          </div>
+
           <div v-if="addError" class="alert-error">{{ addError }}</div>
           <div v-if="addSuccess" class="alert-ok">Offer created successfully.</div>
 
           <div class="form-actions">
-            <button type="submit" class="btn-primary" :disabled="addLoading">
+            <button type="submit" class="btn-primary" :disabled="addLoading || (isTeacher && !teacherOrgName)">
               {{ addLoading ? 'Creating…' : 'Create offer' }}
             </button>
             <button type="button" class="btn-ghost-sm" @click="resetForm">Reset</button>
@@ -323,7 +377,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppHeader from '../components/layout/AppHeader.vue'
 import AppFooter from '../components/layout/AppFooter.vue'
@@ -331,6 +385,13 @@ import { api } from '../services/api.js'
 
 const BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
 const { t } = useI18n()
+
+// ── Current user ──
+const currentUser = ref(JSON.parse(localStorage.getItem('user') ?? 'null'))
+const isTeacher = computed(() => currentUser.value?.profile === 'Teacher')
+const isAdmin = computed(() => currentUser.value?.profile === 'Admin')
+const teacherOrgId = ref(null)
+const teacherOrgName = ref(null)
 
 const tabs = [
   { id: 'add', labelKey: 'admin.tabs.add' },
@@ -362,6 +423,23 @@ onMounted(async () => {
   lookups.targetProfiles = tp.results ?? []
   lookups.organizations = orgs.results ?? []
   lookups.domains = dm.results ?? []
+
+  // If teacher, fetch their organization and pre-fill the form
+  if (isTeacher.value && currentUser.value?.id) {
+    try {
+      const meRes = await api.get(`/api/users/${currentUser.value.id}/dashboard`)
+      if (meRes.ok) {
+        const meData = await meRes.json()
+        const org = meData.user?.organizations?.[0] ?? null
+        teacherOrgId.value = org?.id ?? null
+        teacherOrgName.value = org?.name ?? null
+        if (teacherOrgId.value) {
+          form.organization_id = teacherOrgId.value
+        }
+      }
+    } catch {}
+  }
+
   loadManageOffers()
   loadValidationOffers()
 })
@@ -371,22 +449,51 @@ const BLANK_FORM = () => ({
   title: '', summary: '', link: '', country: '',
   offer_type: '', organization_id: '', target_profile: '',
   status: 'draft', deadline: '', domains: [],
+  contact_name: '', contact_email: '', contact_phone: '', contact_linkedin: '',
 })
 const form = reactive(BLANK_FORM())
 const addLoading = ref(false)
 const addError = ref('')
 const addSuccess = ref(false)
+const contactError = ref('')
 
 function resetForm() {
   Object.assign(form, BLANK_FORM())
   addError.value = ''
   addSuccess.value = false
+  contactError.value = ''
+}
+
+function buildContactPayload() {
+  const name = form.contact_name.trim()
+  const email = form.contact_email.trim()
+  const phone = form.contact_phone.trim()
+  const linkedin = form.contact_linkedin.trim()
+
+  if (!name && !email && !phone && !linkedin) return { contact: undefined, error: null }
+
+  if (!name) return { contact: undefined, error: 'Contact name is required if any contact field is filled in.' }
+  if (!email && !phone) return { contact: undefined, error: 'Provide a contact email or phone number.' }
+
+  return {
+    contact: { name, email: email || null, phone: phone || null, linkedin: linkedin || null },
+    error: null,
+  }
 }
 
 async function submitOffer() {
   addLoading.value = true
   addError.value = ''
   addSuccess.value = false
+  contactError.value = ''
+
+  const { contact, error: contactValidationError } = buildContactPayload()
+  if (contactValidationError) {
+    contactError.value = contactValidationError
+    addLoading.value = false
+    return
+  }
+
   try {
     const res = await api.post('/api/offers', {
       title: form.title,
@@ -399,6 +506,7 @@ async function submitOffer() {
       status: form.status,
       deadline: form.deadline || null,
       domains: form.domains,
+      ...(contact ? { contact } : {}),
     })
     if (res.ok) {
       addSuccess.value = true
@@ -652,6 +760,56 @@ function formatDate(iso) {
   box-shadow: 0 1px 4px rgba(0,0,0,0.1);
 }
 
+.access-denied {
+  max-width: 1100px;
+  margin: 4rem auto;
+  display: flex;
+  justify-content: center;
+}
+.access-denied-card {
+  text-align: center;
+  padding: 3rem 2rem;
+  max-width: 420px;
+}
+.access-denied-icon { font-size: 2.5rem; margin-bottom: 1rem; }
+.access-denied-card h2 { font-family: 'DM Serif Display', serif; margin-bottom: 0.5rem; }
+.access-denied-card p { color: var(--ink-soft); margin-bottom: 1.5rem; }
+
+.org-locked {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface);
+  color: var(--ink-soft);
+}
+.org-locked-badge {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: var(--border);
+  color: var(--ink-soft);
+}
+
+.org-no-link-warning {
+  font-size: 13px;
+  color: #9a4b0a;
+  background: var(--tag-intern);
+  border-radius: var(--r);
+  padding: 10px 12px;
+  line-height: 1.5;
+}
+
+.teacher-scope-note {
+  font-size: 13px;
+  color: var(--ink-soft);
+  background: #f0f4ff;
+  border-left: 3px solid #6b8ccc;
+  border-radius: 4px;
+  padding: 0.6rem 0.85rem;
+  margin-top: 0.5rem;
+}
+
 .admin-section { max-width: 800px; }
 .section-h2 {
   font-family: 'DM Serif Display', serif;
@@ -659,6 +817,21 @@ function formatDate(iso) {
   color: var(--ink);
   margin-bottom: 1.5rem;
 }
+
+.contact-section {
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.section-h3 {
+  font-family: 'DM Serif Display', serif;
+  font-size: 16px;
+  color: var(--ink);
+}
+.contact-error { color: var(--accent-mid); }
 
 /* Form */
 .offer-form { display: flex; flex-direction: column; gap: 16px; }
