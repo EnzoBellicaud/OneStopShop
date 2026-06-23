@@ -85,8 +85,25 @@ export interface Offer {
   target_profile: string;
   domains: string[];
   details: Record<string, unknown>;
+  contact: OfferContact | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface OfferContact {
+  contact_id: string;
+  role_label: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  linkedin: string | null;
+}
+
+export interface OfferContactInput {
+  name: string;
+  email: string | null;
+  phone: string | null;
+  linkedin: string | null;
 }
 
 export interface OfferListResponse {
@@ -605,6 +622,7 @@ export interface OfferCreateRequest {
   status?: 'draft' | 'published' | 'archived';
   domains?: string[];
   organization_id?: string;
+  contact?: OfferContactInput | null;
 }
 
 export type OfferUpdateRequest = Partial<OfferCreateRequest>;
