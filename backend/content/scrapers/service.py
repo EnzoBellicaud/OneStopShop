@@ -36,6 +36,9 @@ _classifier = OfferTypeClassifier()
 
 LOGGER = logging.getLogger(__name__)
 
+AUTO_PUBLISH_LLM_MIN_CONFIDENCE = 0.80
+AUTO_PUBLISH_DETERMINISTIC_MIN_CONFIDENCE = 0.90
+
 
 def _ts() -> str:
     return timezone.now().isoformat().replace("+00:00", "Z")
@@ -561,6 +564,11 @@ class ScrapeService:
             organization=organization,
             offer_type=offer_type,
         ).first()
+        auto_publish_threshold = self._auto_publish_threshold(source)
+        auto_publish_allowed = self._should_auto_publish(source, extracted, offer_type)
+        auto_publish_result = (
+            "published" if auto_publish_allowed else "draft"
+        ) if existing is None else "preserved_existing_status"
 
         current_timestamp = timezone.now().isoformat()
 
@@ -572,6 +580,10 @@ class ScrapeService:
             "confidence": extracted.confidence,
             "last_seen_at": current_timestamp,
             "stale_candidate": False,
+            "auto_publish_enabled": source.auto_publish_enabled,
+            "auto_publish_threshold": auto_publish_threshold,
+            "auto_publish_result": auto_publish_result,
+            "auto_publish_mode": "llm" if source.llm_fallback_enabled else "deterministic",
         }
 
         merged_details = {
@@ -583,6 +595,7 @@ class ScrapeService:
             if self.dry_run:
                 return "created", natural_key, None
 
+            offer_status = Offer.OfferStatus.PUBLISHED if auto_publish_allowed else Offer.OfferStatus.DRAFT
             offer = Offer.objects.create(
                 title=extracted.title,
                 summary=extracted.summary,
@@ -592,7 +605,7 @@ class ScrapeService:
                 source_type=source_type,
                 target_profile=target_profile,
                 organization=organization,
-                status=Offer.OfferStatus.DRAFT,
+                status=offer_status,
                 created_by=ingestion_user,
                 updated_by=ingestion_user,
                 offer_type=offer_type,
@@ -644,6 +657,36 @@ class ScrapeService:
         )
         self._replace_domains(existing, source.domain_names)
         return "updated", natural_key, existing
+
+    @staticmethod
+    def _auto_publish_threshold(source: SourceDefinition) -> float:
+        return (
+            AUTO_PUBLISH_LLM_MIN_CONFIDENCE
+            if source.llm_fallback_enabled
+            else AUTO_PUBLISH_DETERMINISTIC_MIN_CONFIDENCE
+        )
+
+    def _should_auto_publish(
+        self,
+        source: SourceDefinition,
+        extracted: ExtractedPayload,
+        offer_type: OfferType | None,
+    ) -> bool:
+        if not source.auto_publish_enabled:
+            return False
+        if source.llm_fallback_enabled and extracted.method != "llm_primary":
+            return False
+        if extracted.confidence < self._auto_publish_threshold(source):
+            return False
+        if offer_type is None:
+            return False
+        if not extracted.title or not extracted.summary:
+            return False
+        if is_generic_page(extracted.title):
+            return False
+        if not source.llm_fallback_enabled and extracted.summary.startswith("Auto-extracted from"):
+            return False
+        return True
 
     def _replace_domains(self, offer: Offer, domain_names: list[str]) -> None:
         domain_map = {
@@ -771,7 +814,16 @@ class ScrapeService:
         normalized = deepcopy(details)
         scraping = normalized.get("scraping")
         if isinstance(scraping, dict):
-            for key in ("last_seen_at", "stale_candidate", "stale_marked_at", "stale_reason"):
+            for key in (
+                "last_seen_at",
+                "stale_candidate",
+                "stale_marked_at",
+                "stale_reason",
+                "auto_publish_enabled",
+                "auto_publish_threshold",
+                "auto_publish_result",
+                "auto_publish_mode",
+            ):
                 scraping.pop(key, None)
             normalized["scraping"] = scraping
         return normalized

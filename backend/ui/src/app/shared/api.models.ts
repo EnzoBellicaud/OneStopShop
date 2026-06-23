@@ -580,6 +580,8 @@ export interface ScrapingSource {
   crawl_max_pages: number;
   crawl_match_patterns: string[];
   crawl_exclude_patterns: string[];
+  auto_publish_enabled: boolean;
+  auto_publish_mode: 'llm' | 'deterministic';
   created_at: string;
   updated_at: string;
 }

@@ -191,6 +191,7 @@ def get_sources(source_keys: list[str] | None = None) -> list[SourceDefinition]:
             crawl_max_pages=s.crawl_max_pages,
             crawl_match_patterns=s.crawl_match_patterns,
             crawl_exclude_patterns=s.crawl_exclude_patterns,
+            auto_publish_enabled=s.auto_publish_enabled,
         )
         for s in qs
     ]

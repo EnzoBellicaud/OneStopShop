@@ -73,6 +73,7 @@ def _source_payload(**overrides):
         "crawl_max_pages": 25,
         "crawl_match_patterns": [],
         "crawl_exclude_patterns": [],
+        "auto_publish_enabled": False,
     }
     base.update(overrides)
     return base
@@ -159,7 +160,24 @@ class SourcesListCreateTestCase(TestCase):
         self.assertEqual(data["key"], "test_source")
         self.assertEqual(data["name"], "Test Source")
         self.assertEqual(data["url"], "https://example.com")
+        self.assertFalse(data["auto_publish_enabled"])
+        self.assertEqual(data["auto_publish_mode"], "llm")
         self.assertTrue(ScrapingSource.objects.filter(key="test_source").exists())
+
+    def test_create_with_auto_publish_enabled(self):
+        payload = _source_payload(auto_publish_enabled=True, llm_fallback_enabled=False)
+        resp = self.client.post(
+            self.url,
+            data=json.dumps(payload),
+            content_type="application/json",
+            **self._auth(),
+        )
+        self.assertEqual(resp.status_code, 201)
+        data = json.loads(resp.content)
+        self.assertTrue(data["auto_publish_enabled"])
+        self.assertEqual(data["auto_publish_mode"], "deterministic")
+        source = ScrapingSource.objects.get(key="test_source")
+        self.assertTrue(source.auto_publish_enabled)
 
     def test_create_missing_required_fields(self):
         resp = self.client.post(
@@ -208,6 +226,8 @@ class SourcesListCreateTestCase(TestCase):
         self.assertEqual(data["interval_minutes"], 360)
         self.assertTrue(data["llm_fallback_enabled"])
         self.assertTrue(data["enabled"])
+        self.assertFalse(data["auto_publish_enabled"])
+        self.assertEqual(data["auto_publish_mode"], "llm")
         self.assertNotIn("crawl_enabled", data)
 
 
@@ -241,6 +261,8 @@ class SourcesDetailTestCase(TestCase):
         data = json.loads(resp.content)
         self.assertEqual(data["key"], "existing_src")
         self.assertEqual(data["name"], "Existing Source")
+        self.assertFalse(data["auto_publish_enabled"])
+        self.assertEqual(data["auto_publish_mode"], "llm")
 
     def test_get_detail_not_found(self):
         resp = self.client.get("/api/admin/sources/nonexistent", **self._auth())
@@ -279,6 +301,7 @@ class SourcesDetailTestCase(TestCase):
         self.assertEqual(resp.status_code, 200)
         data = json.loads(resp.content)
         self.assertFalse(data["llm_fallback_enabled"])
+        self.assertEqual(data["auto_publish_mode"], "deterministic")
         self.source.refresh_from_db()
         self.assertFalse(self.source.llm_fallback_enabled)
 
@@ -291,6 +314,19 @@ class SourcesDetailTestCase(TestCase):
         )
         self.assertEqual(resp.status_code, 200)
         self.assertFalse(json.loads(resp.content)["enabled"])
+
+    def test_patch_auto_publish_toggle(self):
+        resp = self.client.patch(
+            self.url,
+            data=json.dumps({"auto_publish_enabled": True}),
+            content_type="application/json",
+            **self._auth(),
+        )
+        self.assertEqual(resp.status_code, 200)
+        data = json.loads(resp.content)
+        self.assertTrue(data["auto_publish_enabled"])
+        self.source.refresh_from_db()
+        self.assertTrue(self.source.auto_publish_enabled)
 
     def test_patch_interval_minutes(self):
         resp = self.client.patch(
@@ -407,6 +443,17 @@ class GetSourcesFromDBTestCase(TestCase):
         self.assertIsInstance(src, SourceDefinition)
         self.assertEqual(src.key, "typed_src")
         self.assertEqual(src.country, "DE")
+        self.assertFalse(src.auto_publish_enabled)
+
+    def test_get_sources_maps_auto_publish_enabled(self):
+        from content.scrapers.source_registry import get_sources
+        ScrapingSource.objects.create(
+            key="auto_src", name="Auto", url="https://auto.com",
+            organization_token="org_x", auto_publish_enabled=True,
+        )
+        results = get_sources(source_keys=["auto_src"])
+        self.assertEqual(len(results), 1)
+        self.assertTrue(results[0].auto_publish_enabled)
 
     def test_get_sources_empty_db(self):
         from content.scrapers.source_registry import get_sources
