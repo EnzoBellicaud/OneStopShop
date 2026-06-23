@@ -339,7 +339,7 @@ function itemLabel(item) { return typeof item === 'string' ? item : item.label }
 function itemValue(item) { return typeof item === 'string' ? item : item.value }
 function itemType(item)  { return typeof item === 'object' && item.type ? item.type : 'offer_type' }
 
-// ── Contact fallback (email → LinkedIn → name → org website → offer link) ──────
+// Contact fallback: email -> LinkedIn -> name -> offer URL.
 function clean(value) {
   const trimmed = typeof value === 'string' ? value.trim() : ''
   return trimmed.length ? trimmed : null
@@ -354,9 +354,6 @@ function bestContact(offer) {
 
   const name = clean(offer.contact?.name)
   if (name) return { kind: 'name', value: name }
-
-  const website = clean(offer.organization?.website)
-  if (website) return { kind: 'website', value: website, orgName: offer.organization?.name }
 
   return { kind: 'link', value: offer.link }
 }

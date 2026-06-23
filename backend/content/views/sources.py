@@ -16,7 +16,7 @@ ALLOWED_FIELDS = {
     "name", "url", "target_profile",
     "country", "domain_names", "interval_minutes", "llm_fallback_enabled",
     "enabled", "crawl_depth", "crawl_max_pages",
-    "crawl_match_patterns", "crawl_exclude_patterns",
+    "crawl_match_patterns", "crawl_exclude_patterns", "auto_publish_enabled",
 }
 
 
@@ -45,6 +45,8 @@ def _serialize(s: ScrapingSource) -> dict:
         "crawl_max_pages": s.crawl_max_pages,
         "crawl_match_patterns": s.crawl_match_patterns,
         "crawl_exclude_patterns": s.crawl_exclude_patterns,
+        "auto_publish_enabled": s.auto_publish_enabled,
+        "auto_publish_mode": "llm" if s.llm_fallback_enabled else "deterministic",
         "created_at": s.created_at.isoformat(),
         "updated_at": s.updated_at.isoformat(),
     }
@@ -113,6 +115,7 @@ def admin_sources_collection(request):
         crawl_max_pages=int(body.get("crawl_max_pages") or 25),
         crawl_match_patterns=body.get("crawl_match_patterns") or [],
         crawl_exclude_patterns=body.get("crawl_exclude_patterns") or [],
+        auto_publish_enabled=bool(body.get("auto_publish_enabled", False)),
     )
     source.refresh_from_db()
     return JsonResponse(_serialize(source), status=201)
@@ -169,7 +172,7 @@ def admin_source_detail(request, key: str):
             except (Organization.DoesNotExist, ValueError):
                 return JsonResponse({"detail": "Organization not found."}, status=404)
 
-    bool_fields = {"llm_fallback_enabled", "enabled"}
+    bool_fields = {"llm_fallback_enabled", "enabled", "auto_publish_enabled"}
     int_fields = {"interval_minutes", "crawl_depth", "crawl_max_pages"}
     list_fields = {"domain_names", "crawl_match_patterns", "crawl_exclude_patterns"}
 

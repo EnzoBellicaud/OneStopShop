@@ -27,6 +27,7 @@
           <th>Organization</th>
           <th>Country</th>
           <th>Classification mode</th>
+          <th>Auto-publish</th>
           <th>Enabled</th>
           <th>Actions</th>
         </tr>
@@ -37,6 +38,11 @@
           <td class="small">{{ s.organization_name || '—' }}</td>
           <td class="small">{{ s.country || '—' }}</td>
           <td class="small center">{{ s.llm_fallback_enabled ? 'LLM' : 'Deterministic' }}</td>
+          <td class="center auto-publish-cell">
+            <input type="checkbox" [checked]="s.auto_publish_enabled"
+              (change)="toggleSourceAutoPublish(s.key, $any($event.target).checked)" />
+            <button type="button" class="criteria-link" (click)="openCriteriaModal(s)">Criteria</button>
+          </td>
           <td class="center">
             <input type="checkbox" [checked]="s.enabled"
               (change)="toggleSourceEnabled(s.key, $any($event.target).checked)" />
@@ -50,7 +56,7 @@
           </td>
         </tr>
         <tr *ngIf="sources.length === 0">
-          <td colspan="6" class="hint">No sources configured.</td>
+          <td colspan="7" class="hint">No sources configured.</td>
         </tr>
       </tbody>
     </table>
@@ -116,6 +122,20 @@
         Enabled
         <input type="checkbox" [(ngModel)]="sourceForm.enabled" />
       </label>
+      <label class="form-field toggle-row">
+        Auto-publish scraped offers
+        <input type="checkbox" [(ngModel)]="sourceForm.auto_publish_enabled" />
+      </label>
+    </div>
+
+    <div class="criteria-summary" *ngIf="sourceForm.auto_publish_enabled">
+      <div class="criteria-summary-head">
+        <span>Auto-publish criteria</span>
+        <strong>{{ criteriaMode(sourceForm) }} · {{ criteriaThreshold(sourceForm) }}</strong>
+      </div>
+      <ul>
+        <li *ngFor="let check of criteriaChecks(sourceForm)">{{ check }}</li>
+      </ul>
     </div>
 
     <fieldset class="crawl-group">
@@ -137,6 +157,32 @@
       <button class="btn-primary" (click)="saveSource()" [disabled]="savingSource()">
         {{ savingSource() ? 'Saving…' : (sourceModalTarget ? 'Save Changes' : 'Create Source') }}
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- Criteria modal -->
+<div class="modal-backdrop" *ngIf="criteriaModalSource as criteriaSource" (click)="closeCriteriaModal()">
+  <div class="modal criteria-modal" (click)="$event.stopPropagation()">
+    <h2>Auto-publish criteria</h2>
+    <div class="criteria-facts">
+      <div>
+        <span>Mode</span>
+        <strong>{{ criteriaMode(criteriaSource) }}</strong>
+      </div>
+      <div>
+        <span>Minimum confidence</span>
+        <strong>{{ criteriaThreshold(criteriaSource) }}</strong>
+      </div>
+    </div>
+
+    <h3>Required checks</h3>
+    <ul class="criteria-list">
+      <li *ngFor="let check of criteriaChecks(criteriaSource)">{{ check }}</li>
+    </ul>
+
+    <div class="modal-actions">
+      <button class="btn-primary" (click)="closeCriteriaModal()">Close</button>
     </div>
   </div>
 </div>

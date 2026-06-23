@@ -17,6 +17,8 @@ function makeSource(key = 'src_a', overrides: Record<string, unknown> = {}) {
     quality: 'real',
     crawl_depth: 1, crawl_max_pages: 25,
     crawl_match_patterns: [], crawl_exclude_patterns: [],
+    auto_publish_enabled: false,
+    auto_publish_mode: 'llm',
     created_at: '2024-01-01T00:00:00Z',
     updated_at: '2024-01-01T00:00:00Z',
     ...overrides,
@@ -80,12 +82,35 @@ describe('SourcesAdminPageComponent', () => {
     expect(component.sourceForm.name).toBe('My Source');
     expect(component.sourceForm.country).toBe('DE');
     expect(component.sourceForm.llm_fallback_enabled).toBeFalse();
+    expect(component.sourceForm.auto_publish_enabled).toBeFalse();
   });
 
   it('closeSourceModal hides modal', () => {
     component.showSourceModal = true;
     component.closeSourceModal();
     expect(component.showSourceModal).toBeFalse();
+  });
+
+  it('openCriteriaModal stores source and closeCriteriaModal clears it', () => {
+    const src = makeSource('criteria') as any;
+    component.openCriteriaModal(src);
+    expect(component.criteriaModalSource).toBe(src);
+    component.closeCriteriaModal();
+    expect(component.criteriaModalSource).toBeNull();
+  });
+
+  it('criteria helpers return LLM criteria', () => {
+    const src = makeSource('llm', { llm_fallback_enabled: true }) as any;
+    expect(component.criteriaMode(src)).toBe('LLM');
+    expect(component.criteriaThreshold(src)).toBe('0.80');
+    expect(component.criteriaChecks(src)).toContain('LLM says the page is an offer');
+  });
+
+  it('criteria helpers return deterministic criteria', () => {
+    const src = makeSource('det', { llm_fallback_enabled: false }) as any;
+    expect(component.criteriaMode(src)).toBe('Deterministic');
+    expect(component.criteriaThreshold(src)).toBe('0.90');
+    expect(component.criteriaChecks(src)).toContain('Summary is not fallback text');
   });
 
   // ── saveSource ────────────────────────────────────────────────────────────
@@ -100,6 +125,7 @@ describe('SourcesAdminPageComponent', () => {
       llm_fallback_enabled: true, enabled: true,
       crawl_depth: 1, crawl_max_pages: 25,
       crawl_match_patterns: [], crawl_exclude_patterns: [],
+      auto_publish_enabled: false, auto_publish_mode: 'llm',
     };
     component.showSourceModal = true;
     component.saveSource();
@@ -140,6 +166,17 @@ describe('SourcesAdminPageComponent', () => {
     req.flush(makeSource('s2', { enabled: false }));
 
     expect(component.sources[0].enabled).toBeFalse();
+  });
+
+  it('toggleSourceAutoPublish sends PATCH with auto_publish_enabled', () => {
+    component.sources = [makeSource('s3') as any];
+    component.toggleSourceAutoPublish('s3', true);
+
+    const req = http.expectOne(`${API}/admin/sources/s3`);
+    expect(req.request.body).toEqual({ auto_publish_enabled: true });
+    req.flush(makeSource('s3', { auto_publish_enabled: true }));
+
+    expect(component.sources[0].auto_publish_enabled).toBeTrue();
   });
 
   // ── deleteSource ──────────────────────────────────────────────────────────

@@ -23,6 +23,7 @@ export class SourcesAdminPageComponent implements OnInit, OnDestroy {
   organizations: OrganizationLookup[] = [];
   loading = false;
   sourceModalTarget: ScrapingSource | null = null;
+  criteriaModalSource: ScrapingSource | null = null;
   showSourceModal = false;
   savingSource = signal(false);
   deletingSource = signal<string | null>(null);
@@ -78,6 +79,8 @@ export class SourcesAdminPageComponent implements OnInit, OnDestroy {
       crawl_max_pages: src.crawl_max_pages,
       crawl_match_patterns: [...src.crawl_match_patterns],
       crawl_exclude_patterns: [...src.crawl_exclude_patterns],
+      auto_publish_enabled: src.auto_publish_enabled,
+      auto_publish_mode: src.auto_publish_mode,
     };
     this.errorMessage = '';
     this.showSourceModal = true;
@@ -86,6 +89,41 @@ export class SourcesAdminPageComponent implements OnInit, OnDestroy {
   closeSourceModal(): void {
     this.showSourceModal = false;
     this.errorMessage = '';
+  }
+
+  openCriteriaModal(src: ScrapingSource): void {
+    this.criteriaModalSource = src;
+  }
+
+  closeCriteriaModal(): void {
+    this.criteriaModalSource = null;
+  }
+
+  criteriaMode(source: Pick<ScrapingSource, 'llm_fallback_enabled'> | ScrapingSourceCreateRequest): 'LLM' | 'Deterministic' {
+    return source.llm_fallback_enabled ? 'LLM' : 'Deterministic';
+  }
+
+  criteriaThreshold(source: Pick<ScrapingSource, 'llm_fallback_enabled'> | ScrapingSourceCreateRequest): string {
+    return source.llm_fallback_enabled ? '0.80' : '0.90';
+  }
+
+  criteriaChecks(source: Pick<ScrapingSource, 'llm_fallback_enabled'> | ScrapingSourceCreateRequest): string[] {
+    if (source.llm_fallback_enabled) {
+      return [
+        'LLM says the page is an offer',
+        'Offer type is resolved',
+        'Title is present',
+        'Summary is present',
+        'Title is not generic',
+      ];
+    }
+    return [
+      'Offer type is resolved by the classifier',
+      'Title is present',
+      'Summary is present',
+      'Summary is not fallback text',
+      'Title is not generic',
+    ];
   }
 
   saveSource(): void {
@@ -113,6 +151,12 @@ export class SourcesAdminPageComponent implements OnInit, OnDestroy {
 
   toggleSourceEnabled(key: string, enabled: boolean): void {
     this.api.patchScrapingSource(key, { enabled })
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({ next: (s) => { this.sources = this.sources.map(x => x.key === key ? s : x); } });
+  }
+
+  toggleSourceAutoPublish(key: string, auto_publish_enabled: boolean): void {
+    this.api.patchScrapingSource(key, { auto_publish_enabled })
       .pipe(takeUntil(this.destroy$))
       .subscribe({ next: (s) => { this.sources = this.sources.map(x => x.key === key ? s : x); } });
   }
@@ -147,6 +191,8 @@ export class SourcesAdminPageComponent implements OnInit, OnDestroy {
       crawl_max_pages: 25,
       crawl_match_patterns: [],
       crawl_exclude_patterns: [],
+      auto_publish_enabled: false,
+      auto_publish_mode: 'llm',
     };
   }
 }
