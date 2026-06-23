@@ -249,6 +249,7 @@ describe('SourcesAdminPageComponent — offer manager mode', () => {
       llm_fallback_enabled: true, enabled: true,
       crawl_depth: 1, crawl_max_pages: 25,
       crawl_match_patterns: [], crawl_exclude_patterns: [],
+      auto_publish_enabled: false, auto_publish_mode: 'llm',
     };
     component.saveSource();
 
