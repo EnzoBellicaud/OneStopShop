@@ -650,6 +650,37 @@ class SourcesOrgScopeTestCase(TestCase):
         self.assertEqual(resp.status_code, 404)
         self.assertTrue(ScrapingSource.objects.filter(key="other_src").exists())
 
+    def test_teacher_can_delete_own_org_source(self):
+        resp = self.client.delete(
+            f"/api/admin/sources/{self.own_source.key}", **self._auth()
+        )
+        self.assertEqual(resp.status_code, 204)
+        self.assertFalse(ScrapingSource.objects.filter(key="own_src").exists())
+
+    def test_teacher_with_no_org_cannot_create_source(self):
+        teacher_no_org, pw = _make_teacher(username="teacher_no_org", password="Teacher123!")
+        token = _token(self.client, "teacher_no_org", pw)
+        resp = self.client.post(
+            "/api/admin/sources",
+            data=json.dumps({"name": "New Source", "url": "https://new.example.com"}),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+        self.assertEqual(resp.status_code, 403)
+        data = json.loads(resp.content)
+        self.assertIn("No organization linked", data["detail"])
+
+    def test_patch_invalid_target_profile_returns_400(self):
+        resp = self.client.patch(
+            f"/api/admin/sources/{self.own_source.key}",
+            data=json.dumps({"target_profile": "invalid_profile"}),
+            content_type="application/json",
+            **self._auth(),
+        )
+        self.assertEqual(resp.status_code, 400)
+        data = json.loads(resp.content)
+        self.assertIn("target_profile", data["detail"])
+
     def test_company_same_as_teacher(self):
         company, company_pw = _make_company()
         UserOrganization.objects.create(
