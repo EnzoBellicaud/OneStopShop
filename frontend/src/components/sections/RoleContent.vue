@@ -144,6 +144,38 @@
                 <span class="card-org">{{ offer.organization.name }}</span>
                 <span class="card-link-hint">Open ↗</span>
               </div>
+              <div class="card-contact-row">
+                <span class="card-contact-label">Contact:</span>
+                <a
+                  v-if="bestContact(offer).kind === 'email'"
+                  :href="'mailto:' + bestContact(offer).value"
+                  class="card-contact-link"
+                >✉ {{ bestContact(offer).value }}</a>
+                <a
+                  v-else-if="bestContact(offer).kind === 'linkedin'"
+                  :href="bestContact(offer).value"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="card-contact-link"
+                >in {{ bestContact(offer).name ?? 'LinkedIn profile' }}</a>
+                <span v-else-if="bestContact(offer).kind === 'name'" class="card-contact-text">
+                  👤 {{ bestContact(offer).value }}
+                </span>
+                <a
+                  v-else-if="bestContact(offer).kind === 'website'"
+                  :href="bestContact(offer).value"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="card-contact-link"
+                >🌐 {{ bestContact(offer).orgName }} website</a>
+                <a
+                  v-else
+                  :href="bestContact(offer).value"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="card-contact-link"
+                >🔗 View opportunity</a>
+              </div>
             </div>
           </div>
 
@@ -306,6 +338,28 @@ const fetchError = ref(null)
 function itemLabel(item) { return typeof item === 'string' ? item : item.label }
 function itemValue(item) { return typeof item === 'string' ? item : item.value }
 function itemType(item)  { return typeof item === 'object' && item.type ? item.type : 'offer_type' }
+
+// ── Contact fallback (email → LinkedIn → name → org website → offer link) ──────
+function clean(value) {
+  const trimmed = typeof value === 'string' ? value.trim() : ''
+  return trimmed.length ? trimmed : null
+}
+
+function bestContact(offer) {
+  const email = clean(offer.contact?.email)
+  if (email) return { kind: 'email', value: email }
+
+  const linkedin = clean(offer.contact?.linkedin)
+  if (linkedin) return { kind: 'linkedin', value: linkedin, name: clean(offer.contact?.name) }
+
+  const name = clean(offer.contact?.name)
+  if (name) return { kind: 'name', value: name }
+
+  const website = clean(offer.organization?.website)
+  if (website) return { kind: 'website', value: website, orgName: offer.organization?.name }
+
+  return { kind: 'link', value: offer.link }
+}
 
 // ── Actions ───────────────────────────────────────────────────────────────────
 let debounceTimer = null
