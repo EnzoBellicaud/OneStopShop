@@ -814,7 +814,16 @@ class ScrapeService:
         normalized = deepcopy(details)
         scraping = normalized.get("scraping")
         if isinstance(scraping, dict):
-            for key in ("last_seen_at", "stale_candidate", "stale_marked_at", "stale_reason"):
+            for key in (
+                "last_seen_at",
+                "stale_candidate",
+                "stale_marked_at",
+                "stale_reason",
+                "auto_publish_enabled",
+                "auto_publish_threshold",
+                "auto_publish_result",
+                "auto_publish_mode",
+            ):
                 scraping.pop(key, None)
             normalized["scraping"] = scraping
         return normalized
