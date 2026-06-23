@@ -9,7 +9,7 @@ from content.auth import require_auth
 from content.models import Organization, ScrapingSource, User, UserOrganization
 
 ADMIN_PROFILE = User.ProfileType.ADMIN
-OFFER_MANAGER_PROFILES = [User.ProfileType.TEACHER, User.ProfileType.COMPANY]
+OFFER_MANAGER_PROFILES = [User.ProfileType.TEACHER]
 VALID_TARGET_PROFILES = {'student', 'company', 'researcher'}
 
 ALLOWED_FIELDS = {

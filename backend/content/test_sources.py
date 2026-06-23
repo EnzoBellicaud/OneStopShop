@@ -533,7 +533,7 @@ def _make_other_org():
 
 
 class SourcesOrgScopeTestCase(TestCase):
-    """Teacher/Company can only access sources belonging to their own organization."""
+    """Teachers can only access sources belonging to their own organization."""
 
     def setUp(self):
         self.client = Client()
@@ -681,15 +681,8 @@ class SourcesOrgScopeTestCase(TestCase):
         data = json.loads(resp.content)
         self.assertIn("target_profile", data["detail"])
 
-    def test_company_same_as_teacher(self):
+    def test_company_cannot_access_sources(self):
         company, company_pw = _make_company()
-        UserOrganization.objects.create(
-            user=company, organization=self.own_org, role=self.role
-        )
         company_token = _token(self.client, company.username, company_pw)
         resp = self.client.get("/api/admin/sources", HTTP_AUTHORIZATION=f"Bearer {company_token}")
-        self.assertEqual(resp.status_code, 200)
-        data = json.loads(resp.content)
-        keys = {s["key"] for s in data["results"]}
-        self.assertIn("own_src", keys)
-        self.assertNotIn("other_src", keys)
+        self.assertEqual(resp.status_code, 403)
