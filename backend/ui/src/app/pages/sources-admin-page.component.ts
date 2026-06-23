@@ -9,6 +9,7 @@ import {
   ScrapingSourceCreateRequest,
 } from '../shared/api.models';
 import { OssApiService } from '../shared/oss-api.service';
+import { AuthService } from '../shared/auth.service';
 
 @Component({
   selector: 'app-sources-admin-page',
@@ -30,13 +31,15 @@ export class SourcesAdminPageComponent implements OnInit, OnDestroy {
 
   private readonly destroy$ = new Subject<void>();
 
-  constructor(private readonly api: OssApiService) {}
+  constructor(private readonly api: OssApiService, public readonly auth: AuthService) {}
 
   ngOnInit(): void {
     this.loadSources();
-    this.api.getOrganizations()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({ next: (res) => { this.organizations = res.results; } });
+    if (!this.auth.isOfferManager) {
+      this.api.getOrganizations()
+        .pipe(takeUntil(this.destroy$))
+        .subscribe({ next: (res) => { this.organizations = res.results; } });
+    }
   }
 
   ngOnDestroy(): void {
@@ -62,7 +65,6 @@ export class SourcesAdminPageComponent implements OnInit, OnDestroy {
   openEditSource(src: ScrapingSource): void {
     this.sourceModalTarget = src;
     this.sourceForm = {
-      key: src.key,
       name: src.name,
       url: src.url,
       organization_id: src.organization_id ?? '',
@@ -72,7 +74,6 @@ export class SourcesAdminPageComponent implements OnInit, OnDestroy {
       interval_minutes: src.interval_minutes,
       llm_fallback_enabled: src.llm_fallback_enabled,
       enabled: src.enabled,
-      quality: src.quality,
       crawl_depth: src.crawl_depth,
       crawl_max_pages: src.crawl_max_pages,
       crawl_match_patterns: [...src.crawl_match_patterns],
@@ -90,9 +91,13 @@ export class SourcesAdminPageComponent implements OnInit, OnDestroy {
   saveSource(): void {
     this.savingSource.set(true);
     this.errorMessage = '';
+    const { organization_id, ...formWithoutOrg } = this.sourceForm;
+    const payload = this.auth.isOfferManager
+      ? (formWithoutOrg as ScrapingSourceCreateRequest)
+      : this.sourceForm;
     const obs = this.sourceModalTarget
-      ? this.api.patchScrapingSource(this.sourceModalTarget.key, this.sourceForm)
-      : this.api.createScrapingSource(this.sourceForm);
+      ? this.api.patchScrapingSource(this.sourceModalTarget.key, payload)
+      : this.api.createScrapingSource(payload);
     obs.pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
         this.savingSource.set(false);
@@ -112,24 +117,23 @@ export class SourcesAdminPageComponent implements OnInit, OnDestroy {
       .subscribe({ next: (s) => { this.sources = this.sources.map(x => x.key === key ? s : x); } });
   }
 
-  deleteSource(key: string): void {
-    if (!confirm(`Delete source "${key}"?`)) return;
-    this.deletingSource.set(key);
-    this.api.deleteScrapingSource(key).pipe(takeUntil(this.destroy$)).subscribe({
+  deleteSource(src: ScrapingSource): void {
+    if (!confirm(`Delete source "${src.name}"?`)) return;
+    this.deletingSource.set(src.key);
+    this.api.deleteScrapingSource(src.key).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
         this.deletingSource.set(null);
-        this.sources = this.sources.filter(s => s.key !== key);
+        this.sources = this.sources.filter(s => s.key !== src.key);
       },
       error: () => {
         this.deletingSource.set(null);
-        this.errorMessage = `Failed to delete source "${key}".`;
+        this.errorMessage = `Failed to delete source "${src.name}".`;
       },
     });
   }
 
   emptySourceForm(): ScrapingSourceCreateRequest {
     return {
-      key: '',
       name: '',
       url: '',
       organization_id: '',
@@ -139,7 +143,6 @@ export class SourcesAdminPageComponent implements OnInit, OnDestroy {
       interval_minutes: 360,
       llm_fallback_enabled: true,
       enabled: true,
-      quality: 'real',
       crawl_depth: 1,
       crawl_max_pages: 25,
       crawl_match_patterns: [],

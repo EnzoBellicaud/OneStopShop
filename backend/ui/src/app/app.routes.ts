@@ -13,6 +13,7 @@ import { DomainsPageComponent } from './pages/domains-page.component';
 import { authGuard } from './shared/auth.guard';
 import { adminGuard } from './shared/admin.guard';
 import { guestGuard } from './shared/guest.guard';
+import { offerManagerGuard } from './shared/offer-manager.guard';
 
 export const routes: Routes = [
 	{
@@ -78,7 +79,7 @@ export const routes: Routes = [
 	{
 		path: 'admin/sources',
 		component: SourcesAdminPageComponent,
-		canActivate: [adminGuard],
+		canActivate: [offerManagerGuard],
 	},
 	{
 		path: '**',

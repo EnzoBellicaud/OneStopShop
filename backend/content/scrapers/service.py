@@ -552,7 +552,11 @@ class ScrapeService:
         if offer_type is None:
             LOGGER.warning("[%s] offer_type %r not found in DB — discarding", source.key, resolved_offer_type_name)
             return "skipped", None, None
-        target_profile = TargetProfile.objects.get(name=source.target_profile)
+        try:
+            target_profile = TargetProfile.objects.get(name=source.target_profile)
+        except TargetProfile.DoesNotExist:
+            LOGGER.error("[%s] target_profile '%s' not in DB — skipping offer", source.key, source.target_profile)
+            return "skipped", None, None
 
         natural_key = (source.url, str(organization.id), str(offer_type.id))
 

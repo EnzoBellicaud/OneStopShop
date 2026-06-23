@@ -252,6 +252,15 @@ class Command(BaseCommand):
             },
         )
 
+        # Link org-specific sources to their organizations so Teacher users can see them
+        for source_key, org_token in [("unibz", "unibz"), ("mdu", "mdu")]:
+            org = organization_map.get(org_token)
+            if org:
+                ScrapingSource.objects.filter(key=source_key).update(
+                    organization=org,
+                    organization_token=str(org.id),
+                )
+
         # Single shared password for all loginable seeded users
         SEED_PASSWORD = "passw0rd"
 

@@ -23,7 +23,6 @@
     <table class="data-table">
       <thead>
         <tr>
-          <th>Key</th>
           <th>Name</th>
           <th>Organization</th>
           <th>Country</th>
@@ -34,7 +33,6 @@
       </thead>
       <tbody>
         <tr *ngFor="let s of sources">
-          <td class="small mono">{{ s.key }}</td>
           <td>{{ s.name }}</td>
           <td class="small">{{ s.organization_name || '—' }}</td>
           <td class="small">{{ s.country || '—' }}</td>
@@ -45,14 +43,14 @@
           </td>
           <td>
             <button class="btn-ghost small" (click)="openEditSource(s)">Edit</button>
-            <button class="btn-ghost small danger" (click)="deleteSource(s.key)"
+            <button class="btn-ghost small danger" (click)="deleteSource(s)"
               [disabled]="deletingSource() === s.key">
               {{ deletingSource() === s.key ? '…' : 'Delete' }}
             </button>
           </td>
         </tr>
         <tr *ngIf="sources.length === 0">
-          <td colspan="7" class="hint">No sources configured.</td>
+          <td colspan="6" class="hint">No sources configured.</td>
         </tr>
       </tbody>
     </table>
@@ -67,10 +65,6 @@
     <div class="error-banner" *ngIf="errorMessage">{{ errorMessage }}</div>
 
     <div class="form-grid">
-      <label class="form-field" *ngIf="!sourceModalTarget">
-        Key
-        <input type="text" [(ngModel)]="sourceForm.key" placeholder="e.g. unibz_erasmus" />
-      </label>
       <label class="form-field">
         Name
         <input type="text" [(ngModel)]="sourceForm.name" />
@@ -79,7 +73,7 @@
         URL
         <input type="url" [(ngModel)]="sourceForm.url" />
       </label>
-      <label class="form-field">
+      <label class="form-field" *ngIf="auth.isAdmin">
         Organization
         <select [(ngModel)]="sourceForm.organization_id">
           <option value="">— none —</option>
@@ -92,19 +86,15 @@
       </label>
       <label class="form-field">
         Target profile
-        <input type="text" [(ngModel)]="sourceForm.target_profile" />
+        <select [(ngModel)]="sourceForm.target_profile">
+          <option value="student">Student</option>
+          <option value="company">Company</option>
+          <option value="researcher">Researcher</option>
+        </select>
       </label>
       <label class="form-field">
         Interval (minutes)
         <input type="number" [(ngModel)]="sourceForm.interval_minutes" min="1" />
-      </label>
-      <label class="form-field">
-        Quality
-        <select [(ngModel)]="sourceForm.quality">
-          <option value="real">real</option>
-          <option value="test">test</option>
-          <option value="mock">mock</option>
-        </select>
       </label>
       <div class="form-field radio-group">
         <span class="radio-label">
