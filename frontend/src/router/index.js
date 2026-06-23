@@ -12,6 +12,7 @@ import ForumPage from '../pages/ForumPage.vue'
 import QuestionDetailPage from '../pages/QuestionDetailPage.vue'
 import NewQuestionPage from '../pages/NewQuestionPage.vue'
 import AdminPage from '../pages/AdminPage.vue'
+import VerifyEmail from '../pages/VerifyEmail.vue'
 
 const routes = [
   { path: '/home', name: 'home', component: HomeView },
@@ -36,6 +37,7 @@ const routes = [
   { path: '/forum/new', name: 'NewQuestion', component: NewQuestionPage, meta: { requiresAuth: true } },
   { path: '/forum/:id', name: 'QuestionDetail', component: QuestionDetailPage },
   { path: '/admin', name: 'admin', component: AdminPage, meta: { requiresAuth: true } },
+  { path: '/verify-email', name: 'VerifyEmail', component: VerifyEmail },
 ]
 
 const router = createRouter({
