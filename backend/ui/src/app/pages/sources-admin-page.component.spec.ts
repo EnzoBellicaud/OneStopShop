@@ -219,7 +219,7 @@ describe('SourcesAdminPageComponent — offer manager mode', () => {
     http = TestBed.inject(HttpTestingController);
 
     // Spy before detectChanges so ngOnInit sees the offer manager flags
-    spyOnProperty(component.auth, 'isOfferManager', 'get').and.returnValue(true);
+    spyOnProperty(component.auth, 'isTeacher', 'get').and.returnValue(true);
     spyOnProperty(component.auth, 'isAdmin', 'get').and.returnValue(false);
 
     fixture.detectChanges();

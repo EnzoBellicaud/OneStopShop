@@ -36,7 +36,7 @@ export class SourcesAdminPageComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadSources();
-    if (!this.auth.isOfferManager) {
+    if (!this.auth.isTeacher) {
       this.api.getOrganizations()
         .pipe(takeUntil(this.destroy$))
         .subscribe({ next: (res) => { this.organizations = res.results; } });
@@ -130,7 +130,7 @@ export class SourcesAdminPageComponent implements OnInit, OnDestroy {
     this.savingSource.set(true);
     this.errorMessage = '';
     const { organization_id, ...formWithoutOrg } = this.sourceForm;
-    const payload = this.auth.isOfferManager
+    const payload = this.auth.isTeacher
       ? (formWithoutOrg as ScrapingSourceCreateRequest)
       : this.sourceForm;
     const obs = this.sourceModalTarget
