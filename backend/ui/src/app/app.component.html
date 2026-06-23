@@ -20,7 +20,7 @@
           <a routerLink="/admin/scrapper" routerLinkActive="active">Scrapper Tracking</a>
           <a routerLink="/admin/import" routerLinkActive="active">Bulk Import</a>
         }
-        @if (auth.isOfferManager) {
+        @if (auth.isTeacher) {
           <a routerLink="/admin/sources" routerLinkActive="active">Sources</a>
         }
       </nav>
