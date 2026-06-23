@@ -569,7 +569,7 @@ export interface ScrapingSource {
   url: string;
   organization_id: string | null;
   organization_name: string | null;
-  target_profile: string;
+  target_profile: 'student' | 'company' | 'researcher';
   country: string;
   domain_names: string[];
   interval_minutes: number;
@@ -591,7 +591,7 @@ export interface ScrapingSourceListResponse {
   results: ScrapingSource[];
 }
 
-export type ScrapingSourceCreateRequest = Omit<ScrapingSource, 'created_at' | 'updated_at' | 'organization_name'> & { organization_id: string };
+export type ScrapingSourceCreateRequest = Omit<ScrapingSource, 'created_at' | 'updated_at' | 'organization_name' | 'key' | 'quality'> & { organization_id: string };
 export type ScrapingSourcePatchRequest = Partial<Omit<ScrapingSourceCreateRequest, 'key'>>;
 
 // ── Allowed domains ────────────────────────────────────────────────────────

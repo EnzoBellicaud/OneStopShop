@@ -1,18 +1,21 @@
 import json
+import uuid
 
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from content.auth import require_auth
-from content.models import Organization, ScrapingSource, User
+from content.models import Organization, ScrapingSource, User, UserOrganization
 
 ADMIN_PROFILE = User.ProfileType.ADMIN
+OFFER_MANAGER_PROFILES = [User.ProfileType.TEACHER]
+VALID_TARGET_PROFILES = {'student', 'company', 'researcher'}
 
 ALLOWED_FIELDS = {
     "name", "url", "target_profile",
     "country", "domain_names", "interval_minutes", "llm_fallback_enabled",
-    "enabled", "quality", "crawl_depth", "crawl_max_pages",
+    "enabled", "crawl_depth", "crawl_max_pages",
     "crawl_match_patterns", "crawl_exclude_patterns", "auto_publish_enabled",
 }
 
@@ -50,11 +53,16 @@ def _serialize(s: ScrapingSource) -> dict:
 
 
 @csrf_exempt
-@require_auth(roles=[ADMIN_PROFILE])
+@require_auth(roles=[ADMIN_PROFILE, *OFFER_MANAGER_PROFILES])
 @require_http_methods(["GET", "POST"])
 def admin_sources_collection(request):
     if request.method == "GET":
         sources = ScrapingSource.objects.select_related("organization").all().order_by("key")
+        if request.auth_user.profile in OFFER_MANAGER_PROFILES:
+            org_ids = UserOrganization.objects.filter(
+                user=request.auth_user
+            ).values_list('organization_id', flat=True)
+            sources = sources.filter(organization_id__in=org_ids)
         return JsonResponse({"count": sources.count(), "results": [_serialize(s) for s in sources[:500]]})
 
     # POST — create
@@ -62,18 +70,30 @@ def admin_sources_collection(request):
     if body is None:
         return JsonResponse({"detail": "Invalid JSON body."}, status=400)
 
-    key = str(body.get("key") or "").strip()
+    key = str(body.get("key") or "").strip() or str(uuid.uuid4())
     name = str(body.get("name") or "").strip()
     url = str(body.get("url") or "").strip()
-    org_id_str = str(body.get("organization_id") or "").strip()
+    tp = str(body.get("target_profile") or "student")
+    if tp not in VALID_TARGET_PROFILES:
+        return JsonResponse({"detail": f"target_profile must be one of: {', '.join(sorted(VALID_TARGET_PROFILES))}."}, status=400)
 
-    if not all([key, name, url, org_id_str]):
-        return JsonResponse({"detail": "key, name, url, and organization_id are required."}, status=400)
-
-    try:
-        org = Organization.objects.get(id=org_id_str)
-    except (Organization.DoesNotExist, ValueError):
-        return JsonResponse({"detail": "Organization not found."}, status=404)
+    if request.auth_user.profile in OFFER_MANAGER_PROFILES:
+        if not all([name, url]):
+            return JsonResponse({"detail": "name and url are required."}, status=400)
+        link = UserOrganization.objects.filter(
+            user=request.auth_user
+        ).select_related('organization').first()
+        if not link:
+            return JsonResponse({"detail": "No organization linked to account."}, status=403)
+        org = link.organization
+    else:
+        org_id_str = str(body.get("organization_id") or "").strip()
+        if not all([name, url, org_id_str]):
+            return JsonResponse({"detail": "name, url, and organization_id are required."}, status=400)
+        try:
+            org = Organization.objects.get(id=org_id_str)
+        except (Organization.DoesNotExist, ValueError):
+            return JsonResponse({"detail": "Organization not found."}, status=404)
 
     if ScrapingSource.objects.filter(key=key).exists():
         return JsonResponse({"detail": f"Source with key '{key}' already exists."}, status=409)
@@ -83,14 +103,14 @@ def admin_sources_collection(request):
         name=name,
         url=url,
         organization=org,
-        organization_token=org_id_str,
-        target_profile=str(body.get("target_profile") or "student"),
+        organization_token=str(org.id),
+        target_profile=tp,
         country=str(body.get("country") or "").strip().upper(),
         domain_names=body.get("domain_names") or [],
         interval_minutes=int(body.get("interval_minutes") or 360),
         llm_fallback_enabled=bool(body.get("llm_fallback_enabled", True)),
         enabled=bool(body.get("enabled", True)),
-        quality=str(body.get("quality") or "real"),
+        quality="real",
         crawl_depth=int(body.get("crawl_depth") or 1),
         crawl_max_pages=int(body.get("crawl_max_pages") or 25),
         crawl_match_patterns=body.get("crawl_match_patterns") or [],
@@ -102,13 +122,20 @@ def admin_sources_collection(request):
 
 
 @csrf_exempt
-@require_auth(roles=[ADMIN_PROFILE])
+@require_auth(roles=[ADMIN_PROFILE, *OFFER_MANAGER_PROFILES])
 @require_http_methods(["GET", "PATCH", "DELETE"])
 def admin_source_detail(request, key: str):
     try:
         source = ScrapingSource.objects.select_related("organization").get(key=key)
     except ScrapingSource.DoesNotExist:
         return JsonResponse({"detail": "Source not found."}, status=404)
+
+    if request.auth_user.profile in OFFER_MANAGER_PROFILES:
+        user_org_ids = list(UserOrganization.objects.filter(
+            user=request.auth_user
+        ).values_list('organization_id', flat=True))
+        if source.organization_id not in user_org_ids:
+            return JsonResponse({"detail": "Not found."}, status=404)
 
     if request.method == "GET":
         return JsonResponse(_serialize(source))
@@ -122,14 +149,26 @@ def admin_source_detail(request, key: str):
     if body is None:
         return JsonResponse({"detail": "Invalid JSON body."}, status=400)
 
+    # Offer managers cannot re-assign organization
+    if request.auth_user.profile in OFFER_MANAGER_PROFILES:
+        body.pop('organization_id', None)
+
+    if "target_profile" in body:
+        tp = str(body["target_profile"])
+        if tp not in VALID_TARGET_PROFILES:
+            return JsonResponse({"detail": f"target_profile must be one of: {', '.join(sorted(VALID_TARGET_PROFILES))}."}, status=400)
+
     # Handle organization FK separately — not in the generic loop
     if "organization_id" in body:
         oid = body["organization_id"]
         if oid is None:
             source.organization = None
+            source.organization_token = ""
         else:
             try:
-                source.organization = Organization.objects.get(id=oid)
+                org = Organization.objects.get(id=oid)
+                source.organization = org
+                source.organization_token = str(org.id)
             except (Organization.DoesNotExist, ValueError):
                 return JsonResponse({"detail": "Organization not found."}, status=404)
 
