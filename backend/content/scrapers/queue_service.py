@@ -3,6 +3,7 @@ import os
 from dataclasses import replace
 from datetime import timedelta
 from types import SimpleNamespace
+from urllib.parse import urlparse
 
 import requests
 from django.db import transaction
@@ -30,7 +31,7 @@ class CrawlerService(ScrapeService):
 
     def run(self) -> dict:
         sources = get_sources(self.source_keys)
-        stats = {"sources": 0, "discovered": 0, "new": 0, "already_known": 0, "errors": 0}
+        stats = {"sources": 0, "discovered": 0, "new": 0, "already_known": 0, "bumped": 0, "manual_archived": 0, "errors": 0}
 
         for source in sources:
             stats["sources"] += 1
@@ -40,9 +41,12 @@ class CrawlerService(ScrapeService):
                 stats["discovered"] += result["discovered"]
                 stats["new"] += result["new"]
                 stats["already_known"] += result["already_known"]
+                stats["bumped"] += result["bumped"]
+                stats["manual_archived"] += result["manual_archived"]
                 LOGGER.info(
-                    "[%s] Crawler done — discovered=%d new=%d known=%d",
+                    "[%s] Crawler done — discovered=%d new=%d known=%d bumped=%d manual_archived=%d",
                     source.key, result["discovered"], result["new"], result["already_known"],
+                    result["bumped"], result["manual_archived"],
                 )
             except Exception:
                 stats["errors"] += 1
@@ -52,6 +56,7 @@ class CrawlerService(ScrapeService):
 
     def _crawl_source(self, source: SourceDefinition) -> dict:
         urls, _ = self._discover_urls_bfs(source)
+        live_url_set = set(urls)
 
         new_count = 0
         known_count = 0
@@ -70,7 +75,63 @@ class CrawlerService(ScrapeService):
             elif crawl_url.status != CrawlUrl.UrlStatus.ARCHIVED:
                 known_count += 1
 
-        return {"discovered": len(urls), "new": new_count, "already_known": known_count}
+        # Guard: skip deletion logic if listing returned 0 URLs (network flake / empty page)
+        # to avoid mass-archiving all known offers for this source.
+        if live_url_set:
+            # Bump CrawlUrls no longer in listing → immediate recheck → scraper fetches → 404 → archive
+            bumped = CrawlUrl.objects.filter(
+                source_key=source.key,
+                status__in=[CrawlUrl.UrlStatus.DONE, CrawlUrl.UrlStatus.ERROR],
+            ).exclude(url__in=live_url_set).update(next_check_at=timezone.now())
+
+            # HEAD-check manually created offers (no CrawlUrl) from this org not in live set
+            manual_archived = self._check_manual_offers(source, live_url_set)
+        else:
+            bumped = 0
+            manual_archived = 0
+            LOGGER.warning("[%s] Live URL set empty — skipping deletion detection", source.key)
+
+        return {
+            "discovered": len(urls),
+            "new": new_count,
+            "already_known": known_count,
+            "bumped": bumped,
+            "manual_archived": manual_archived,
+        }
+
+    def _check_manual_offers(self, source: SourceDefinition, live_url_set: set[str]) -> int:
+        """HEAD-check published/draft offers from this org that have no CrawlUrl entry,
+        are not in the current live URL set, and whose link matches the source domain.
+        Archives published offers and deletes drafts if their link returns 404/410."""
+        if not source.organization_id:
+            return 0
+
+        source_netloc = urlparse(source.url).netloc
+        archived_count = 0
+
+        manual_offers = (
+            Offer.objects.filter(
+                organization_id=source.organization_id,
+                status__in=[Offer.OfferStatus.PUBLISHED, Offer.OfferStatus.DRAFT],
+            )
+            .exclude(link__in=live_url_set)
+            .filter(link__icontains=source_netloc)
+            .filter(crawl_urls__isnull=True)
+        )
+
+        for offer in manual_offers:
+            status_code = self._fetch_status_code(offer.link)
+            if status_code in {404, 410}:
+                archived_count += 1
+                if offer.status == Offer.OfferStatus.PUBLISHED:
+                    offer.status = Offer.OfferStatus.ARCHIVED
+                    offer.save(update_fields=["status", "updated_at"])
+                    LOGGER.info("[%s] ARCHIVED manual offer (HTTP %s) — %s", source.key, status_code, offer.link)
+                elif offer.status == Offer.OfferStatus.DRAFT:
+                    offer.delete()
+                    LOGGER.info("[%s] DELETED manual draft offer (HTTP %s) — %s", source.key, status_code, offer.link)
+
+        return archived_count
 
 
 class UrlScraperService(ScrapeService):

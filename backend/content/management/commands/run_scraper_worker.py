@@ -36,8 +36,8 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        crawler_interval = int(os.getenv("CRAWLER_INTERVAL_MINUTES", "360"))
-        scraper_interval = int(os.getenv("SCRAPER_INTERVAL_MINUTES", "5"))
+        crawler_interval = int(os.getenv("CRAWLER_INTERVAL_SECONDS", "1"))
+        scraper_interval = int(os.getenv("SCRAPER_INTERVAL_SECONDS", "1"))
         translation_interval = int(os.getenv("TRANSLATION_INTERVAL_MINUTES", "10"))
         translation_batch = int(os.getenv("TRANSLATION_BATCH_SIZE", "20"))
         run_on_start = os.getenv("SCRAPER_RUN_ON_START", "true").lower() == "true"
@@ -57,7 +57,7 @@ class Command(BaseCommand):
             run_crawler,
             "interval",
             id="crawl-discover-urls",
-            minutes=crawler_interval,
+            seconds=crawler_interval,
             max_instances=1,
             coalesce=True,
             misfire_grace_time=300,
@@ -66,7 +66,7 @@ class Command(BaseCommand):
             run_url_scraper_batch,
             "interval",
             id="scrape-url-queue",
-            minutes=scraper_interval,
+            seconds=scraper_interval,
             max_instances=1,
             coalesce=True,
             misfire_grace_time=60,
@@ -112,8 +112,8 @@ class Command(BaseCommand):
             self.stdout.write(f"Translation: {translation_summary}")
 
         self.stdout.write(
-            f"Worker running — crawler every {crawler_interval} min, "
-            f"scraper every {scraper_interval} min, "
+            f"Worker running — crawler every {crawler_interval}s, "
+            f"scraper every {scraper_interval}s, "
             f"translation every {translation_interval} min. Press Ctrl+C to stop."
         )
 
