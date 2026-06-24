@@ -127,7 +127,7 @@
               <div class="filter-chips">
                 <select v-model="matchFilter" class="db-select" @change="loadMatches">
                   <option value="">{{ t('dashboard.allStatuses') }}</option>
-                  <option v-for="s in ['new','viewed','interested','declined']" :key="s" :value="s">{{ s }}</option>
+                  <option v-for="s in ['new','viewed','interested','declined']" :key="s" :value="s">{{ t('dashboard.statuses.' + s) }}</option>
                 </select>
                 <select v-model="matchSort" class="db-select" @change="loadMatches">
                   <option value="-match_score">{{ t('dashboard.bestScoreFirst') }}</option>
@@ -145,7 +145,7 @@
                 </div>
                 <p class="item-meta">
                   {{ hit.need.title }} ·
-                  <span :class="'status-tag status-' + hit.status">{{ hit.status }}</span>
+                  <span :class="'status-tag status-' + hit.status">{{ t('dashboard.statuses.' + hit.status) }}</span>
                 </p>
                 <p class="item-desc">{{ hit.match_reason }}</p>
                 <a :href="hit.offer.link" target="_blank" rel="noopener noreferrer" class="ext-link">
@@ -157,7 +157,7 @@
                     :class="['btn-ghost', { active: hit.status === s }]"
                     :disabled="updatingHit === hit.id"
                     @click="updateHitStatus(hit.id, s)"
-                  >{{ s }}</button>
+                  >{{ t('dashboard.statuses.' + s) }}</button>
                 </div>
               </li>
               <li v-if="matchingHits.length === 0" class="db-empty-state">

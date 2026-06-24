@@ -320,6 +320,12 @@ export const messages = {
       newestFirst: 'Newest first',
       noMatches: 'No matches for the current filter.',
       matchCount: '{count} match | {count} matches',
+      statuses: {
+        new: 'New',
+        viewed: 'Viewed',
+        interested: 'Interested',
+        declined: 'Declined',
+      },
     },
     admin: {
       eyebrow: 'Admin',
@@ -670,6 +676,12 @@ export const messages = {
       newestFirst: 'Piu recenti',
       noMatches: 'Nessun match per il filtro attuale.',
       matchCount: '{count} match | {count} match',
+      statuses: {
+        new: 'Nuovo',
+        viewed: 'Visualizzato',
+        interested: 'Interessato',
+        declined: 'Rifiutato',
+      },
     },
     admin: {
       eyebrow: 'Admin',
@@ -1020,6 +1032,12 @@ export const messages = {
       newestFirst: 'Plus recents',
       noMatches: 'Aucun match pour ce filtre.',
       matchCount: '{count} match | {count} matchs',
+      statuses: {
+        new: 'Nouveau',
+        viewed: 'Vu',
+        interested: 'Intéressé',
+        declined: 'Refusé',
+      },
     },
     admin: {
       eyebrow: 'Admin',
