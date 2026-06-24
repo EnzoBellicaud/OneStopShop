@@ -23,29 +23,33 @@
     <table class="data-table">
       <thead>
         <tr>
-          <th>{{ 'sources.thKey' | translate }}</th>
           <th>{{ 'sources.thName' | translate }}</th>
           <th>{{ 'sources.thOrganization' | translate }}</th>
           <th>{{ 'sources.thCountry' | translate }}</th>
           <th>{{ 'sources.thClassMode' | translate }}</th>
+          <th>{{ 'sources.thAutoPublish' | translate }}</th>
           <th>{{ 'sources.thEnabled' | translate }}</th>
           <th>{{ 'common.actions' | translate }}</th>
         </tr>
       </thead>
       <tbody>
         <tr *ngFor="let s of sources">
-          <td class="small mono">{{ s.key }}</td>
           <td>{{ s.name }}</td>
           <td class="small">{{ s.organization_name || '—' }}</td>
           <td class="small">{{ s.country || '—' }}</td>
           <td class="small center">{{ s.llm_fallback_enabled ? ('sources.llm' | translate) : ('sources.deterministic' | translate) }}</td>
+          <td class="center auto-publish-cell">
+            <input type="checkbox" [checked]="s.auto_publish_enabled"
+              (change)="toggleSourceAutoPublish(s.key, $any($event.target).checked)" />
+            <button type="button" class="criteria-link" (click)="openCriteriaModal(s)">{{ 'sources.criteriaLink' | translate }}</button>
+          </td>
           <td class="center">
             <input type="checkbox" [checked]="s.enabled"
               (change)="toggleSourceEnabled(s.key, $any($event.target).checked)" />
           </td>
           <td>
             <button class="btn-ghost small" (click)="openEditSource(s)">{{ 'common.edit' | translate }}</button>
-            <button class="btn-ghost small danger" (click)="deleteSource(s.key)"
+            <button class="btn-ghost small danger" (click)="deleteSource(s)"
               [disabled]="deletingSource() === s.key">
               {{ deletingSource() === s.key ? '…' : ('common.delete' | translate) }}
             </button>
@@ -67,10 +71,6 @@
     <div class="error-banner" *ngIf="errorMessage">{{ errorMessage }}</div>
 
     <div class="form-grid">
-      <label class="form-field" *ngIf="!sourceModalTarget">
-        {{ 'sources.fieldKey' | translate }}
-        <input type="text" [(ngModel)]="sourceForm.key" [placeholder]="'sources.keyPlaceholder' | translate" />
-      </label>
       <label class="form-field">
         {{ 'sources.fieldName' | translate }}
         <input type="text" [(ngModel)]="sourceForm.name" />
@@ -79,7 +79,7 @@
         {{ 'sources.fieldUrl' | translate }}
         <input type="url" [(ngModel)]="sourceForm.url" />
       </label>
-      <label class="form-field">
+      <label class="form-field" *ngIf="auth.isAdmin">
         {{ 'sources.fieldOrganization' | translate }}
         <select [(ngModel)]="sourceForm.organization_id">
           <option value="">{{ 'sources.orgNone' | translate }}</option>
@@ -92,19 +92,15 @@
       </label>
       <label class="form-field">
         {{ 'sources.fieldTargetProfile' | translate }}
-        <input type="text" [(ngModel)]="sourceForm.target_profile" />
+        <select [(ngModel)]="sourceForm.target_profile">
+          <option value="student">{{ 'sources.targetStudent' | translate }}</option>
+          <option value="company">{{ 'sources.targetCompany' | translate }}</option>
+          <option value="researcher">{{ 'sources.targetResearcher' | translate }}</option>
+        </select>
       </label>
       <label class="form-field">
         {{ 'sources.fieldInterval' | translate }}
         <input type="number" [(ngModel)]="sourceForm.interval_minutes" min="1" />
-      </label>
-      <label class="form-field">
-        {{ 'sources.fieldQuality' | translate }}
-        <select [(ngModel)]="sourceForm.quality">
-          <option value="real">real</option>
-          <option value="test">test</option>
-          <option value="mock">mock</option>
-        </select>
       </label>
       <div class="form-field radio-group">
         <span class="radio-label">
@@ -126,6 +122,20 @@
         {{ 'sources.fieldEnabled' | translate }}
         <input type="checkbox" [(ngModel)]="sourceForm.enabled" />
       </label>
+      <label class="form-field toggle-row">
+        {{ 'sources.fieldAutoPublish' | translate }}
+        <input type="checkbox" [(ngModel)]="sourceForm.auto_publish_enabled" />
+      </label>
+    </div>
+
+    <div class="criteria-summary" *ngIf="sourceForm.auto_publish_enabled">
+      <div class="criteria-summary-head">
+        <span>{{ 'sources.autoPublishCriteria' | translate }}</span>
+        <strong>{{ criteriaMode(sourceForm) }} · {{ criteriaThreshold(sourceForm) }}</strong>
+      </div>
+      <ul>
+        <li *ngFor="let check of criteriaChecks(sourceForm)">{{ check }}</li>
+      </ul>
     </div>
 
     <fieldset class="crawl-group">
@@ -147,6 +157,32 @@
       <button class="btn-primary" (click)="saveSource()" [disabled]="savingSource()">
         {{ savingSource() ? ('common.saving' | translate) : (sourceModalTarget ? ('sources.saveChanges' | translate) : ('sources.createSource' | translate)) }}
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- Criteria modal -->
+<div class="modal-backdrop" *ngIf="criteriaModalSource as criteriaSource" (click)="closeCriteriaModal()">
+  <div class="modal criteria-modal" (click)="$event.stopPropagation()">
+    <h2>{{ 'sources.autoPublishCriteria' | translate }}</h2>
+    <div class="criteria-facts">
+      <div>
+        <span>{{ 'sources.criteriaModeLabel' | translate }}</span>
+        <strong>{{ criteriaMode(criteriaSource) }}</strong>
+      </div>
+      <div>
+        <span>{{ 'sources.criteriaMinConfidence' | translate }}</span>
+        <strong>{{ criteriaThreshold(criteriaSource) }}</strong>
+      </div>
+    </div>
+
+    <h3>{{ 'sources.criteriaRequiredChecks' | translate }}</h3>
+    <ul class="criteria-list">
+      <li *ngFor="let check of criteriaChecks(criteriaSource)">{{ check }}</li>
+    </ul>
+
+    <div class="modal-actions">
+      <button class="btn-primary" (click)="closeCriteriaModal()">{{ 'common.close' | translate }}</button>
     </div>
   </div>
 </div>

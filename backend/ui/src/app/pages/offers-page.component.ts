@@ -7,6 +7,7 @@ import {
   CountryLookup,
   DomainLookup,
   Offer,
+  OfferContactInput,
   OfferCreateRequest,
   OfferQueryParams,
   OfferTypeLookup,
@@ -59,9 +60,10 @@ export class OffersPageComponent implements OnInit, OnDestroy {
   // Create / Edit modal
   showOfferModal = false;
   editTargetId: string | null = null;
-  offerForm: OfferCreateRequest = this.emptyForm();
+  offerForm: OfferCreateRequest & { contact: OfferContactInput } = this.emptyForm();
   savingOffer = false;
   offerFormError = '';
+  contactFormError = '';
   noOrgError = false;
 
   // Delete confirm
@@ -198,6 +200,7 @@ export class OffersPageComponent implements OnInit, OnDestroy {
     this.editTargetId = null;
     this.offerForm = this.emptyForm();
     this.offerFormError = '';
+    this.contactFormError = '';
     this.showOfferModal = true;
   }
 
@@ -213,15 +216,30 @@ export class OffersPageComponent implements OnInit, OnDestroy {
       status: offer.status as 'draft' | 'published' | 'archived',
       domains: [...(offer.domains ?? [])],
       organization_id: offer.organization?.id ?? '',
+      contact: {
+        name: offer.contact?.name ?? '',
+        email: offer.contact?.email ?? null,
+        phone: offer.contact?.phone ?? null,
+        linkedin: offer.contact?.linkedin ?? null,
+      },
     };
     this.offerFormError = '';
+    this.contactFormError = '';
     this.showOfferModal = true;
   }
 
   saveOffer(): void {
     this.offerFormError = '';
+    this.contactFormError = '';
+
+    const { contact, error } = this.buildContactPayload();
+    if (error) {
+      this.contactFormError = error;
+      return;
+    }
+
     this.savingOffer = true;
-    const payload = { ...this.offerForm };
+    const payload: OfferCreateRequest = { ...this.offerForm, contact };
     if (this.auth.isOfferManager) delete payload['organization_id'];
 
     const obs = this.editTargetId
@@ -241,7 +259,7 @@ export class OffersPageComponent implements OnInit, OnDestroy {
           this.noOrgError = true;
           this.showOfferModal = false;
         } else {
-          this.offerFormError = body?.message ?? 'Save failed.';
+          this.offerFormError = body?.detail ?? body?.message ?? 'Save failed.';
         }
       },
     });
@@ -276,7 +294,7 @@ export class OffersPageComponent implements OnInit, OnDestroy {
     this.offerForm.domains = Array.from(names);
   }
 
-  private emptyForm(): OfferCreateRequest {
+  private emptyForm(): OfferCreateRequest & { contact: OfferContactInput } {
     return {
       title: '',
       summary: '',
@@ -287,7 +305,45 @@ export class OffersPageComponent implements OnInit, OnDestroy {
       status: 'draft',
       domains: [],
       organization_id: '',
+      contact: {
+        name: '',
+        email: null,
+        phone: null,
+        linkedin: null,
+      },
     };
+  }
+
+  private buildContactPayload(): { contact: OfferContactInput | null; error: string | null } {
+    const contact = this.offerForm.contact;
+    const name = this.cleanContactValue(contact?.name);
+    const email = this.cleanContactValue(contact?.email);
+    const phone = this.cleanContactValue(contact?.phone);
+    const linkedin = this.cleanContactValue(contact?.linkedin);
+
+    if (!name && !email && !phone && !linkedin) {
+      return { contact: null, error: null };
+    }
+    if (!name) {
+      return { contact: null, error: 'Contact name is required if any contact field is filled in.' };
+    }
+    if (!email && !phone) {
+      return { contact: null, error: 'Provide a contact email or phone number.' };
+    }
+
+    return {
+      contact: {
+        name,
+        email: email || null,
+        phone: phone || null,
+        linkedin: linkedin || null,
+      },
+      error: null,
+    };
+  }
+
+  private cleanContactValue(value: string | null | undefined): string {
+    return (value ?? '').trim();
   }
 
   private fetchOffers(): void {

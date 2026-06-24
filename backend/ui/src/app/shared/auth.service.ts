@@ -49,6 +49,10 @@ export class AuthService {
     return this.profile === 'Admin';
   }
 
+  get isTeacher(): boolean {
+    return this.profile === 'Teacher';
+  }
+
   get isOfferManager(): boolean {
     return ['Teacher', 'Company'].includes(this.profile ?? '');
   }

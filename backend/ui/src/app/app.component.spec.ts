@@ -30,6 +30,12 @@ describe('AppComponent', () => {
     auth.currentUser = { username: 'tester', email: 'tester@example.com', profile: 'Admin' };
   };
 
+  const enableTeacher = (): void => {
+    const auth = TestBed.inject(AuthService);
+    auth.loggedIn = true;
+    auth.currentUser = { username: 'teacher', email: 'teacher@example.com', profile: 'Teacher' };
+  };
+
   it('should create the app', () => {
     const fixture = TestBed.createComponent(AppComponent);
     expect(fixture.componentInstance).toBeTruthy();
@@ -50,6 +56,27 @@ describe('AppComponent', () => {
     expect(hrefs).toContain('/offers');
     expect(hrefs).toContain('/admin/scrapper');
     expect(hrefs).toContain('/admin/users');
+  });
+
+  it('Teacher user sees Sources nav link', () => {
+    enableTeacher();
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    http.match(() => true).forEach(r => r.flush({ count: 0, results: [] }));
+    const el = fixture.nativeElement as HTMLElement;
+    const hrefs = Array.from(el.querySelectorAll('a')).map(a => a.getAttribute('href'));
+    expect(hrefs).toContain('/admin/sources');
+  });
+
+  it('Teacher user does not see admin-only nav links', () => {
+    enableTeacher();
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    http.match(() => true).forEach(r => r.flush({ count: 0, results: [] }));
+    const el = fixture.nativeElement as HTMLElement;
+    const hrefs = Array.from(el.querySelectorAll('a')).map(a => a.getAttribute('href'));
+    expect(hrefs).not.toContain('/admin/users');
+    expect(hrefs).not.toContain('/admin/organizations');
   });
 
   // ── Change password modal ──────────────────────────────────────────────

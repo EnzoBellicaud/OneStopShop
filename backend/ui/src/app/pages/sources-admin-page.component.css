@@ -114,6 +114,23 @@ header h1 {
 
 .data-table tr:hover td { background: #f8fbff; }
 
+.auto-publish-cell {
+  white-space: nowrap;
+}
+
+.criteria-link {
+  border: none;
+  background: transparent;
+  color: #246b9f;
+  cursor: pointer;
+  font-size: 0.74rem;
+  font-weight: 600;
+  margin-left: 0.35rem;
+  padding: 0.1rem 0.15rem;
+}
+
+.criteria-link:hover { text-decoration: underline; }
+
 /* ── Modal form ──────────────────────────────────────────── */
 .form-grid {
   display: grid;
@@ -220,6 +237,70 @@ header h1 {
 .radio-hint { font-size: 0.74rem; color: #6a7e8f; font-weight: 400; }
 
 .modal-lg { max-width: 700px; width: 95vw; }
+
+.criteria-summary {
+  border: 1px solid #d7e5ef;
+  background: #f7fbfe;
+  border-radius: var(--r, 6px);
+  padding: 0.65rem 0.8rem;
+  margin: -0.15rem 0 1rem;
+}
+
+.criteria-summary-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: center;
+  color: #28465d;
+  font-size: 0.8rem;
+  margin-bottom: 0.35rem;
+}
+
+.criteria-summary ul,
+.criteria-list {
+  margin: 0;
+  padding-left: 1rem;
+  color: #3d505d;
+  font-size: 0.8rem;
+}
+
+.criteria-summary li,
+.criteria-list li {
+  margin: 0.18rem 0;
+}
+
+.criteria-modal { max-width: 460px; width: 92vw; }
+
+.criteria-modal h3 {
+  margin: 0.9rem 0 0.45rem;
+  color: var(--ink, #111110);
+  font-size: 0.9rem;
+}
+
+.criteria-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.criteria-facts div {
+  border: 1px solid #d7e5ef;
+  border-radius: var(--r, 6px);
+  padding: 0.55rem 0.65rem;
+  background: #f7fbfe;
+}
+
+.criteria-facts span {
+  display: block;
+  color: #6a7e8f;
+  font-size: 0.72rem;
+  margin-bottom: 0.2rem;
+}
+
+.criteria-facts strong {
+  color: #18384f;
+  font-size: 0.92rem;
+}
 
 /* ── Misc ────────────────────────────────────────────────── */
 .center { text-align: center; }

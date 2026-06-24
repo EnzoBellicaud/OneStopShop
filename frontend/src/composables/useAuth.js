@@ -6,7 +6,7 @@ const _token = ref(localStorage.getItem('access_token') ?? null)
 const _isLoggedIn = computed(() => !!_user.value)
 
 window.addEventListener('auth:logout', () => { _user.value = null; _token.value = null })
-window.addEventListener('auth:login', (e) => { _user.value = e.detail })
+window.addEventListener('auth:login', (e) => { _user.value = e.detail; _token.value = localStorage.getItem('access_token') ?? null })
 
 function _persist(data) {
   localStorage.setItem('access_token', data.tokens.access_token)
@@ -34,7 +34,7 @@ export function useAuth() {
         } else if (data.error === 'inactive') {
           error.value = 'Your account has been deactivated.'
         } else if (data.error === 'email_not_verified') {
-          error.value = 'Your email address has not been verified yet. Contact an admin.'
+          error.value = 'Please verify your email before logging in. Check your inbox for the confirmation link we sent you.'
         } else {
           error.value = data.detail ?? 'Login failed'
         }

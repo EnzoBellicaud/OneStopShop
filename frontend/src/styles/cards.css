@@ -159,6 +159,36 @@
 
 .card-org { font-size: 12px; color: #888; }
 
+.card-contact-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 8px;
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+
+.card-contact-label {
+  color: #aaa;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.card-contact-link {
+  color: #555;
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.card-contact-link:hover {
+  color: var(--ink);
+  text-decoration: underline;
+}
+
+.card-contact-text {
+  color: #555;
+}
+
 .card-domains {
   display: flex;
   flex-wrap: wrap;

@@ -235,6 +235,46 @@
         </label>
       }
       <fieldset class="modal-fieldset">
+        <legend>Contact information</legend>
+        <div class="modal-grid">
+          <label>Name
+            <input
+              type="text"
+              [(ngModel)]="offerForm.contact.name"
+              class="modal-input"
+              placeholder="e.g. Sarah J. Peterson"
+            />
+          </label>
+          <label>Email
+            <input
+              type="email"
+              [(ngModel)]="offerForm.contact.email"
+              class="modal-input"
+              placeholder="sjp.email@example.com"
+            />
+          </label>
+          <label>Phone
+            <input
+              type="tel"
+              [(ngModel)]="offerForm.contact.phone"
+              class="modal-input"
+              placeholder="+1 415 555 0199"
+            />
+          </label>
+          <label>LinkedIn
+            <input
+              type="url"
+              [(ngModel)]="offerForm.contact.linkedin"
+              class="modal-input"
+              placeholder="https://www.linkedin.com/in/sjpeterson"
+            />
+          </label>
+        </div>
+        @if (contactFormError) {
+          <p class="field-error">{{ contactFormError }}</p>
+        }
+      </fieldset>
+      <fieldset class="modal-fieldset">
         <legend>{{ 'offers.domains' | translate }}</legend>
         <div class="chip-grid">
           @for (d of domains; track d.id) {

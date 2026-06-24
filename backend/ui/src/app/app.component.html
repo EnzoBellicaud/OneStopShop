@@ -20,6 +20,9 @@
           <a routerLink="/admin/scrapper" routerLinkActive="active">{{ 'nav.scrapperTracking' | translate }}</a>
           <a routerLink="/admin/import" routerLinkActive="active">{{ 'nav.bulkImport' | translate }}</a>
         }
+        @if (auth.isTeacher) {
+          <a routerLink="/admin/sources" routerLinkActive="active">Sources</a>
+        }
       </nav>
       <div class="user-section">
         <a [href]="publicSiteUrl" target="_blank" class="cross-portal-link" rel="noopener">{{ 'nav.publicSite' | translate }}</a>

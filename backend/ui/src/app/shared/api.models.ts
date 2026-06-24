@@ -85,8 +85,25 @@ export interface Offer {
   target_profile: string;
   domains: string[];
   details: Record<string, unknown>;
+  contact: OfferContact | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface OfferContact {
+  contact_id: string;
+  role_label: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  linkedin: string | null;
+}
+
+export interface OfferContactInput {
+  name: string;
+  email: string | null;
+  phone: string | null;
+  linkedin: string | null;
 }
 
 export interface OfferListResponse {
@@ -552,7 +569,7 @@ export interface ScrapingSource {
   url: string;
   organization_id: string | null;
   organization_name: string | null;
-  target_profile: string;
+  target_profile: 'student' | 'company' | 'researcher';
   country: string;
   domain_names: string[];
   interval_minutes: number;
@@ -563,6 +580,8 @@ export interface ScrapingSource {
   crawl_max_pages: number;
   crawl_match_patterns: string[];
   crawl_exclude_patterns: string[];
+  auto_publish_enabled: boolean;
+  auto_publish_mode: 'llm' | 'deterministic';
   created_at: string;
   updated_at: string;
 }
@@ -572,7 +591,7 @@ export interface ScrapingSourceListResponse {
   results: ScrapingSource[];
 }
 
-export type ScrapingSourceCreateRequest = Omit<ScrapingSource, 'created_at' | 'updated_at' | 'organization_name'> & { organization_id: string };
+export type ScrapingSourceCreateRequest = Omit<ScrapingSource, 'created_at' | 'updated_at' | 'organization_name' | 'key' | 'quality'> & { organization_id: string };
 export type ScrapingSourcePatchRequest = Partial<Omit<ScrapingSourceCreateRequest, 'key'>>;
 
 // ── Allowed domains ────────────────────────────────────────────────────────
@@ -605,6 +624,7 @@ export interface OfferCreateRequest {
   status?: 'draft' | 'published' | 'archived';
   domains?: string[];
   organization_id?: string;
+  contact?: OfferContactInput | null;
 }
 
 export type OfferUpdateRequest = Partial<OfferCreateRequest>;

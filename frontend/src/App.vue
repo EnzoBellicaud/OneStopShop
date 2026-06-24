@@ -12,8 +12,12 @@ import { api } from './services/api.js'
 onMounted(async () => {
   const params = new URLSearchParams(window.location.search)
   const ssoToken = params.get('sso_token')
-  if (!ssoToken || localStorage.getItem('access_token')) return
-
+  if (!ssoToken) return
+  // Always override stale session — new SSO token takes precedence
+  window.dispatchEvent(new Event('auth:logout'))
+  localStorage.removeItem('access_token')
+  localStorage.removeItem('refresh_token')
+  localStorage.removeItem('user')
   localStorage.setItem('access_token', ssoToken)
   try {
     const res = await api.get('/api/auth/me')

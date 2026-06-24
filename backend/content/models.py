@@ -182,6 +182,7 @@ class Contact(TimeStampedModel):
 	contact_name = models.CharField(max_length=255)
 	email = models.EmailField(blank=True, null=True)
 	phone = models.CharField(max_length=50, blank=True, null=True)
+	linkedin = models.URLField(max_length=500, blank=True, null=True)
 	role = models.ForeignKey(ContactRole, on_delete=models.PROTECT, related_name="contacts")
 	organization = models.ForeignKey(
 		Organization,
@@ -576,6 +577,7 @@ class ScrapingSource(models.Model):
 	crawl_max_pages        = models.IntegerField(default=25)
 	crawl_match_patterns   = models.JSONField(default=list)
 	crawl_exclude_patterns = models.JSONField(default=list)
+	auto_publish_enabled   = models.BooleanField(default=False)
 	created_at             = models.DateTimeField(auto_now_add=True)
 	updated_at             = models.DateTimeField(auto_now=True)
 

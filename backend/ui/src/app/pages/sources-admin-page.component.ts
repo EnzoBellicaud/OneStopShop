@@ -10,6 +10,7 @@ import {
 } from '../shared/api.models';
 import { OssApiService } from '../shared/oss-api.service';
 import { TranslatePipe } from '../shared/i18n/translate.pipe';
+import { AuthService } from '../shared/auth.service';
 
 @Component({
   selector: 'app-sources-admin-page',
@@ -23,6 +24,7 @@ export class SourcesAdminPageComponent implements OnInit, OnDestroy {
   organizations: OrganizationLookup[] = [];
   loading = false;
   sourceModalTarget: ScrapingSource | null = null;
+  criteriaModalSource: ScrapingSource | null = null;
   showSourceModal = false;
   savingSource = signal(false);
   deletingSource = signal<string | null>(null);
@@ -31,13 +33,15 @@ export class SourcesAdminPageComponent implements OnInit, OnDestroy {
 
   private readonly destroy$ = new Subject<void>();
 
-  constructor(private readonly api: OssApiService) {}
+  constructor(private readonly api: OssApiService, public readonly auth: AuthService) {}
 
   ngOnInit(): void {
     this.loadSources();
-    this.api.getOrganizations()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({ next: (res) => { this.organizations = res.results; } });
+    if (!this.auth.isTeacher) {
+      this.api.getOrganizations()
+        .pipe(takeUntil(this.destroy$))
+        .subscribe({ next: (res) => { this.organizations = res.results; } });
+    }
   }
 
   ngOnDestroy(): void {
@@ -63,7 +67,6 @@ export class SourcesAdminPageComponent implements OnInit, OnDestroy {
   openEditSource(src: ScrapingSource): void {
     this.sourceModalTarget = src;
     this.sourceForm = {
-      key: src.key,
       name: src.name,
       url: src.url,
       organization_id: src.organization_id ?? '',
@@ -73,11 +76,12 @@ export class SourcesAdminPageComponent implements OnInit, OnDestroy {
       interval_minutes: src.interval_minutes,
       llm_fallback_enabled: src.llm_fallback_enabled,
       enabled: src.enabled,
-      quality: src.quality,
       crawl_depth: src.crawl_depth,
       crawl_max_pages: src.crawl_max_pages,
       crawl_match_patterns: [...src.crawl_match_patterns],
       crawl_exclude_patterns: [...src.crawl_exclude_patterns],
+      auto_publish_enabled: src.auto_publish_enabled,
+      auto_publish_mode: src.auto_publish_mode,
     };
     this.errorMessage = '';
     this.showSourceModal = true;
@@ -88,12 +92,51 @@ export class SourcesAdminPageComponent implements OnInit, OnDestroy {
     this.errorMessage = '';
   }
 
+  openCriteriaModal(src: ScrapingSource): void {
+    this.criteriaModalSource = src;
+  }
+
+  closeCriteriaModal(): void {
+    this.criteriaModalSource = null;
+  }
+
+  criteriaMode(source: Pick<ScrapingSource, 'llm_fallback_enabled'> | ScrapingSourceCreateRequest): 'LLM' | 'Deterministic' {
+    return source.llm_fallback_enabled ? 'LLM' : 'Deterministic';
+  }
+
+  criteriaThreshold(source: Pick<ScrapingSource, 'llm_fallback_enabled'> | ScrapingSourceCreateRequest): string {
+    return source.llm_fallback_enabled ? '0.80' : '0.90';
+  }
+
+  criteriaChecks(source: Pick<ScrapingSource, 'llm_fallback_enabled'> | ScrapingSourceCreateRequest): string[] {
+    if (source.llm_fallback_enabled) {
+      return [
+        'LLM says the page is an offer',
+        'Offer type is resolved',
+        'Title is present',
+        'Summary is present',
+        'Title is not generic',
+      ];
+    }
+    return [
+      'Offer type is resolved by the classifier',
+      'Title is present',
+      'Summary is present',
+      'Summary is not fallback text',
+      'Title is not generic',
+    ];
+  }
+
   saveSource(): void {
     this.savingSource.set(true);
     this.errorMessage = '';
+    const { organization_id, ...formWithoutOrg } = this.sourceForm;
+    const payload = this.auth.isTeacher
+      ? (formWithoutOrg as ScrapingSourceCreateRequest)
+      : this.sourceForm;
     const obs = this.sourceModalTarget
-      ? this.api.patchScrapingSource(this.sourceModalTarget.key, this.sourceForm)
-      : this.api.createScrapingSource(this.sourceForm);
+      ? this.api.patchScrapingSource(this.sourceModalTarget.key, payload)
+      : this.api.createScrapingSource(payload);
     obs.pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
         this.savingSource.set(false);
@@ -113,24 +156,29 @@ export class SourcesAdminPageComponent implements OnInit, OnDestroy {
       .subscribe({ next: (s) => { this.sources = this.sources.map(x => x.key === key ? s : x); } });
   }
 
-  deleteSource(key: string): void {
-    if (!confirm(`Delete source "${key}"?`)) return;
-    this.deletingSource.set(key);
-    this.api.deleteScrapingSource(key).pipe(takeUntil(this.destroy$)).subscribe({
+  toggleSourceAutoPublish(key: string, auto_publish_enabled: boolean): void {
+    this.api.patchScrapingSource(key, { auto_publish_enabled })
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({ next: (s) => { this.sources = this.sources.map(x => x.key === key ? s : x); } });
+  }
+
+  deleteSource(src: ScrapingSource): void {
+    if (!confirm(`Delete source "${src.name}"?`)) return;
+    this.deletingSource.set(src.key);
+    this.api.deleteScrapingSource(src.key).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
         this.deletingSource.set(null);
-        this.sources = this.sources.filter(s => s.key !== key);
+        this.sources = this.sources.filter(s => s.key !== src.key);
       },
       error: () => {
         this.deletingSource.set(null);
-        this.errorMessage = `Failed to delete source "${key}".`;
+        this.errorMessage = `Failed to delete source "${src.name}".`;
       },
     });
   }
 
   emptySourceForm(): ScrapingSourceCreateRequest {
     return {
-      key: '',
       name: '',
       url: '',
       organization_id: '',
@@ -140,11 +188,12 @@ export class SourcesAdminPageComponent implements OnInit, OnDestroy {
       interval_minutes: 360,
       llm_fallback_enabled: true,
       enabled: true,
-      quality: 'real',
       crawl_depth: 1,
       crawl_max_pages: 25,
       crawl_match_patterns: [],
       crawl_exclude_patterns: [],
+      auto_publish_enabled: false,
+      auto_publish_mode: 'llm',
     };
   }
 }

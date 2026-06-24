@@ -14,6 +14,12 @@ from content.auth import require_auth, verify_token
 from content.matching_triggers import refresh_matches_for_offers
 from content.models import Domain, Offer, OfferType, Organization, SourceType, TargetProfile, User, UserOrganization
 from content.scrapers.translation_service import SUPPORTED_LANGUAGES
+from content.services.offer_contact_service import (
+    primary_offer_contact_prefetch,
+    remove_offer_contacts,
+    serialize_primary_contact,
+    sync_primary_contact,
+)
 from content.views._utils import _parse_positive_int
 
 OFFER_MANAGER_PROFILES = [User.ProfileType.TEACHER, User.ProfileType.COMPANY]
@@ -54,6 +60,7 @@ def _offer_to_dict(offer: Offer, lang: str | None = None) -> dict:
             "name": offer.organization.name,
             "type": offer.organization.type,
             "country": offer.organization.country,
+            "website": offer.organization.website,
         },
         "source_type": offer.source_type.name,
         "target_profile": offer.target_profile.name,
@@ -62,7 +69,28 @@ def _offer_to_dict(offer: Offer, lang: str | None = None) -> dict:
         "deadline": offer.deadline.isoformat() if offer.deadline else None,
         "created_at": offer.created_at.isoformat(),
         "updated_at": offer.updated_at.isoformat(),
+        "contact": serialize_primary_contact(offer),
     }
+
+
+def _offer_for_response(offer_id):
+    return (
+        Offer.objects.select_related("offer_type", "organization", "source_type", "target_profile")
+        .prefetch_related(
+            "domains",
+            primary_offer_contact_prefetch(),
+        )
+        .get(id=offer_id)
+    )
+
+
+def _run_matching_if_published(offer: Offer) -> None:
+    if offer.status != Offer.OfferStatus.PUBLISHED:
+        return
+
+    from content.matching_service import run_matching_for_offers
+
+    run_matching_for_offers([offer.id])
 
 
 def _try_verify_token(request) -> dict | None:
@@ -100,7 +128,10 @@ def offers(request):
                 "source_type",
                 "target_profile",
             )
-            .prefetch_related("domains")
+            .prefetch_related(
+                "domains",
+                primary_offer_contact_prefetch(),
+            )
         )
 
         # Org-scoping for authenticated Teacher/Company
@@ -245,32 +276,33 @@ def _create_offer(request):
 
     domain_names = body.get("domains", [])
 
-    with transaction.atomic():
-        offer = Offer.objects.create(
-            title=title,
-            summary=summary,
-            link=link,
-            country=country,
-            offer_type=offer_type,
-            organization=org,
-            target_profile=target_profile,
-            source_type=source_type,
-            status=status_val,
-            deadline=deadline,
-            created_by=user,
-            updated_by=user,
-            details={},
-        )
-        if domain_names:
-            domains_qs = Domain.objects.filter(name__in=domain_names)
-            offer.domains.set(domains_qs)
+    try:
+        with transaction.atomic():
+            offer = Offer.objects.create(
+                title=title,
+                summary=summary,
+                link=link,
+                country=country,
+                offer_type=offer_type,
+                organization=org,
+                target_profile=target_profile,
+                source_type=source_type,
+                status=status_val,
+                deadline=deadline,
+                created_by=user,
+                updated_by=user,
+                details={},
+            )
+            if domain_names:
+                domains_qs = Domain.objects.filter(name__in=domain_names)
+                offer.domains.set(domains_qs)
+            if "contact" in body:
+                sync_primary_contact(offer, body["contact"])
+    except ValueError as exc:
+        return JsonResponse({"detail": str(exc)}, status=400)
 
-    offer = (
-        Offer.objects.select_related("offer_type", "organization", "source_type", "target_profile")
-        .prefetch_related("domains")
-        .get(id=offer.id)
-    )
-    refresh_matches_for_offers([offer.id])
+    offer = _offer_for_response(offer.id)
+    _run_matching_if_published(offer)
     return JsonResponse(_offer_to_dict(offer), status=201)
 
 
@@ -286,7 +318,10 @@ def offer_detail(request, offer_id: str):
             Offer.objects.select_related(
                 "offer_type", "organization", "source_type", "target_profile",
             )
-            .prefetch_related("domains")
+            .prefetch_related(
+                "domains",
+                primary_offer_contact_prefetch(),
+            )
             .filter(id=parsed_id)
             .first()
         )
@@ -309,7 +344,10 @@ def _update_offer(request, parsed_id: UUID):
 
     offer = (
         Offer.objects.select_related("offer_type", "organization", "source_type", "target_profile")
-        .prefetch_related("domains")
+        .prefetch_related(
+            "domains",
+            primary_offer_contact_prefetch(),
+        )
         .filter(id=parsed_id)
         .first()
     )
@@ -369,16 +407,22 @@ def _update_offer(request, parsed_id: UUID):
         offer.target_profile = tp
         update_fields.append("target_profile")
 
-    offer.save(update_fields=update_fields)
+    try:
+        with transaction.atomic():
+            offer.save(update_fields=update_fields)
 
-    if "domains" in body:
-        domain_names = body["domains"]
-        if isinstance(domain_names, list):
-            domains_qs = Domain.objects.filter(name__in=domain_names)
-            offer.domains.set(domains_qs)
+            if "domains" in body:
+                domain_names = body["domains"]
+                if isinstance(domain_names, list):
+                    domains_qs = Domain.objects.filter(name__in=domain_names)
+                    offer.domains.set(domains_qs)
+            if "contact" in body:
+                sync_primary_contact(offer, body["contact"])
+    except ValueError as exc:
+        return JsonResponse({"detail": str(exc)}, status=400)
 
-    offer.refresh_from_db()
-    refresh_matches_for_offers([offer.id])
+    offer = _offer_for_response(offer.id)
+    _run_matching_if_published(offer)
     return JsonResponse(_offer_to_dict(offer))
 
 
@@ -395,5 +439,7 @@ def _delete_offer(request, parsed_id: UUID):
         if not org or offer.organization_id != org.id:
             return JsonResponse({"detail": "You can only delete offers from your organization."}, status=403)
 
-    offer.delete()
+    with transaction.atomic():
+        remove_offer_contacts(offer)
+        offer.delete()
     return HttpResponse(status=204)

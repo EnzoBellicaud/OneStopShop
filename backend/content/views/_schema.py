@@ -1,5 +1,5 @@
 def _openapi_spec() -> dict:
-    return {
+    spec = {
         "openapi": "3.0.3",
         "info": {
             "title": "SUNRISE OSS API",
@@ -7,6 +7,16 @@ def _openapi_spec() -> dict:
             "description": "API for offers, lookup tables, scraping run telemetry, and offer import operations.",
         },
         "servers": [{"url": "/"}],
+        "tags": [
+            {"name": "System", "description": "Health and API status endpoints."},
+            {"name": "Lookups", "description": "Reference data used by forms and filters."},
+            {"name": "Offers", "description": "Offer listing, detail, manual creation, update, and deletion."},
+            {"name": "Users", "description": "User profile, dashboard, and organization operations."},
+            {"name": "Needs", "description": "User need management."},
+            {"name": "Favorites", "description": "User saved offers."},
+            {"name": "Matching", "description": "Matching hit operations."},
+            {"name": "Scraping", "description": "Scraping runs, telemetry, source health, and LLM stats."},
+        ],
         "paths": {
             "/api/health": {
                 "get": {
@@ -108,7 +118,37 @@ def _openapi_spec() -> dict:
                             },
                         }
                     },
-                }
+                },
+                "post": {
+                    "summary": "Create manual offer",
+                    "description": "Admin, teacher, or company users only. Teachers and companies create offers for their linked organization.",
+                    "requestBody": {
+                        "required": True,
+                        "content": {"application/json": {"schema": {"$ref": "#/components/schemas/OfferCreateRequest"}}},
+                    },
+                    "responses": {
+                        "201": {
+                            "description": "Offer created",
+                            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Offer"}}},
+                        },
+                        "400": {
+                            "description": "Invalid request",
+                            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}},
+                        },
+                        "401": {
+                            "description": "Authentication required",
+                            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}},
+                        },
+                        "403": {
+                            "description": "Insufficient permissions or no linked organization",
+                            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}},
+                        },
+                        "404": {
+                            "description": "Organization, offer type, or target profile not found",
+                            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}},
+                        },
+                    },
+                },
             },
             "/api/offers/{offer_id}": {
                 "get": {
@@ -130,7 +170,62 @@ def _openapi_spec() -> dict:
                             "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}},
                         },
                     },
-                }
+                },
+                "patch": {
+                    "summary": "Update manual offer",
+                    "description": "Admin, teacher, or company users only. Teachers and companies can only update offers from their linked organization.",
+                    "parameters": [
+                        {"name": "offer_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}}
+                    ],
+                    "requestBody": {
+                        "required": True,
+                        "content": {"application/json": {"schema": {"$ref": "#/components/schemas/OfferUpdateRequest"}}},
+                    },
+                    "responses": {
+                        "200": {
+                            "description": "Offer updated",
+                            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Offer"}}},
+                        },
+                        "400": {
+                            "description": "Invalid request",
+                            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}},
+                        },
+                        "401": {
+                            "description": "Authentication required",
+                            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}},
+                        },
+                        "403": {
+                            "description": "Insufficient permissions",
+                            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}},
+                        },
+                        "404": {
+                            "description": "Offer, offer type, or target profile not found",
+                            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}},
+                        },
+                    },
+                },
+                "delete": {
+                    "summary": "Delete manual offer",
+                    "description": "Admin, teacher, or company users only. Teachers and companies can only delete offers from their linked organization.",
+                    "parameters": [
+                        {"name": "offer_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}}
+                    ],
+                    "responses": {
+                        "204": {"description": "Offer deleted"},
+                        "401": {
+                            "description": "Authentication required",
+                            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}},
+                        },
+                        "403": {
+                            "description": "Insufficient permissions",
+                            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}},
+                        },
+                        "404": {
+                            "description": "Offer not found",
+                            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}},
+                        },
+                    },
+                },
             },
             "/api/users": {
                 "get": {
@@ -714,6 +809,32 @@ def _openapi_spec() -> dict:
                     },
                     "required": ["id", "name", "type", "country"],
                 },
+                "OfferContact": {
+                    "type": "object",
+                    "nullable": True,
+                    "properties": {
+                        "contact_id": {"type": "string", "format": "uuid"},
+                        "role_label": {"type": "string", "example": "primary_contact"},
+                        "name": {"type": "string"},
+                        "email": {"type": "string", "format": "email", "nullable": True},
+                        "phone": {"type": "string", "nullable": True},
+                        "linkedin": {"type": "string", "format": "uri", "nullable": True},
+                    },
+                    "required": ["contact_id", "role_label", "name", "email", "phone", "linkedin"],
+                },
+                "OfferContactInput": {
+                    "type": "object",
+                    "nullable": True,
+                    "properties": {
+                        "name": {"type": "string"},
+                        "email": {"type": "string", "format": "email", "nullable": True},
+                        "phone": {"type": "string", "nullable": True},
+                        "linkedin": {"type": "string", "format": "uri", "nullable": True},
+                        "role": {"type": "string", "nullable": True},
+                        "role_id": {"type": "string", "format": "uuid", "nullable": True},
+                    },
+                    "required": ["name"],
+                },
                 "Offer": {
                     "type": "object",
                     "properties": {
@@ -729,13 +850,52 @@ def _openapi_spec() -> dict:
                         "target_profile": {"type": "string"},
                         "domains": {"type": "array", "items": {"type": "string"}},
                         "details": {"type": "object", "additionalProperties": True},
+                        "deadline": {"type": "string", "format": "date", "nullable": True},
+                        "contact": {"$ref": "#/components/schemas/OfferContact"},
                         "created_at": {"type": "string", "format": "date-time"},
                         "updated_at": {"type": "string", "format": "date-time"},
                     },
                     "required": [
                         "id", "title", "summary", "link", "country", "status", "offer_type", "organization",
-                        "source_type", "target_profile", "domains", "details", "created_at", "updated_at"
+                        "source_type", "target_profile", "domains", "details", "deadline", "contact",
+                        "created_at", "updated_at"
                     ],
+                },
+                "OfferCreateRequest": {
+                    "type": "object",
+                    "properties": {
+                        "title": {"type": "string"},
+                        "summary": {"type": "string"},
+                        "link": {"type": "string", "format": "uri"},
+                        "country": {"type": "string", "minLength": 2, "maxLength": 2},
+                        "offer_type": {"type": "string"},
+                        "target_profile": {"type": "string"},
+                        "organization_id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "description": "Required for admin users. Ignored for teacher/company users.",
+                        },
+                        "status": {"type": "string", "enum": ["draft", "published", "archived"], "default": "draft"},
+                        "deadline": {"type": "string", "format": "date", "nullable": True},
+                        "domains": {"type": "array", "items": {"type": "string"}},
+                        "contact": {"$ref": "#/components/schemas/OfferContactInput"},
+                    },
+                    "required": ["title", "summary", "link", "country", "offer_type", "target_profile"],
+                },
+                "OfferUpdateRequest": {
+                    "type": "object",
+                    "properties": {
+                        "title": {"type": "string"},
+                        "summary": {"type": "string"},
+                        "link": {"type": "string", "format": "uri"},
+                        "country": {"type": "string", "minLength": 2, "maxLength": 2},
+                        "status": {"type": "string", "enum": ["draft", "published", "archived"]},
+                        "deadline": {"type": "string", "format": "date", "nullable": True},
+                        "offer_type": {"type": "string"},
+                        "target_profile": {"type": "string"},
+                        "domains": {"type": "array", "items": {"type": "string"}},
+                        "contact": {"$ref": "#/components/schemas/OfferContactInput"},
+                    },
                 },
                 "OfferListResponse": {
                     "type": "object",
@@ -1097,3 +1257,31 @@ def _openapi_spec() -> dict:
             },
         },
     }
+    _apply_openapi_tags(spec)
+    return spec
+
+
+def _apply_openapi_tags(spec: dict) -> None:
+    for path, path_item in spec.get("paths", {}).items():
+        tag = _tag_for_path(path)
+        for operation_name, operation in path_item.items():
+            if operation_name in {"get", "post", "put", "patch", "delete"}:
+                operation.setdefault("tags", [tag])
+
+
+def _tag_for_path(path: str) -> str:
+    if path.startswith("/api/lookups/"):
+        return "Lookups"
+    if path.startswith("/api/offers"):
+        return "Offers"
+    if "/needs" in path:
+        return "Needs"
+    if "/favorites" in path:
+        return "Favorites"
+    if "/matching-hits" in path:
+        return "Matching"
+    if path.startswith("/api/users"):
+        return "Users"
+    if path.startswith("/api/scraping/"):
+        return "Scraping"
+    return "System"
