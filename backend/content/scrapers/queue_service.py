@@ -238,10 +238,10 @@ class UrlScraperService(ScrapeService):
         except requests.exceptions.HTTPError as exc:
             http_status = exc.response.status_code if exc.response is not None else None
             self._handle_http_error(crawl_url, http_status, stats)
-            if http_status in {404, 410}:
+            if http_status is not None and 400 <= http_status < 500:
                 logs.append({"ts": _ts(), "event": "url_archived", "level": "info",
                              "source_key": source.key, "url": crawl_url.url,
-                             "http_status": http_status, "reason": "gone"})
+                             "http_status": http_status, "reason": "client_error"})
             else:
                 logs.append({"ts": _ts(), "event": "url_failed", "level": "warn",
                              "source_key": source.key, "url": crawl_url.url,
@@ -257,11 +257,20 @@ class UrlScraperService(ScrapeService):
         extracted = extract_deterministic(html, page_source)
 
         if is_generic_page(extracted.title):
-            stats["neglected"] += 1
-            LOGGER.info("[%s] NEGLECT %s — generic_page_title", source.key, crawl_url.url)
-            logs.append({"ts": _ts(), "event": "url_neglected", "level": "info",
-                         "source_key": source.key, "url": crawl_url.url, "reason": "generic_page_title"})
-            self._mark_done(crawl_url)
+            if crawl_url.offer_id is not None:
+                self._archive_offer(crawl_url)
+                crawl_url.status = CrawlUrl.UrlStatus.ARCHIVED
+                crawl_url.save()
+                stats["archived"] += 1
+                LOGGER.info("[%s] ARCHIVE %s — generic_page (offer existed)", source.key, crawl_url.url)
+                logs.append({"ts": _ts(), "event": "url_archived", "level": "info",
+                             "source_key": source.key, "url": crawl_url.url, "reason": "generic_page"})
+            else:
+                stats["neglected"] += 1
+                LOGGER.info("[%s] NEGLECT %s — generic_page_title", source.key, crawl_url.url)
+                logs.append({"ts": _ts(), "event": "url_neglected", "level": "info",
+                             "source_key": source.key, "url": crawl_url.url, "reason": "generic_page_title"})
+                self._mark_done(crawl_url)
             return
 
         if self.use_llm_fallback and source.llm_fallback_enabled:
@@ -414,8 +423,8 @@ class UrlScraperService(ScrapeService):
         crawl_url.save()
 
     def _handle_http_error(self, crawl_url: CrawlUrl, http_status: int | None, stats: dict) -> None:
-        if http_status in {404, 410}:
-            LOGGER.info("URL permanently gone (HTTP %s) — %s", http_status, crawl_url.url)
+        if http_status is not None and 400 <= http_status < 500:
+            LOGGER.info("URL client error (HTTP %s) — %s", http_status, crawl_url.url)
             self._archive_offer(crawl_url)
             crawl_url.status = CrawlUrl.UrlStatus.ARCHIVED
             crawl_url.last_http_status = http_status
