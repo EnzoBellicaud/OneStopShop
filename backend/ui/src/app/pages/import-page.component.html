@@ -2,21 +2,21 @@
 
   <!-- Header -->
   <header>
-    <p class="eyebrow">Data Management</p>
-    <h1>Bulk Import Offers</h1>
-    <p class="lead">Upload a CSV or Excel file to import offers into the system. Imported offers are queued for automatic scraping to keep them fresh.</p>
+    <p class="eyebrow">{{ 'import.eyebrow' | translate }}</p>
+    <h1>{{ 'import.title' | translate }}</h1>
+    <p class="lead">{{ 'import.lead' | translate }}</p>
   </header>
 
   <!-- ── STATE 1: UPLOAD ── -->
   <div *ngIf="state() === 'upload'" class="step-card">
     <div class="step-header">
-      <span class="step-badge">Step 1</span>
-      <span class="step-title">Choose a file</span>
+      <span class="step-badge">{{ 'import.step1' | translate }}</span>
+      <span class="step-title">{{ 'import.chooseFile' | translate }}</span>
     </div>
 
     <div class="template-hint">
-      <p class="hint">Need the template? Download it, fill in your offers, then upload it here.</p>
-      <button class="btn-ghost" (click)="onDownloadTemplate()">⬇ Download template (.xlsx)</button>
+      <p class="hint">{{ 'import.templateHint' | translate }}</p>
+      <button class="btn-ghost" (click)="onDownloadTemplate()">{{ 'import.downloadTemplate' | translate }}</button>
     </div>
 
     <div class="upload-zone" [class.has-file]="selectedFile">
@@ -29,7 +29,7 @@
       />
       <label for="file-input" class="upload-label">
         <span class="upload-icon">📂</span>
-        <span *ngIf="!selectedFile" class="upload-text">Click to select CSV or Excel (.xlsx) file</span>
+        <span *ngIf="!selectedFile" class="upload-text">{{ 'import.clickSelect' | translate }}</span>
         <span *ngIf="selectedFile" class="upload-text file-name">{{ selectedFile.name }}</span>
       </label>
     </div>
@@ -42,31 +42,31 @@
         [disabled]="!selectedFile || uploading()"
         (click)="onPreview()"
       >
-        <span *ngIf="!uploading()">Preview →</span>
-        <span *ngIf="uploading()">Parsing…</span>
+        <span *ngIf="!uploading()">{{ 'import.preview' | translate }}</span>
+        <span *ngIf="uploading()">{{ 'import.parsing' | translate }}</span>
       </button>
     </div>
 
     <!-- Column reference -->
     <details class="columns-reference">
-      <summary>Column reference</summary>
+      <summary>{{ 'import.columnReference' | translate }}</summary>
       <table class="data-table">
         <thead>
           <tr>
-            <th>Column</th>
-            <th>Required</th>
-            <th>Notes</th>
+            <th>{{ 'import.thColumn' | translate }}</th>
+            <th>{{ 'import.thRequired' | translate }}</th>
+            <th>{{ 'import.thNotes' | translate }}</th>
           </tr>
         </thead>
         <tbody>
-          <tr><td><code>url</code></td><td>✓</td><td>Must be a valid URL (https://…)</td></tr>
-          <tr><td><code>offer_type</code></td><td>✓</td><td>E.g. training, thesis, internship, research_group…</td></tr>
-          <tr><td><code>organization</code></td><td>✓</td><td>Must match an organisation name in the system</td></tr>
-          <tr><td><code>target_profile</code></td><td>✓</td><td>student / company / researcher</td></tr>
-          <tr><td><code>country</code></td><td>✓</td><td>2-letter ISO code, e.g. IT, SE, DE</td></tr>
-          <tr><td><code>title</code></td><td>–</td><td>Optional — scraper will fill it in</td></tr>
-          <tr><td><code>summary</code></td><td>–</td><td>Optional — scraper will fill it in</td></tr>
-          <tr><td><code>domain_1 … domain_5</code></td><td>–</td><td>One domain per column</td></tr>
+          <tr><td><code>url</code></td><td>✓</td><td>{{ 'import.note_url' | translate }}</td></tr>
+          <tr><td><code>offer_type</code></td><td>✓</td><td>{{ 'import.note_offer_type' | translate }}</td></tr>
+          <tr><td><code>organization</code></td><td>✓</td><td>{{ 'import.note_organization' | translate }}</td></tr>
+          <tr><td><code>target_profile</code></td><td>✓</td><td>{{ 'import.note_target_profile' | translate }}</td></tr>
+          <tr><td><code>country</code></td><td>✓</td><td>{{ 'import.note_country' | translate }}</td></tr>
+          <tr><td><code>title</code></td><td>–</td><td>{{ 'import.note_title' | translate }}</td></tr>
+          <tr><td><code>summary</code></td><td>–</td><td>{{ 'import.note_summary' | translate }}</td></tr>
+          <tr><td><code>domain_1 … domain_5</code></td><td>–</td><td>{{ 'import.note_domains' | translate }}</td></tr>
         </tbody>
       </table>
     </details>
@@ -75,18 +75,18 @@
   <!-- ── STATE 2: PREVIEW ── -->
   <div *ngIf="state() === 'preview'" class="step-card">
     <div class="step-header">
-      <span class="step-badge">Step 2</span>
-      <span class="step-title">Review and confirm</span>
-      <button class="btn-ghost small" (click)="onBack()">← Back</button>
+      <span class="step-badge">{{ 'import.step2' | translate }}</span>
+      <span class="step-title">{{ 'import.reviewConfirm' | translate }}</span>
+      <button class="btn-ghost small" (click)="onBack()">{{ 'import.back' | translate }}</button>
     </div>
 
     <!-- Summary pills -->
     <div class="preview-summary">
-      <span class="pill pill-ok">{{ validRows.length }} valid</span>
-      <span class="pill pill-error" *ngIf="invalidRows.length > 0">{{ invalidRows.length }} invalid</span>
-      <span class="pill pill-new">{{ newRows.length }} new</span>
-      <span class="pill pill-warn" *ngIf="existingRows.length > 0">{{ existingRows.length }} existing</span>
-      <span class="muted small">{{ totalSelected }} selected</span>
+      <span class="pill pill-ok">{{ validRows.length }} {{ 'import.valid' | translate }}</span>
+      <span class="pill pill-error" *ngIf="invalidRows.length > 0">{{ invalidRows.length }} {{ 'import.invalid' | translate }}</span>
+      <span class="pill pill-new">{{ newRows.length }} {{ 'import.new' | translate }}</span>
+      <span class="pill pill-warn" *ngIf="existingRows.length > 0">{{ existingRows.length }} {{ 'import.existing' | translate }}</span>
+      <span class="muted small">{{ totalSelected }} {{ 'import.selected' | translate }}</span>
     </div>
 
     <!-- Tab bar -->
@@ -96,14 +96,14 @@
         [class.active]="activeTab() === 'new'"
         (click)="activeTab.set('new')"
       >
-        New <span class="tab-count">{{ newRows.length }}</span>
+        {{ 'import.tabNew' | translate }} <span class="tab-count">{{ newRows.length }}</span>
       </button>
       <button
         class="tab-btn"
         [class.active]="activeTab() === 'existing'"
         (click)="activeTab.set('existing')"
       >
-        Existing <span class="tab-count tab-count-warn">{{ existingRows.length }}</span>
+        {{ 'import.tabExisting' | translate }} <span class="tab-count tab-count-warn">{{ existingRows.length }}</span>
       </button>
     </div>
 
@@ -117,14 +117,14 @@
                 <input type="checkbox" [checked]="allSelected" [indeterminate]="someSelected" (change)="toggleAll()" />
               </th>
               <th>#</th>
-              <th>URL</th>
-              <th>Title</th>
-              <th>Organization</th>
-              <th>Type</th>
-              <th>Profile</th>
-              <th>Country</th>
-              <th>Status</th>
-              <th>Warnings</th>
+              <th>{{ 'import.thUrl' | translate }}</th>
+              <th>{{ 'import.thTitle' | translate }}</th>
+              <th>{{ 'import.thOrganization' | translate }}</th>
+              <th>{{ 'import.thType' | translate }}</th>
+              <th>{{ 'import.thProfile' | translate }}</th>
+              <th>{{ 'import.thCountry' | translate }}</th>
+              <th>{{ 'import.thStatus' | translate }}</th>
+              <th>{{ 'import.thWarnings' | translate }}</th>
             </tr>
           </thead>
           <tbody>
@@ -145,8 +145,8 @@
                   [value]="getRowStatus(r.row)"
                   (change)="setRowStatus(r.row, $event)"
                 >
-                  <option value="draft">Draft</option>
-                  <option value="published">Published</option>
+                  <option value="draft">{{ 'import.statusDraft' | translate }}</option>
+                  <option value="published">{{ 'import.statusPublished' | translate }}</option>
                 </select>
               </td>
               <td class="small warn-col">
@@ -159,25 +159,25 @@
     </div>
 
     <p *ngIf="activeRows.length === 0" class="muted small" style="padding: 1rem 0">
-      No {{ activeTab() === 'new' ? 'new' : 'existing' }} URLs in this file.
+      {{ (activeTab() === 'new' ? 'import.noUrlsNew' : 'import.noUrlsExisting') | translate }}
     </p>
 
     <!-- Invalid rows -->
     <div *ngIf="invalidRows.length > 0" class="invalid-section">
-      <p class="section-title">Invalid rows — will not be imported</p>
+      <p class="section-title">{{ 'import.invalidTitle' | translate }}</p>
       <div class="table-wrap">
         <table class="data-table">
           <thead>
             <tr>
               <th>#</th>
-              <th>URL / identifier</th>
-              <th>Errors</th>
+              <th>{{ 'import.thUrlId' | translate }}</th>
+              <th>{{ 'import.thErrors' | translate }}</th>
             </tr>
           </thead>
           <tbody>
             <tr *ngFor="let r of invalidRows" class="failed-row">
               <td class="muted small">{{ r.row }}</td>
-              <td class="url-cell small" [title]="r.data['url']">{{ r.data['url'] || '(no url)' }}</td>
+              <td class="url-cell small" [title]="r.data['url']">{{ r.data['url'] || ('import.noUrl' | translate) }}</td>
               <td class="small">
                 <span *ngFor="let e of r.errors" class="error-item">{{ e }}</span>
               </td>
@@ -190,14 +190,14 @@
     <p *ngIf="confirmError()" class="error-msg">{{ confirmError() }}</p>
 
     <div class="step-actions confirm-actions">
-      <span class="muted small">{{ totalSelected }} of {{ validRows.length }} valid rows selected</span>
+      <span class="muted small">{{ 'import.selectedOf' | translate:{ n: totalSelected, total: validRows.length } }}</span>
       <button
         class="btn-primary"
         [disabled]="totalSelected === 0 || confirming()"
         (click)="onConfirm()"
       >
-        <span *ngIf="!confirming()">Import {{ totalSelected }} selected →</span>
-        <span *ngIf="confirming()">Importing…</span>
+        <span *ngIf="!confirming()">{{ 'import.importSelected' | translate:{ n: totalSelected } }}</span>
+        <span *ngIf="confirming()">{{ 'import.importing' | translate }}</span>
       </button>
     </div>
   </div>
@@ -205,20 +205,20 @@
   <!-- ── STATE 3: RESULT ── -->
   <div *ngIf="state() === 'result' && confirmResult" class="step-card result-card">
     <div class="result-icon">✓</div>
-    <h2>Import complete</h2>
+    <h2>{{ 'import.complete' | translate }}</h2>
     <p class="result-summary" *ngIf="confirmResult.published > 0 && confirmResult.drafts > 0">
-      <strong>{{ confirmResult.published }}</strong> published &nbsp;·&nbsp;
-      <strong>{{ confirmResult.drafts }}</strong> saved as draft
+      <strong>{{ confirmResult.published }}</strong> {{ 'import.resultPublished' | translate }} &nbsp;·&nbsp;
+      <strong>{{ confirmResult.drafts }}</strong> {{ 'import.resultSavedDraft' | translate }}
     </p>
     <p class="result-summary" *ngIf="confirmResult.published > 0 && confirmResult.drafts === 0">
-      <strong>{{ confirmResult.published }}</strong> offer{{ confirmResult.published !== 1 ? 's' : '' }} published
+      <strong>{{ confirmResult.published }}</strong> {{ (confirmResult.published !== 1 ? 'import.offers' : 'import.offer') | translate }} {{ 'import.resultOffersPublished' | translate }}
     </p>
     <p class="result-summary" *ngIf="confirmResult.published === 0 && confirmResult.drafts > 0">
-      <strong>{{ confirmResult.drafts }}</strong> offer{{ confirmResult.drafts !== 1 ? 's' : '' }} saved as draft
+      <strong>{{ confirmResult.drafts }}</strong> {{ (confirmResult.drafts !== 1 ? 'import.offers' : 'import.offer') | translate }} {{ 'import.resultOffersSavedDraft' | translate }}
     </p>
-    <p class="hint">Each imported URL has been added to the crawler queue and will be enriched automatically.</p>
+    <p class="hint">{{ 'import.enrichedHint' | translate }}</p>
     <div class="step-actions">
-      <button class="btn-primary" (click)="onReset()">Import another file</button>
+      <button class="btn-primary" (click)="onReset()">{{ 'import.importAnother' | translate }}</button>
     </div>
   </div>
 

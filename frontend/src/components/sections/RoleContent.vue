@@ -3,11 +3,11 @@
     <!-- Hero -->
     <section class="page-hero">
       <div class="page-hero-inner">
-        <p class="section-eyebrow">Opportunities</p>
-        <h1 class="page-title">{{ title || 'What are you looking for?' }}</h1>
-        <p class="page-sub">{{ description || 'Search opportunities or browse by category below.' }}</p>
+        <p class="section-eyebrow">{{ t('role.eyebrow') }}</p>
+        <h1 class="page-title">{{ title || t('role.defaultTitle') }}</h1>
+        <p class="page-sub">{{ description || t('role.defaultDescription') }}</p>
         <div v-if="isSearching" class="hero-actions">
-          <button class="btn-ghost" @click="resetSearch">← Browse categories</button>
+          <button class="btn-ghost" @click="resetSearch">{{ t('role.browseCategories') }}</button>
         </div>
       </div>
     </section>
@@ -17,7 +17,7 @@
       <input
         type="text"
         class="search-input"
-        :placeholder="searchPlaceholder || 'Search opportunities...'"
+        :placeholder="searchPlaceholder || t('role.searchPlaceholder')"
         v-model="searchTerm"
         @focus="isSearching = true"
         @input="onSearchInput"
@@ -36,17 +36,17 @@
           @click="applyShortcut(item)"
         >
           <span class="item-name">{{ itemLabel(item) }}</span>
-          <button class="select-btn">Explore</button>
+          <button class="select-btn">{{ t('role.explore') }}</button>
         </div>
       </div>
 
       <!-- Search results -->
       <div v-else class="results-layout">
         <aside class="side-filters">
-          <h3>Filters</h3>
+          <h3>{{ t('role.filters') }}</h3>
 
           <div class="filter-group">
-            <h4>Category</h4>
+            <h4>{{ t('role.category') }}</h4>
             <label v-for="cat in validShortcuts" :key="itemValue(cat)" class="checkbox-item">
               <input
                 type="checkbox"
@@ -58,7 +58,7 @@
           </div>
 
           <div class="filter-group">
-            <h4>University</h4>
+            <h4>{{ t('role.university') }}</h4>
             <label v-for="uni in universities" :key="uni.value" class="checkbox-item">
               <input
                 type="checkbox"
@@ -70,7 +70,7 @@
           </div>
 
           <div class="filter-group">
-            <h4>Domain</h4>
+            <h4>{{ t('role.domain') }}</h4>
             <label v-for="dom in visibleDomains" :key="dom" class="checkbox-item">
               <input
                 type="checkbox"
@@ -80,30 +80,30 @@
               {{ dom.replace(/_/g, ' ') }}
             </label>
             <button v-if="validDomains.length > DOMAIN_PREVIEW" class="show-more-btn" @click="showAllDomains = !showAllDomains">
-              {{ showAllDomains ? 'Show less ↑' : `+${validDomains.length - DOMAIN_PREVIEW} more` }}
+              {{ showAllDomains ? t('role.showLess') : t('role.showMore', { count: validDomains.length - DOMAIN_PREVIEW }) }}
             </button>
           </div>
 
-          <button class="reset-btn" @click="resetSearch">Reset All</button>
+          <button class="reset-btn" @click="resetSearch">{{ t('role.resetAll') }}</button>
         </aside>
 
         <main class="results-grid">
           <div class="results-controls">
             <div class="results-header">
-              <template v-if="loading">Loading…</template>
+              <template v-if="loading">{{ t('role.loading') }}</template>
               <template v-else-if="fetchError">{{ fetchError }}</template>
-              <template v-else>{{ total }} result{{ total !== 1 ? 's' : '' }} found</template>
+              <template v-else>{{ total }} {{ t('role.result', total) }}</template>
             </div>
             <div class="sort-bar">
-              <span class="sort-label">Sort:</span>
+              <span class="sort-label">{{ t('role.sort') }}</span>
               <button
                 v-for="opt in SORT_OPTIONS"
                 :key="opt.value"
                 :class="['sort-btn', { active: sortBy === opt.value }]"
                 @click="setSortBy(opt.value)"
-              >{{ opt.label }}</button>
-              <button class="sort-order-btn" @click="toggleSortOrder" :title="sortOrder === 'asc' ? 'Switch to descending' : 'Switch to ascending'">
-                {{ sortOrder === 'asc' ? '↑ Asc' : '↓ Desc' }}
+              >{{ t(opt.labelKey) }}</button>
+              <button class="sort-order-btn" @click="toggleSortOrder" :title="sortOrder === 'asc' ? t('role.switchToDesc') : t('role.switchToAsc')">
+                {{ sortOrder === 'asc' ? t('role.asc') : t('role.desc') }}
               </button>
             </div>
           </div>
@@ -113,7 +113,7 @@
           </div>
 
           <div v-else-if="!loading && offers.length === 0" class="empty-state">
-            No opportunities found. Try a different search or reset the filters.
+            {{ t('role.empty') }}
           </div>
 
           <div v-else class="cards-container">
@@ -128,7 +128,7 @@
                 <button
                   v-if="user"
                   :class="['fav-btn', { saved: favIds.has(offer.id) }]"
-                  :title="favIds.has(offer.id) ? 'Remove from favorites' : 'Save to favorites'"
+                  :title="favIds.has(offer.id) ? t('role.removeFav') : t('role.saveFav')"
                   :disabled="togglingFav === offer.id"
                   @click.stop="toggleFavorite(offer)"
                 >{{ favIds.has(offer.id) ? '★' : '☆' }}</button>
@@ -142,7 +142,7 @@
               </div>
               <div class="card-footer-row">
                 <span class="card-org">{{ offer.organization.name }}</span>
-                <span class="card-link-hint">Open ↗</span>
+                <span class="card-link-hint">{{ t('role.open') }}</span>
               </div>
               <div class="card-contact-row">
                 <span class="card-contact-label">Contact:</span>
@@ -192,8 +192,11 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { api } from '../../services/api.js'
 import { useAuth } from '../../composables/useAuth.js'
+
+const { t, locale } = useI18n()
 
 const props = defineProps({
   shortcuts: Array,
@@ -305,8 +308,8 @@ async function validateDomains() {
 }
 
 const SORT_OPTIONS = [
-  { label: 'Name',  value: 'title' },
-  { label: 'Date',  value: 'created_at' },
+  { labelKey: 'role.sortName', value: 'title' },
+  { labelKey: 'role.sortDate', value: 'created_at' },
 ]
 
 const DOMAIN_PREVIEW = 5
@@ -335,7 +338,10 @@ const loading = ref(false)
 const fetchError = ref(null)
 
 // ── Shortcut helpers ──────────────────────────────────────────────────────────
-function itemLabel(item) { return typeof item === 'string' ? item : item.label }
+function itemLabel(item) {
+  if (typeof item === 'string') return item
+  return item.labelKey ? t(item.labelKey) : item.label
+}
 function itemValue(item) { return typeof item === 'string' ? item : item.value }
 function itemType(item)  { return typeof item === 'object' && item.type ? item.type : 'offer_type' }
 
@@ -450,15 +456,16 @@ async function fetchOffers() {
     if (activeUniversity.value) params.set('organization', activeUniversity.value)
 
     params.set('ordering', `${sortOrder.value === 'desc' ? '-' : ''}${sortBy.value}`)
+    params.set('lang', locale.value)
 
     const res = await api.get(`/api/offers?${params}`)
-    if (!res.ok) throw new Error('Failed to load offers')
+    if (!res.ok) throw new Error('load-failed')
     const data = await res.json()
     offers.value = data.results
     total.value = data.count
     totalPages.value = data.total_pages
   } catch (e) {
-    fetchError.value = e.message
+    fetchError.value = t('role.loadError')
   } finally {
     loading.value = false
   }
@@ -469,6 +476,11 @@ watch(isSearching, (val) => {
     if (offers.value.length === 0) fetchOffers()
     loadFavIds()
   }
+})
+
+// Re-fetch so cards reflect the newly selected language's cached translations.
+watch(locale, () => {
+  if (isSearching.value) fetchOffers()
 })
 
 onMounted(() => { loadUniversities(); validateShortcuts(); validateDomains() })

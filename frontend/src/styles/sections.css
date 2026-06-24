@@ -1,0 +1,276 @@
+/* ── UNIVERSITIES BAR ── */
+.uni-bar {
+  background: var(--white);
+  padding: 1.25rem 3rem;
+}
+.uni-bar-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 2.5rem;
+}
+.uni-bar-label {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.uni-logos {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.uni-badge {
+  padding: 6px 16px;
+  /* border: 1px solid var(--border); */
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-soft);
+  background: var(--surface);
+  white-space: nowrap;
+}
+
+/* ── STATS ── */
+.stats {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 4rem 3rem;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.5rem;
+}
+.stat-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 1.5rem;
+}
+.stat-num {
+  font-family: 'DM Serif Display', serif;
+  font-size: 36px;
+  color: var(--ink);
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.stat-num span { color: var(--ink); }
+.stat-label { font-size: 13px; color: var(--ink-soft); }
+
+/* ── SECTION HEADER ── */
+.section-header {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 3rem;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+}
+.section-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--red);
+  margin-bottom: 6px;
+}
+.section-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 28px;
+  letter-spacing: -0.5px;
+  color: var(--ink);
+}
+.section-link {
+  font-size: 13px;
+  color: var(--accent-mid);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+/* ── ABOUT ── */
+.about {
+  background: var(--white);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  padding: 6rem 3rem;
+}
+.about-landing {
+  background: var(--blank);
+  border-top: none;
+  border-bottom: none;
+  padding: 6rem 3rem;
+}
+.about-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5rem;
+  align-items: center;
+}
+.about-img {
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  height: 360px;
+  overflow: hidden;
+}
+.about-img-landing {
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  height: 360px;
+  overflow: hidden;
+}
+.about-map-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.about-eyebrow {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 1rem;
+}
+.about h2 {
+  font-family: 'DM Serif Display', serif;
+  font-size: 34px;
+  line-height: 1.15;
+  letter-spacing: -0.5px;
+  margin-bottom: 1.25rem;
+}
+.about h2 em { font-style: italic; color: var(--red); }
+.about p {
+  font-size: 15px;
+  color: var(--ink-soft);
+  line-height: 1.75;
+  margin-bottom: 1rem;
+}
+.about-features {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+.feat {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.feat-icon {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.feat-icon svg { width: 15px; height: 15px; stroke: var(--ink); fill: none; stroke-width: 1.8; }
+.feat-text strong { display: block; font-size: 13px; font-weight: 500; margin-bottom: 2px; }
+.feat-text span { font-size: 12px; color: var(--ink-soft); }
+
+/* ── HOW IT WORKS ── */
+.how {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 6rem 3rem;
+}
+.how-steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  margin-top: 3rem;
+}
+.step {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 2rem 1.5rem;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+}
+.step-landing {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 2rem 1.5rem;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+}
+.step-num {
+  font-family: 'DM Serif Display', serif;
+  font-size: 40px;
+  color: var(--border);
+  line-height: 1;
+  margin-bottom: 1rem;
+}
+.step-num-landing {
+  font-family: 'DM Serif Display', serif;
+  font-size: 40px;
+  color: var(--ink-soft);
+  line-height: 1;
+  margin-bottom: 1rem;
+}
+.step h3 {
+  font-size: 15px;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+.step p { font-size: 13px; color: var(--ink-soft); line-height: 1.6; }
+
+/* ── CONTACT ── */
+.contact {
+  background: var(--ink);
+  padding: 6rem 3rem;
+}
+.contact-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5rem;
+  align-items: center;
+}
+.contact h2 {
+  font-family: 'DM Serif Display', serif;
+  font-size: 36px;
+  color: var(--white);
+  line-height: 1.2;
+  letter-spacing: -0.5px;
+  margin-bottom: 1rem;
+}
+.contact h2 em { font-style: italic; color: rgba(255,255,255,0.65); }
+.contact p { font-size: 15px; color: rgba(255,255,255,0.65); line-height: 1.7; }
+.contact-form { display: flex; flex-direction: column; gap: 12px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-input, .form-textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: var(--r);
+  border: 1px solid rgba(255,255,255,0.25);
+  background: rgba(255,255,255,0.1);
+  color: var(--white);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  outline: none;
+}
+.form-input::placeholder, .form-textarea::placeholder { color: rgba(255,255,255,0.35); }
+.form-textarea { height: 100px; resize: none; }
+.btn-submit {
+  padding: 13px 28px;
+  background: var(--white);
+  color: var(--red);
+  border-radius: var(--r);
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  align-self: flex-start;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.btn-submit:hover { background: var(--red); color: var(--white); }

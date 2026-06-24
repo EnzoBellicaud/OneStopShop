@@ -5,11 +5,14 @@ import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/rou
 import { AuthService } from './shared/auth.service';
 import { OssApiService } from './shared/oss-api.service';
 import { environment } from '../environments/environment';
+import { TranslatePipe } from './shared/i18n/translate.pipe';
+import { TranslationService } from './shared/i18n/translation.service';
+import { LanguageSwitcherComponent } from './shared/components/language-switcher.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, RouterLinkActive, RouterOutlet],
+  imports: [CommonModule, FormsModule, RouterLink, RouterLinkActive, RouterOutlet, TranslatePipe, LanguageSwitcherComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
 })
@@ -28,6 +31,7 @@ export class AppComponent implements OnInit {
     readonly auth: AuthService,
     private readonly api: OssApiService,
     private readonly router: Router,
+    private readonly i18n: TranslationService,
   ) {
     // SSO token always takes precedence — replace any existing session so authGuard passes
     const params = new URLSearchParams(window.location.search);
@@ -81,11 +85,11 @@ export class AppComponent implements OnInit {
 
   submitChangePassword(): void {
     if (this.changePwForm.new_password !== this.changePwForm.confirm) {
-      this.changePwError.set('New passwords do not match.');
+      this.changePwError.set(this.i18n.translate('shell.passwordsNoMatch'));
       return;
     }
     if (this.changePwForm.new_password.length < 8) {
-      this.changePwError.set('New password must be at least 8 characters.');
+      this.changePwError.set(this.i18n.translate('shell.passwordTooShort'));
       return;
     }
     this.changePwError.set(null);
@@ -97,7 +101,7 @@ export class AppComponent implements OnInit {
       },
       error: (err) => {
         this.submittingPw.set(false);
-        this.changePwError.set(err?.error?.detail ?? 'Failed to change password.');
+        this.changePwError.set(err?.error?.detail ?? this.i18n.translate('shell.changeFailed'));
       },
     });
   }

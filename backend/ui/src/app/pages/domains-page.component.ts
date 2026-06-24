@@ -3,11 +3,12 @@ import { Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AllowedDomainCreateRequest, AllowedDomainItem, OrganizationLookup } from '../shared/api.models';
 import { OssApiService } from '../shared/oss-api.service';
+import { TranslatePipe } from '../shared/i18n/translate.pipe';
 
 @Component({
   selector: 'app-domains-page',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TranslatePipe],
   templateUrl: './domains-page.component.html',
   styleUrls: ['./domains-page.component.css'],
 })

@@ -127,7 +127,7 @@
               <div class="filter-chips">
                 <select v-model="matchFilter" class="db-select" @change="loadMatches">
                   <option value="">{{ t('dashboard.allStatuses') }}</option>
-                  <option v-for="s in ['new','viewed','interested','declined']" :key="s" :value="s">{{ s }}</option>
+                  <option v-for="s in ['new','viewed','interested','declined']" :key="s" :value="s">{{ t('dashboard.statuses.' + s) }}</option>
                 </select>
                 <select v-model="matchSort" class="db-select" @change="loadMatches">
                   <option value="-match_score">{{ t('dashboard.bestScoreFirst') }}</option>
@@ -145,7 +145,7 @@
                 </div>
                 <p class="item-meta">
                   {{ hit.need.title }} ·
-                  <span :class="'status-tag status-' + hit.status">{{ hit.status }}</span>
+                  <span :class="'status-tag status-' + hit.status">{{ t('dashboard.statuses.' + hit.status) }}</span>
                 </p>
                 <p class="item-desc">{{ hit.match_reason }}</p>
                 <a :href="hit.offer.link" target="_blank" rel="noopener noreferrer" class="ext-link">
@@ -157,7 +157,7 @@
                     :class="['btn-ghost', { active: hit.status === s }]"
                     :disabled="updatingHit === hit.id"
                     @click="updateHitStatus(hit.id, s)"
-                  >{{ s }}</button>
+                  >{{ t('dashboard.statuses.' + s) }}</button>
                 </div>
               </li>
               <li v-if="matchingHits.length === 0" class="db-empty-state">
@@ -406,9 +406,9 @@ onMounted(() => {
   transition: all 0.15s;
 }
 .chip.active, .chip:hover {
-  background: var(--ink);
+  background: var(--red);
   color: var(--white);
-  border-color: var(--ink);
+  border-color: var(--red);
 }
 
 .db-select {
@@ -503,16 +503,17 @@ onMounted(() => {
 
 .btn-primary {
   padding: 0.5rem 1.1rem;
-  background: var(--ink);
+  background: var(--red-grad);
   color: var(--white);
   border: none;
   border-radius: var(--r);
   font-size: 0.88rem;
   cursor: pointer;
   font-family: inherit;
-  transition: opacity 0.15s;
+  box-shadow: 0 2px 6px rgba(124, 26, 26, 0.22);
+  transition: filter 0.15s ease, box-shadow 0.15s ease;
 }
-.btn-primary:hover { opacity: 0.85; }
+.btn-primary:hover { filter: brightness(1.07); box-shadow: 0 5px 14px rgba(124, 26, 26, 0.28); }
 
 .btn-ghost {
   padding: 0.35rem 0.75rem;
@@ -526,9 +527,9 @@ onMounted(() => {
   transition: all 0.15s;
 }
 .btn-ghost:hover, .btn-ghost.active {
-  background: var(--ink);
+  background: var(--red);
   color: var(--white);
-  border-color: var(--ink);
+  border-color: var(--red);
 }
 .btn-ghost:disabled { opacity: 0.45; cursor: not-allowed; }
 

@@ -2,9 +2,9 @@
   <div>
     <AppHeader />
 
-    <div v-if="!user" class="pf-empty-page">
-      Please <router-link to="/login">log in</router-link> to view your profile.
-    </div>
+    <i18n-t v-if="!user" keypath="pf.loginPrompt" tag="div" class="pf-empty-page">
+      <template #link><router-link to="/login">{{ t('pf.loginLink') }}</router-link></template>
+    </i18n-t>
 
     <template v-else>
       <section class="page-hero pf-page-hero">
@@ -14,7 +14,7 @@
             <p class="section-eyebrow">{{ user.profile }}</p>
             <h1 class="page-title">{{ fullName }}</h1>
           </div>
-          <router-link to="/dashboard" class="btn-nav pf-dash-btn">Dashboard</router-link>
+          <router-link to="/dashboard" class="btn-nav pf-dash-btn">{{ t('pf.dashboard') }}</router-link>
         </div>
       </section>
 
@@ -22,22 +22,22 @@
         <div class="pf-grid">
 
           <section class="pf-card">
-            <h2 class="pf-card-title">Account details</h2>
+            <h2 class="pf-card-title">{{ t('pf.accountDetails') }}</h2>
             <div class="pf-fields">
               <div class="pf-field">
-                <label>Full name</label>
+                <label>{{ t('pf.fullName') }}</label>
                 <p>{{ fullName }}</p>
               </div>
               <div class="pf-field">
-                <label>Email</label>
+                <label>{{ t('pf.email') }}</label>
                 <p>{{ user.email }}</p>
               </div>
               <div class="pf-field">
-                <label>Username</label>
+                <label>{{ t('pf.username') }}</label>
                 <p>@{{ user.username }}</p>
               </div>
               <div class="pf-field">
-                <label>Role</label>
+                <label>{{ t('pf.role') }}</label>
                 <p>{{ user.profile }}</p>
               </div>
             </div>
@@ -45,18 +45,18 @@
             <div class="pf-stats">
               <div class="pf-stat">
                 <strong>{{ favLoading ? '—' : favorites.length }}</strong>
-                <span>Saved favorites</span>
+                <span>{{ t('pf.savedFavoritesStat') }}</span>
               </div>
             </div>
           </section>
 
           <section class="pf-card">
-            <h2 class="pf-card-title">Saved Favorites</h2>
+            <h2 class="pf-card-title">{{ t('pf.savedFavorites') }}</h2>
 
-            <div v-if="favLoading" class="pf-loading">Loading…</div>
+            <div v-if="favLoading" class="pf-loading">{{ t('pf.loading') }}</div>
 
             <p v-else-if="favorites.length === 0" class="pf-empty-state">
-              No saved favorites yet. Browse opportunities and star the ones you like.
+              {{ t('pf.noFavorites') }}
             </p>
 
             <ul v-else class="pf-fav-list">
@@ -70,35 +70,35 @@
                   rel="noopener noreferrer"
                   class="pf-fav-title"
                 >{{ fav.offer.title }}</a>
-                <span class="pf-fav-hint">Open ↗</span>
+                <span class="pf-fav-hint">{{ t('pf.open') }}</span>
               </li>
             </ul>
 
             <router-link v-if="favorites.length > 0" to="/dashboard" class="pf-manage-link">
-              Manage all in Dashboard →
+              {{ t('pf.manageAll') }}
             </router-link>
           </section>
 
           <section class="pf-card">
-            <h2 class="pf-card-title">Change Password</h2>
-            <div v-if="pwSuccess" class="pw-success">Password changed successfully.</div>
+            <h2 class="pf-card-title">{{ t('pf.changePassword') }}</h2>
+            <div v-if="pwSuccess" class="pw-success">{{ t('pf.pwSuccess') }}</div>
             <div v-if="pwError" class="pw-error">{{ pwError }}</div>
             <div class="pf-fields">
               <div class="pf-field">
-                <label>Current Password</label>
+                <label>{{ t('pf.currentPassword') }}</label>
                 <input type="password" v-model="pwForm.old_password" class="pw-input" />
               </div>
               <div class="pf-field">
-                <label>New Password</label>
+                <label>{{ t('pf.newPassword') }}</label>
                 <input type="password" v-model="pwForm.new_password" class="pw-input" />
               </div>
               <div class="pf-field">
-                <label>Confirm New Password</label>
+                <label>{{ t('pf.confirmPassword') }}</label>
                 <input type="password" v-model="pwForm.confirm" class="pw-input" />
               </div>
             </div>
             <button class="btn-primary pw-btn" :disabled="pwLoading" @click="submitChangePw">
-              {{ pwLoading ? 'Saving…' : 'Change Password' }}
+              {{ pwLoading ? t('pf.saving') : t('pf.changePassword') }}
             </button>
           </section>
 
@@ -112,11 +112,13 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useAuth } from '../../composables/useAuth.js'
 import { api } from '../../services/api.js'
 import AppHeader from '../layout/AppHeader.vue'
 import AppFooter from '../layout/AppFooter.vue'
 
+const { t } = useI18n()
 const { user, changePassword } = useAuth()
 
 const favLoading = ref(false)
@@ -146,11 +148,11 @@ async function submitChangePw() {
   pwError.value = null
   pwSuccess.value = false
   if (pwForm.value.new_password !== pwForm.value.confirm) {
-    pwError.value = 'Passwords do not match.'
+    pwError.value = t('pf.pwMismatch')
     return
   }
   if (pwForm.value.new_password.length < 8) {
-    pwError.value = 'Password must be at least 8 characters.'
+    pwError.value = t('pf.pwTooShort')
     return
   }
   pwLoading.value = true
@@ -205,7 +207,7 @@ onMounted(async () => {
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: var(--ink);
+  background: var(--red-grad);
   color: #fff;
   display: flex;
   align-items: center;

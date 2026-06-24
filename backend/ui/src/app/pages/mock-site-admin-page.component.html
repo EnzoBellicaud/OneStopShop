@@ -1,13 +1,13 @@
 <div class="page">
   <div class="page-header">
     <div>
-      <p class="page-eyebrow">Admin</p>
-      <h1 class="page-title">Mock Site</h1>
-      <p class="page-desc">Manage the local demo website. Add and remove opportunities to test live scraping.</p>
+      <p class="page-eyebrow">{{ 'dashboard.admin' | translate }}</p>
+      <h1 class="page-title">{{ 'mockSite.title' | translate }}</h1>
+      <p class="page-desc">{{ 'mockSite.desc' | translate }}</p>
     </div>
     <div class="header-actions">
-      <a href="http://localhost:8000/mock/" target="_blank" class="btn-outline">View Mock Site →</a>
-      <button class="btn-primary" (click)="openAddOpportunity()">+ Add Opportunity</button>
+      <a href="http://localhost:8000/mock/" target="_blank" class="btn-outline">{{ 'mockSite.viewSite' | translate }}</a>
+      <button class="btn-primary" (click)="openAddOpportunity()">{{ 'mockSite.addOpportunity' | translate }}</button>
     </div>
   </div>
 
@@ -16,17 +16,17 @@
   }
 
   @if (loadingMock) {
-    <p class="loading-msg">Loading…</p>
+    <p class="loading-msg">{{ 'common.loading' | translate }}</p>
   } @else {
     <div class="table-card">
       <table class="data-table">
         <thead>
           <tr>
-            <th>Title</th>
-            <th>Offer Type</th>
-            <th>Target Profile</th>
-            <th>Added</th>
-            <th>Actions</th>
+            <th>{{ 'mockSite.thTitle' | translate }}</th>
+            <th>{{ 'mockSite.thOfferType' | translate }}</th>
+            <th>{{ 'mockSite.thTargetProfile' | translate }}</th>
+            <th>{{ 'mockSite.thAdded' | translate }}</th>
+            <th>{{ 'common.actions' | translate }}</th>
           </tr>
         </thead>
         <tbody>
@@ -40,13 +40,13 @@
                 <button class="btn-sm btn-danger"
                         [disabled]="deletingMock === opp.id"
                         (click)="deleteOpportunity(opp.id)">
-                  {{ deletingMock === opp.id ? '…' : 'Delete' }}
+                  {{ deletingMock === opp.id ? '…' : ('common.delete' | translate) }}
                 </button>
               </td>
             </tr>
           }
           @if (mockOpportunities.length === 0) {
-            <tr><td colspan="5" class="empty-row">No opportunities on mock site.</td></tr>
+            <tr><td colspan="5" class="empty-row">{{ 'mockSite.empty' | translate }}</td></tr>
           }
         </tbody>
       </table>
@@ -57,38 +57,38 @@
 @if (showMockModal) {
   <div class="modal-backdrop" (click)="closeMockModal()">
     <div class="modal" (click)="$event.stopPropagation()">
-      <h2>Add Opportunity</h2>
+      <h2>{{ 'mockSite.addTitle' | translate }}</h2>
       @if (mockError) {
         <p class="error-msg">{{ mockError }}</p>
       }
-      <label>Title
-        <input type="text" [(ngModel)]="mockForm.title" class="modal-input" placeholder="e.g. Python Internship Program" />
+      <label>{{ 'mockSite.fieldTitle' | translate }}
+        <input type="text" [(ngModel)]="mockForm.title" class="modal-input" [placeholder]="'mockSite.titlePlaceholder' | translate" />
       </label>
-      <label>Description
+      <label>{{ 'mockSite.fieldDescription' | translate }}
         <textarea rows="4" [(ngModel)]="mockForm.description" class="modal-input"
-          placeholder="Describe the opportunity…"></textarea>
+          [placeholder]="'mockSite.descPlaceholder' | translate"></textarea>
       </label>
-      <label>Offer Type
+      <label>{{ 'mockSite.fieldOfferType' | translate }}
         <select [(ngModel)]="mockForm.offer_type" class="modal-input">
-          <option value="internship">Internship</option>
-          <option value="thesis">Thesis</option>
-          <option value="scholarship">Scholarship</option>
-          <option value="job">Job</option>
-          <option value="course">Course</option>
-          <option value="exchange">Exchange</option>
+          <option value="internship">{{ 'mockSite.ot_internship' | translate }}</option>
+          <option value="thesis">{{ 'mockSite.ot_thesis' | translate }}</option>
+          <option value="scholarship">{{ 'mockSite.ot_scholarship' | translate }}</option>
+          <option value="job">{{ 'mockSite.ot_job' | translate }}</option>
+          <option value="course">{{ 'mockSite.ot_course' | translate }}</option>
+          <option value="exchange">{{ 'mockSite.ot_exchange' | translate }}</option>
         </select>
       </label>
-      <label>Target Profile
+      <label>{{ 'mockSite.fieldTargetProfile' | translate }}
         <select [(ngModel)]="mockForm.target_profile" class="modal-input">
-          <option value="student">Student</option>
-          <option value="teacher">Teacher</option>
-          <option value="academic_staff">Academic Staff</option>
+          <option value="student">{{ 'mockSite.tp_student' | translate }}</option>
+          <option value="teacher">{{ 'mockSite.tp_teacher' | translate }}</option>
+          <option value="academic_staff">{{ 'mockSite.tp_academic_staff' | translate }}</option>
         </select>
       </label>
       <div class="modal-actions">
-        <button class="btn-outline" (click)="closeMockModal()">Cancel</button>
+        <button class="btn-outline" (click)="closeMockModal()">{{ 'common.cancel' | translate }}</button>
         <button class="btn-primary" [disabled]="savingMock" (click)="saveOpportunity()">
-          {{ savingMock ? 'Saving…' : 'Save' }}
+          {{ savingMock ? ('common.saving' | translate) : ('common.save' | translate) }}
         </button>
       </div>
     </div>

@@ -3,6 +3,7 @@ import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ConfirmResult, ImportInvalidRow, ImportValidRow, PreviewResult } from '../shared/api.models';
 import { OssApiService } from '../shared/oss-api.service';
+import { TranslatePipe } from '../shared/i18n/translate.pipe';
 
 type PageState = 'upload' | 'preview' | 'result';
 type RowStatus = 'draft' | 'published';
@@ -10,7 +11,7 @@ type RowStatus = 'draft' | 'published';
 @Component({
   selector: 'app-import-page',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, TranslatePipe],
   templateUrl: './import-page.component.html',
   styleUrls: ['./import-page.component.css'],
 })

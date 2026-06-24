@@ -20,10 +20,12 @@ import { StatusChipComponent } from '../shared/components/status-chip.component'
 type TabId = 'overview' | 'runs' | 'sources' | 'errors';
 type WindowOption = '24h' | '7d' | '30d';
 
+import { TranslatePipe } from '../shared/i18n/translate.pipe';
+
 @Component({
   selector: 'app-scrapper-admin-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, StatCardComponent, MiniBarChartComponent, StatusChipComponent],
+  imports: [CommonModule, FormsModule, StatCardComponent, MiniBarChartComponent, StatusChipComponent, TranslatePipe],
   templateUrl: './scrapper-admin-page.component.html',
   styleUrl: './scrapper-admin-page.component.css',
 })

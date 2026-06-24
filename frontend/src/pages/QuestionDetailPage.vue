@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import AppHeader from '../components/layout/AppHeader.vue'
 import AppFooter from '../components/layout/AppFooter.vue'
 import { useAuth } from '../composables/useAuth.js'
@@ -8,6 +9,7 @@ import { useForum } from '../composables/useForum.js'
 
 const route = useRoute()
 const router = useRouter()
+const { t } = useI18n()
 const { user, isLoggedIn } = useAuth()
 const {
   fetchQuestion,
@@ -72,7 +74,7 @@ async function loadQuestion() {
     question.value = data
     answers.value = data.answers || []
   } catch (err) {
-    error.value = err.message || 'Failed to load question.'
+    error.value = err.message || t('qd.failedLoad')
     question.value = null
     answers.value = []
   } finally {
@@ -97,11 +99,11 @@ async function saveQuestion() {
   const title = questionDraft.value.title.trim()
   const body = questionDraft.value.body.trim()
   if (title.length < 5) {
-    questionError.value = 'Title must be at least 5 characters.'
+    questionError.value = t('qd.errTitleMin')
     return
   }
   if (body.length < 10) {
-    questionError.value = 'Body must be at least 10 characters.'
+    questionError.value = t('qd.errBodyMin')
     return
   }
   try {
@@ -109,17 +111,17 @@ async function saveQuestion() {
     question.value = { ...question.value, ...updated }
     editingQuestion.value = false
   } catch (err) {
-    questionError.value = err.message || 'Failed to update question.'
+    questionError.value = err.message || t('qd.failedUpdateQuestion')
   }
 }
 
 async function removeQuestion() {
-  if (!confirm('Delete this question and all of its answers?')) return
+  if (!confirm(t('qd.confirmDeleteQuestion'))) return
   try {
     await deleteQuestion(question.value.id)
     router.push({ name: 'Forum' })
   } catch (err) {
-    error.value = err.message || 'Failed to delete question.'
+    error.value = err.message || t('qd.failedDeleteQuestion')
   }
 }
 
@@ -127,7 +129,7 @@ async function submitAnswer() {
   answerError.value = ''
   const body = answerDraft.value.trim()
   if (body.length < 10) {
-    answerError.value = 'Answer must be at least 10 characters.'
+    answerError.value = t('qd.errAnswerMin')
     return
   }
   submittingAnswer.value = true
@@ -139,7 +141,7 @@ async function submitAnswer() {
       question.value.answer_count = (question.value.answer_count || 0) + 1
     }
   } catch (err) {
-    answerError.value = err.message || 'Failed to post answer.'
+    answerError.value = err.message || t('qd.failedPostAnswer')
   } finally {
     submittingAnswer.value = false
   }
@@ -158,7 +160,7 @@ function cancelEditAnswer() {
 async function saveAnswer(answer) {
   const body = answerEditDraft.value.trim()
   if (body.length < 10) {
-    answerError.value = 'Answer must be at least 10 characters.'
+    answerError.value = t('qd.errAnswerMin')
     return
   }
   try {
@@ -167,12 +169,12 @@ async function saveAnswer(answer) {
     editingAnswerId.value = null
     answerEditDraft.value = ''
   } catch (err) {
-    answerError.value = err.message || 'Failed to update answer.'
+    answerError.value = err.message || t('qd.failedUpdateAnswer')
   }
 }
 
 async function removeAnswer(answer) {
-  if (!confirm('Delete this answer?')) return
+  if (!confirm(t('qd.confirmDeleteAnswer'))) return
   try {
     await deleteAnswer(answer.id)
     answers.value = answers.value.filter((a) => a.id !== answer.id)
@@ -180,7 +182,7 @@ async function removeAnswer(answer) {
       question.value.answer_count = Math.max(0, (question.value.answer_count || 1) - 1)
     }
   } catch (err) {
-    answerError.value = err.message || 'Failed to delete answer.'
+    answerError.value = err.message || t('qd.failedDeleteAnswer')
   }
 }
 
@@ -195,9 +197,9 @@ onMounted(loadQuestion)
   <AppHeader />
   <main>
     <div class="detail-wrap">
-      <button class="back-btn" @click="router.back()">← Back</button>
+      <button class="back-btn" @click="router.back()">{{ t('qd.back') }}</button>
 
-      <p v-if="loading" class="forum-info">Loading…</p>
+      <p v-if="loading" class="forum-info">{{ t('qd.loading') }}</p>
       <p v-else-if="error && !question" class="forum-error">{{ error }}</p>
 
       <div v-if="question && !loading" class="detail-card">
@@ -207,41 +209,41 @@ onMounted(loadQuestion)
             class="type-tag"
             :class="offerTypeClass(question.offer_type)"
           >{{ question.offer_type }}</span>
-          <span class="answer-badge">{{ question.answer_count }} {{ question.answer_count === 1 ? 'answer' : 'answers' }}</span>
+          <span class="answer-badge">{{ question.answer_count }} {{ t('qd.answer', question.answer_count) }}</span>
         </div>
 
         <template v-if="!editingQuestion">
           <h1 class="detail-title">{{ question.title }}</h1>
           <p class="detail-meta">
-            asked by <strong>{{ question.author.username }}</strong> · {{ formatDate(question.created_at) }}
+            {{ t('qd.askedBy') }} <strong>{{ question.author.username }}</strong> · {{ formatDate(question.created_at) }}
           </p>
           <p class="detail-desc">{{ question.body }}</p>
           <div v-if="canModifyQuestion" class="detail-actions">
-            <button class="btn-ghost" @click="startEditQuestion">Edit</button>
-            <button class="btn-ghost btn-danger" @click="removeQuestion">Delete</button>
+            <button class="btn-ghost" @click="startEditQuestion">{{ t('qd.edit') }}</button>
+            <button class="btn-ghost btn-danger" @click="removeQuestion">{{ t('qd.delete') }}</button>
           </div>
         </template>
 
         <template v-else>
           <div class="dform-group">
-            <label>Title</label>
+            <label>{{ t('qd.title') }}</label>
             <input v-model="questionDraft.title" type="text" class="dtext-input" />
           </div>
           <div class="dform-group">
-            <label>Body</label>
+            <label>{{ t('qd.body') }}</label>
             <textarea v-model="questionDraft.body" rows="6" class="dtext-area"></textarea>
           </div>
           <p v-if="questionError" class="forum-error">{{ questionError }}</p>
           <div class="detail-actions">
-            <button class="btn-primary" @click="saveQuestion">Save</button>
-            <button class="btn-ghost" @click="cancelEditQuestion">Cancel</button>
+            <button class="btn-primary" @click="saveQuestion">{{ t('qd.save') }}</button>
+            <button class="btn-ghost" @click="cancelEditQuestion">{{ t('qd.cancel') }}</button>
           </div>
         </template>
       </div>
 
       <section v-if="question" class="answers-section">
         <h2 class="answers-title">
-          {{ answers.length }} {{ answers.length === 1 ? 'Answer' : 'Answers' }}
+          {{ answers.length }} {{ t('qd.answers', answers.length) }}
         </h2>
 
         <p v-if="answerError" class="forum-error">{{ answerError }}</p>
@@ -255,8 +257,8 @@ onMounted(loadQuestion)
                   {{ answer.author.username }} · {{ formatDate(answer.created_at) }}
                 </span>
                 <div v-if="canModifyAnswer(answer)" class="answer-actions">
-                  <button class="link-btn" @click="startEditAnswer(answer)">Edit</button>
-                  <button class="link-btn link-btn-danger" @click="removeAnswer(answer)">Delete</button>
+                  <button class="link-btn" @click="startEditAnswer(answer)">{{ t('qd.edit') }}</button>
+                  <button class="link-btn link-btn-danger" @click="removeAnswer(answer)">{{ t('qd.delete') }}</button>
                 </div>
               </div>
             </template>
@@ -265,8 +267,8 @@ onMounted(loadQuestion)
               <div class="answer-footer">
                 <span></span>
                 <div class="answer-actions">
-                  <button class="btn-primary btn-sm" @click="saveAnswer(answer)">Save</button>
-                  <button class="btn-ghost btn-sm" @click="cancelEditAnswer">Cancel</button>
+                  <button class="btn-primary btn-sm" @click="saveAnswer(answer)">{{ t('qd.save') }}</button>
+                  <button class="btn-ghost btn-sm" @click="cancelEditAnswer">{{ t('qd.cancel') }}</button>
                 </div>
               </div>
             </template>
@@ -274,24 +276,25 @@ onMounted(loadQuestion)
         </div>
 
         <div class="answer-compose">
-          <h3 class="compose-title">Post an answer</h3>
+          <h3 class="compose-title">{{ t('qd.postAnswerTitle') }}</h3>
           <template v-if="isLoggedIn">
             <textarea
               v-model="answerDraft"
               rows="4"
               class="dtext-area"
-              placeholder="Share your answer..."
+              :placeholder="t('qd.answerPlaceholder')"
             ></textarea>
             <button
               class="btn-primary"
               :disabled="submittingAnswer || answerDraft.trim().length < 10"
               @click="submitAnswer"
-            >{{ submittingAnswer ? 'Posting…' : 'Post answer' }}</button>
+            >{{ submittingAnswer ? t('qd.posting') : t('qd.postAnswer') }}</button>
           </template>
-          <p v-else class="forum-info">
-            <RouterLink :to="{ name: 'login', query: { redirect: route.fullPath } }">Log in</RouterLink>
-            to post an answer.
-          </p>
+          <i18n-t v-else keypath="qd.loginToAnswer" tag="p" class="forum-info">
+            <template #link>
+              <RouterLink :to="{ name: 'login', query: { redirect: route.fullPath } }">{{ t('qd.loginLink') }}</RouterLink>
+            </template>
+          </i18n-t>
         </div>
       </section>
     </div>

@@ -2,8 +2,8 @@
   <section class="profile-selector" id="profiles">
     <div class="section-header">
       <div>
-        <p class="section-eyebrow">Choose your role</p>
-        <h2 class="section-title">How would you like to <em>explore?</em></h2>
+        <p class="section-eyebrow">{{ t('profiles.eyebrow') }}</p>
+        <h2 class="section-title">{{ t('profiles.titlePre') }} <em>{{ t('profiles.titleEm') }}</em></h2>
       </div>
     </div>
 
@@ -16,40 +16,45 @@
         @click="saveProfile(profile)"
       >
         <div class="profile-card-icon">{{ profile.icon }}</div>
-        <h3>{{ profile.title }}</h3>
-        <p>{{ profile.description }}</p>
-        <span class="profile-card-cta">View tailored content →</span>
+        <h3>{{ t(profile.titleKey) }}</h3>
+        <p>{{ t(profile.descKey) }}</p>
+        <span class="profile-card-cta">{{ t('profiles.cta') }}</span>
       </router-link>
     </div>
   </section>
 </template>
 
 <script setup>
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
+
 const profiles = [
   {
     key: 'student',
-    title: 'Student',
+    titleKey: 'profiles.studentTitle',
     icon: '🎓',
-    description: 'Find internships, thesis projects, challenges, hackathons, and student opportunities.',
+    descKey: 'profiles.studentDesc',
     route: '/student',
   },
   {
     key: 'academic_staff',
-    title: 'Academic Staff',
+    titleKey: 'profiles.staffTitle',
     icon: '🔬',
-    description: 'Discover research groups, infrastructure, expert services, and project opportunities.',
+    descKey: 'profiles.staffDesc',
     route: '/staff',
   },
   {
     key: 'external_user',
-    title: 'External User',
+    titleKey: 'profiles.externalTitle',
     icon: '🌐',
-    description: 'Explore lifelong learning, expert services, trainings, testbeds, and labs.',
+    descKey: 'profiles.externalDesc',
     route: '/external_user',
   },
 ]
 
 function saveProfile(profile) {
-  localStorage.setItem('selected_profile', JSON.stringify(profile))
+  // Persist a stable, locale-independent label for the selected profile.
+  localStorage.setItem('selected_profile', JSON.stringify({ key: profile.key, route: profile.route }))
 }
 </script>

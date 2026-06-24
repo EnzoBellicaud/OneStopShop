@@ -2,8 +2,10 @@
 <script setup>
     import { computed } from 'vue';
     import { useRoute } from 'vue-router'
+    import { useI18n } from 'vue-i18n'
 
     const route = useRoute()
+    const { t } = useI18n()
 
     const isLanding = computed(() => route.name === 'landing')
 </script>
@@ -15,18 +17,18 @@
               <img src="/about-map.jpg" alt="Map of partner countries" class="about-map-img" />
             </div>
             <div>
-            <p class="about-eyebrow">About OneStopShop</p>
-            <h2>One hub for <em>all nine</em> universities</h2>
-            <p>OneStopShop brings together master thesis projects, internships, job openings, and courses from six leading Swedish universities into a single, easy-to-navigate platform.</p>
-            <p>Students and faculty no longer need to visit each university's website separately. We aggregate and update listings in real time, so you always see the latest opportunities in one place.</p>
+            <p class="about-eyebrow">{{ t('about.eyebrow') }}</p>
+            <h2>{{ t('about.titlePre') }} <em>{{ t('about.titleEm') }}</em> {{ t('about.titlePost') }}</h2>
+            <p>{{ t('about.p1') }}</p>
+            <p>{{ t('about.p2') }}</p>
             <div class="about-features">
                 <div class="feat">
                 <div class="feat-icon">
                     <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
                 </div>
                 <div class="feat-text">
-                    <strong>9 universities</strong>
-                    <span>All partner data in one feed</span>
+                    <strong>{{ t('about.f1Title') }}</strong>
+                    <span>{{ t('about.f1Desc') }}</span>
                 </div>
                 </div>
                 <div class="feat">
@@ -34,8 +36,8 @@
                     <svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
                 </div>
                 <div class="feat-text">
-                    <strong>Real-time updates</strong>
-                    <span>Always fresh, always accurate</span>
+                    <strong>{{ t('about.f2Title') }}</strong>
+                    <span>{{ t('about.f2Desc') }}</span>
                 </div>
                 </div>
                 <div class="feat">
@@ -43,8 +45,8 @@
                     <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
                 </div>
                 <div class="feat-text">
-                    <strong>Smart search</strong>
-                    <span>Filter by type, university, field</span>
+                    <strong>{{ t('about.f3Title') }}</strong>
+                    <span>{{ t('about.f3Desc') }}</span>
                 </div>
                 </div>
                 <div class="feat">
@@ -52,8 +54,8 @@
                     <svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
                 </div>
                 <div class="feat-text">
-                    <strong>Direct redirect</strong>
-                    <span>Apply on each university's site</span>
+                    <strong>{{ t('about.f4Title') }}</strong>
+                    <span>{{ t('about.f4Desc') }}</span>
                 </div>
                 </div>
             </div>

@@ -296,18 +296,20 @@ const handleRegister = async () => {
 .btn-submit {
   width: 100%;
   padding: 12px;
-  background: #111110;
+  background: var(--red-grad);
   color: white;
   border: none;
   border-radius: 4px;
   font-size: 16px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.2s;
+  box-shadow: 0 2px 6px rgba(124, 26, 26, 0.22);
+  transition: filter 0.2s ease, box-shadow 0.2s ease;
 }
 
 .btn-submit:hover {
-  background: #333;
+  filter: brightness(1.07);
+  box-shadow: 0 5px 14px rgba(124, 26, 26, 0.28);
 }
 
 .error-message {

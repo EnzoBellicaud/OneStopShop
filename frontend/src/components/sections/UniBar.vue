@@ -1,7 +1,12 @@
+<script setup>
+import { useI18n } from 'vue-i18n'
+const { t } = useI18n()
+</script>
+
 <template>
     <div class="uni-bar">
         <div class="uni-bar-inner">
-            <span class="uni-bar-label">Partner universities</span>
+            <span class="uni-bar-label">{{ t('uniBar.label') }}</span>
             <div class="uni-logos">
             <span class="uni-badge">University of Stockholm</span>
             <span class="uni-badge">KTH Royal Institute</span>

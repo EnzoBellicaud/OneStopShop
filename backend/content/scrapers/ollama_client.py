@@ -34,6 +34,9 @@ class OllamaClient:
         self.model_pool = [item.strip() for item in model_pool_raw.split(",") if item.strip()]
         if not self.model_pool:
             self.model_pool = [self.model]
+        # Translation uses a dedicated (typically local, no-cloud-auth) model so
+        # it works even when the cloud extraction model needs sign-in.
+        self.translation_model = os.getenv("OLLAMA_TRANSLATION_MODEL", "qwen3:4b")
         self.timeout_seconds = int(os.getenv("OLLAMA_TIMEOUT_SECONDS", "45"))
         self.model_cooldown_seconds = int(os.getenv("OLLAMA_MODEL_COOLDOWN_SECONDS", "60"))
         self.cooldown_max_wait_seconds = int(os.getenv("OLLAMA_COOLDOWN_MAX_WAIT_SECONDS", "65"))
@@ -222,6 +225,80 @@ class OllamaClient:
             return is_relevant, extracted, reason
 
         return True, None, ""
+
+    # Human-readable names for the prompt, keyed by ISO-639-1 code.
+    _LANGUAGE_NAMES = {
+        "en": "English",
+        "it": "Italian",
+        "fr": "French",
+    }
+
+    def translate_offer(
+        self,
+        title: str,
+        summary: str,
+        target_lang: str,
+    ) -> dict | None:
+        """
+        Translate an offer's title and summary into ``target_lang``.
+
+        Returns a dict ``{"title", "summary", "source_lang"}`` on success, or
+        ``None`` when the LLM is unavailable (caller keeps the original text).
+        ``source_lang`` is the detected ISO-639-1 code of the original text.
+        """
+        target_name = self._LANGUAGE_NAMES.get(target_lang, target_lang)
+        prompt = self._build_translation_prompt(title, summary, target_name)
+        model = self.translation_model
+
+        if _SHARED_MODEL_COOLDOWN.get(model, 0) > time.time():
+            LOGGER.debug("Ollama translation skipped (target=%s): %s in cooldown", target_lang, model)
+            return None
+
+        try:
+            # think=False keeps qwen3-style models from spending their output
+            # budget on hidden reasoning (which yields an empty JSON response).
+            response = self._client.generate(
+                model=model,
+                prompt=prompt,
+                stream=False,
+                format="json",
+                think=False,
+            )
+        except Exception as exc:  # pragma: no cover - depends on local Ollama runtime
+            status_code = exc.status_code if isinstance(exc, ollama.ResponseError) else None
+            _SHARED_MODEL_COOLDOWN[model] = time.time() + self.model_cooldown_seconds
+            if status_code != 429:
+                LOGGER.warning("Ollama translation unavailable using %s: %s", model, exc)
+            return None
+
+        parsed = self._parse_response(response.response)
+        if not parsed:
+            return None
+
+        translated_title = str(parsed.get("title") or title).strip()
+        translated_summary = str(parsed.get("summary") or summary).strip()
+        source_lang = str(parsed.get("source_lang") or "").strip().lower()[:2] or None
+
+        time.sleep(self.request_delay_seconds)
+        return {
+            "title": translated_title,
+            "summary": translated_summary,
+            "source_lang": source_lang,
+        }
+
+    @staticmethod
+    def _build_translation_prompt(title: str, summary: str, target_name: str) -> str:
+        return (
+            "You translate academic opportunity listings. "
+            f"Translate the title and summary below into {target_name}. "
+            "Preserve meaning, proper nouns, organization names, and any URLs. "
+            "If the text is already in the target language, return it unchanged. "
+            "Respond with strict JSON only, keys: "
+            "source_lang (ISO-639-1 code of the original text), title (string), summary (string). "
+            "JSON only, no extra text.\n\n"
+            f"Title: {title}\n\n"
+            f"Summary: {summary}"
+        )
 
     @staticmethod
     def _build_prompt(
