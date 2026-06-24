@@ -6,7 +6,7 @@ const _token = ref(localStorage.getItem('access_token') ?? null)
 const _isLoggedIn = computed(() => !!_user.value)
 
 window.addEventListener('auth:logout', () => { _user.value = null; _token.value = null })
-window.addEventListener('auth:login', (e) => { _user.value = e.detail })
+window.addEventListener('auth:login', (e) => { _user.value = e.detail; _token.value = localStorage.getItem('access_token') ?? null })
 
 function _persist(data) {
   localStorage.setItem('access_token', data.tokens.access_token)
