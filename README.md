@@ -62,6 +62,59 @@ docker-compose logs scraper-worker
 
 ---
 
+## Scraper & Crawler Architecture
+
+The scraper worker runs two independent loops in parallel background threads:
+
+### CrawlerService — discovery loop
+
+Runs every `CRAWLER_INTERVAL_SECONDS` (default: 1s).
+
+1. BFS-crawls the source listing page to collect all live offer URLs.
+2. Creates a `CrawlUrl` record (status `PENDING`) for any new URL found.
+3. **Deletion detection** — any `CrawlUrl` no longer present in the live listing is bumped to `next_check_at = now`, so the scraper re-fetches it immediately and detects the 404.
+4. **Manual offer cleanup** — offers created manually in the admin (no `CrawlUrl`) whose link matches the source domain but is absent from the live listing are HEAD-checked directly; those returning 404/410 are archived.
+
+### UrlScraperService — scrape loop
+
+Runs every `SCRAPER_INTERVAL_SECONDS` (default: 1s).
+
+1. Claims all `CrawlUrl` records where `next_check_at <= now`.
+2. Fetches each URL (timeout: `SCRAPER_TIMEOUT_SECONDS`, default: 1s).
+3. **4xx response** → offer is immediately archived (`PUBLISHED`/`DRAFT` → `ARCHIVED`).
+4. **5xx response** → transient error; exponential backoff applied, retried later.
+5. **200 with empty/generic page** → if a linked offer exists, it is archived; otherwise the URL is skipped.
+6. **200 with valid content** → offer is created or updated.
+
+### Archiving behaviour
+
+Offers are **never hard-deleted** from the database. All removal triggers result in `status = ARCHIVED`. Archived offers are hidden from the public Vue frontend but remain visible in the admin dashboard.
+
+| Trigger | Result |
+|---|---|
+| URL returns 4xx (404, 410, etc.) | ARCHIVED immediately |
+| URL returns 5xx | Backoff, retried later |
+| URL returns 200 but page is empty/generic | ARCHIVED (if offer linked) |
+| URL disappears from source listing | CrawlUrl bumped → re-fetched → 404 → ARCHIVED |
+| Manually created offer URL gone from listing | HEAD-checked → 404/410 → ARCHIVED |
+
+### Scraper worker configuration
+
+| Variable | Default | Description |
+|---|---|---|
+| `CRAWLER_INTERVAL_SECONDS` | `1` | How often the crawler discovery loop runs |
+| `SCRAPER_INTERVAL_SECONDS` | `1` | How often the scraper drain loop runs |
+| `SCRAPER_TIMEOUT_SECONDS` | `1` | HTTP request timeout per URL |
+
+### LLM extraction
+
+Each scraped page is processed by one of two extraction methods:
+
+- **Ollama LLM (primary)** — structured JSON extraction with offer type classification. Configured per source in the admin panel.
+- **Deterministic fallback** — `<meta name="description">` as summary; TF-IDF cosine similarity for offer type classification. Used automatically when Ollama is not running or returns a connection error (no wait, no cooldown).
+
+---
+
 ## Useful Docker commands
 
 ```bash
@@ -146,8 +199,11 @@ Each scraped offer is automatically classified into one of the offer types store
 
 | Variable | Default | Description |
 |---|---|---|
-| `LLM_ENABLED` | `true` | Enable or disable the Ollama LLM |
+| `LLM_ENABLED` | `true` | Enable or disable the Ollama LLM globally |
 | `SCRAPER_CLASSIFIER_THRESHOLD` | `0.15` | Minimum cosine similarity score for the TF-IDF fallback to accept a classification |
+| `CRAWLER_INTERVAL_SECONDS` | `1` | Crawler discovery loop interval |
+| `SCRAPER_INTERVAL_SECONDS` | `1` | Scraper drain loop interval |
+| `SCRAPER_TIMEOUT_SECONDS` | `1` | HTTP request timeout per scraped URL |
 
 ### Adding or updating offer types
 
