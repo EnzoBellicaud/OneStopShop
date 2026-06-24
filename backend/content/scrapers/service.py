@@ -540,7 +540,7 @@ class ScrapeService:
 
         resolved_offer_type_name = extracted.offer_type
         if not resolved_offer_type_name:
-            classifier_text = f"{extracted.title} {extracted.summary}".strip()
+            classifier_text = f"{extracted.title} {extracted.summary} {extracted.details or ''}".strip()
             resolved_offer_type_name, confidence = _classifier.classify(classifier_text)
             if resolved_offer_type_name:
                 LOGGER.info(

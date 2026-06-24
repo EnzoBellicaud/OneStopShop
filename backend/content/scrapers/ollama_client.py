@@ -17,6 +17,11 @@ JSON_BLOCK_RE = re.compile(r"\{[\s\S]*\}")
 # at the start of run N+1 before the cooldown has expired.
 _SHARED_MODEL_COOLDOWN: dict[str, float] = {}
 
+# Models whose cooldown was triggered by a connection error (server down),
+# not a 429 rate limit. These skip the cooldown wait — no point waiting
+# for a server that isn't running.
+_CONNECTION_ERROR_MODELS: set[str] = set()
+
 # Buffer for cooldown events emitted during _wait_for_available_model.
 # Flushed into run.log by ScrapeService after each LLM call.
 _COOLDOWN_LOG_BUFFER: list[dict] = []
@@ -57,6 +62,12 @@ class OllamaClient:
         if models:
             return models
         if not _SHARED_MODEL_COOLDOWN:
+            return []
+        # If every cooled-down model failed due to a connection error (server
+        # unreachable), skip the wait and fall through to deterministic immediately.
+        cooled_models = set(_SHARED_MODEL_COOLDOWN.keys())
+        if cooled_models and cooled_models.issubset(_CONNECTION_ERROR_MODELS):
+            LOGGER.debug("Ollama unreachable — skipping LLM, using deterministic fallback")
             return []
         soonest = min(_SHARED_MODEL_COOLDOWN.values())
         wait = max(0.0, soonest - time.time())
@@ -109,7 +120,10 @@ class OllamaClient:
                 status_code = exc.status_code if isinstance(exc, ollama.ResponseError) else None
                 _SHARED_MODEL_COOLDOWN[model] = time.time() + self.model_cooldown_seconds
                 if status_code != 429:
+                    _CONNECTION_ERROR_MODELS.add(model)
                     LOGGER.warning("Ollama fallback unavailable for %s using %s: %s", source.key, model, exc)
+                else:
+                    _CONNECTION_ERROR_MODELS.discard(model)
                 continue
 
             text = response.response
@@ -122,6 +136,7 @@ class OllamaClient:
             confidence = parsed.get("confidence", deterministic_payload.confidence)
 
             self.last_switch_count = index
+            _CONNECTION_ERROR_MODELS.discard(model)
             LOGGER.info(
                 "LLM fallback success — source=%s model=%s conf=%.2f title=%r",
                 source.key, model, float(confidence), str(title)[:60],
@@ -179,7 +194,10 @@ class OllamaClient:
                 status_code = exc.status_code if isinstance(exc, ollama.ResponseError) else None
                 _SHARED_MODEL_COOLDOWN[model] = time.time() + self.model_cooldown_seconds
                 if status_code != 429:
+                    _CONNECTION_ERROR_MODELS.add(model)
                     LOGGER.warning("Ollama relevance check unavailable for %s using %s: %s", source.key, model, exc)
+                else:
+                    _CONNECTION_ERROR_MODELS.discard(model)
                 continue
 
             text = response.response
@@ -200,6 +218,7 @@ class OllamaClient:
             )
 
             self.last_switch_count = index
+            _CONNECTION_ERROR_MODELS.discard(model)
             LOGGER.info(
                 "LLM assess success — source=%s model=%s is_offer=%s offer_type=%s conf=%.2f reason=%r",
                 source.key, model, is_relevant, offer_type or "(will classify)", confidence, reason[:80] if reason else "",

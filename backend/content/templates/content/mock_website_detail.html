@@ -13,7 +13,8 @@
   <main>
     <p>{{ opportunity.description }}</p>
     <ul>
-      <li>Type: {{ opportunity.offer_type }}</li>
+      <li>Type: {{ opportunity.get_offer_type_display }}</li>
+      <li>Category: {{ opportunity.offer_type }}</li>
       <li>For: {{ opportunity.target_profile }}</li>
       <li>Institution: Demo University</li>
     </ul>

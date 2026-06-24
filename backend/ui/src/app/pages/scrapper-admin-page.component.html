@@ -235,7 +235,7 @@
               </thead>
               <tbody>
                 <ng-container *ngFor="let r of selectedRunUrlResults">
-                  <tr (click)="toggleRawRow(r.url)" [class.failed-row]="r.failed" [class.skipped-row]="r.neglected" style="cursor:pointer">
+                  <tr (click)="toggleRawRow(r.url)" [class.failed-row]="r.failed" [class.skipped-row]="r.neglected" [class.archived-row]="r.archived" style="cursor:pointer">
                     <td class="url-cell" [title]="r.url">{{ r.url }}</td>
                     <td>
                       <app-status-chip *ngIf="r.method" [status]="r.method" variant="method"></app-status-chip>
@@ -244,10 +244,11 @@
                     <td>{{ r.confidence != null ? (r.confidence | number:'1.2-2') : '—' }}</td>
                     <td>
                       <span class="chip-inline"
-                        [class.chip-ok]="!r.failed && !r.neglected"
+                        [class.chip-ok]="!r.failed && !r.neglected && !r.archived"
                         [class.chip-warn]="r.neglected"
+                        [class.chip-archived]="r.archived"
                         [class.chip-fail]="r.failed">
-                        {{ r.failed ? ('scrapper.statusError' | translate) : r.neglected ? ('scrapper.skipped' | translate) : (r.action ?? ('scrapper.ok' | translate)) }}
+                        {{ r.failed ? ('scrapper.statusError' | translate) : r.neglected ? ('scrapper.skipped' | translate) : r.archived ? ('scrapper.archived' | translate) : (r.action ?? ('scrapper.ok' | translate)) }}
                       </span>
                     </td>
                     <td class="muted small">{{ r.message ?? r.reason ?? '' }}</td>
