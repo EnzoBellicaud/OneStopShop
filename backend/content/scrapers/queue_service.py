@@ -176,16 +176,20 @@ class UrlScraperService(ScrapeService):
 
             self._scrape_one(crawl_url, source, source_type, ingestion_user, stats, logs, matched_offer_ids)
 
-        run.status = ScrapingRun.RunStatus.SUCCESS
-        run.offers_processed = stats["processed"]
-        run.offers_created = stats["created"]
-        run.offers_updated = stats["updated"]
-        run.offers_unchanged = stats["unchanged"]
-        run.errors_count = stats["errors"]
-        run.urls_neglected = stats["neglected"]
-        run.log = logs
-        run.completed_at = timezone.now()
-        run.save()
+        # Skip saving runs where nothing noteworthy happened (all neglected, no log entries).
+        if not logs:
+            run.delete()
+        else:
+            run.status = ScrapingRun.RunStatus.SUCCESS
+            run.offers_processed = stats["processed"]
+            run.offers_created = stats["created"]
+            run.offers_updated = stats["updated"]
+            run.offers_unchanged = stats["unchanged"]
+            run.errors_count = stats["errors"]
+            run.urls_neglected = stats["neglected"]
+            run.log = logs
+            run.completed_at = timezone.now()
+            run.save()
 
         LOGGER.info(
             "URL scraper batch done — processed=%d created=%d updated=%d archived=%d errors=%d neglected=%d",
