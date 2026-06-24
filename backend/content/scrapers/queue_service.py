@@ -75,21 +75,16 @@ class CrawlerService(ScrapeService):
             elif crawl_url.status != CrawlUrl.UrlStatus.ARCHIVED:
                 known_count += 1
 
-        # Guard: skip deletion logic if listing returned 0 URLs (network flake / empty page)
-        # to avoid mass-archiving all known offers for this source.
-        if live_url_set:
-            # Bump CrawlUrls no longer in listing → immediate recheck → scraper fetches → 404 → archive
-            bumped = CrawlUrl.objects.filter(
-                source_key=source.key,
-                status__in=[CrawlUrl.UrlStatus.DONE, CrawlUrl.UrlStatus.ERROR],
-            ).exclude(url__in=live_url_set).update(next_check_at=timezone.now())
+        # Bump CrawlUrls no longer in listing → immediate recheck → scraper fetches → 404 → archive.
+        # Network errors raise exceptions (caught in run()) so an empty live_url_set here means
+        # the listing genuinely has no offers — proceed with deletion detection.
+        bumped = CrawlUrl.objects.filter(
+            source_key=source.key,
+            status__in=[CrawlUrl.UrlStatus.DONE, CrawlUrl.UrlStatus.ERROR],
+        ).exclude(url__in=live_url_set).update(next_check_at=timezone.now())
 
-            # HEAD-check manually created offers (no CrawlUrl) from this org not in live set
-            manual_archived = self._check_manual_offers(source, live_url_set)
-        else:
-            bumped = 0
-            manual_archived = 0
-            LOGGER.warning("[%s] Live URL set empty — skipping deletion detection", source.key)
+        # HEAD-check manually created offers (no CrawlUrl) from this org not in live set
+        manual_archived = self._check_manual_offers(source, live_url_set)
 
         return {
             "discovered": len(urls),
@@ -455,6 +450,7 @@ class UrlScraperService(ScrapeService):
                 LOGGER.info("Archived offer — %s", crawl_url.url)
             elif offer.status == Offer.OfferStatus.DRAFT:
                 offer.delete()
+                crawl_url.offer_id = None  # clear in-memory FK after deletion (SET_NULL already applied in DB)
                 LOGGER.info("Deleted draft offer — %s", crawl_url.url)
         except Offer.DoesNotExist:
             pass
