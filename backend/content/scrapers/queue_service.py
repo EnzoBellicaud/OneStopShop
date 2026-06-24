@@ -449,14 +449,11 @@ class UrlScraperService(ScrapeService):
             return
         try:
             offer = crawl_url.offer
-            if offer.status == Offer.OfferStatus.PUBLISHED:
-                offer.status = Offer.OfferStatus.ARCHIVED
-                offer.save(update_fields=["status", "updated_at"])
-                LOGGER.info("Archived offer — %s", crawl_url.url)
-            elif offer.status == Offer.OfferStatus.DRAFT:
-                offer.delete()
-                crawl_url.offer_id = None  # clear in-memory FK after deletion (SET_NULL already applied in DB)
-                LOGGER.info("Deleted draft offer — %s", crawl_url.url)
+            if offer.status not in {Offer.OfferStatus.PUBLISHED, Offer.OfferStatus.DRAFT}:
+                return
+            offer.status = Offer.OfferStatus.ARCHIVED
+            offer.save(update_fields=["status", "updated_at"])
+            LOGGER.info("Archived offer (was %s) — %s", offer.status, crawl_url.url)
         except Offer.DoesNotExist:
             pass
 
