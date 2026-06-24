@@ -1,12 +1,27 @@
+import logging
 import os
+import threading
+import time
 
-from apscheduler.schedulers.blocking import BlockingScheduler
+from apscheduler.schedulers.background import BackgroundScheduler
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from content.scrapers.queue_service import run_crawler, run_url_scraper_batch
 from content.scrapers.link_checker import check_offer_links
 from content.scrapers.translation_service import run_offer_translation_batch
+
+LOGGER = logging.getLogger(__name__)
+
+
+def _loop(fn: callable, interval: float, stop: threading.Event) -> None:
+    """Run fn, sleep interval seconds, repeat — guarantees no overlap."""
+    while not stop.is_set():
+        try:
+            fn()
+        except Exception:
+            LOGGER.exception("Worker loop error in %s", fn.__name__)
+        stop.wait(interval)
 
 
 def _archive_expired_offers():
@@ -51,26 +66,27 @@ class Command(BaseCommand):
             self.stdout.write(f"Scraper: {scraper_summary}")
             return
 
-        scheduler = BlockingScheduler(timezone=timezone.get_current_timezone_name())
+        stop = threading.Event()
 
-        scheduler.add_job(
-            run_crawler,
-            "interval",
-            id="crawl-discover-urls",
-            seconds=crawler_interval,
-            max_instances=1,
-            coalesce=True,
-            misfire_grace_time=300,
-        )
-        scheduler.add_job(
-            run_url_scraper_batch,
-            "interval",
-            id="scrape-url-queue",
-            seconds=scraper_interval,
-            max_instances=1,
-            coalesce=True,
-            misfire_grace_time=60,
-        )
+        if run_on_start:
+            self.stdout.write("Startup crawler run...")
+            self.stdout.write(f"Crawler: {run_crawler()}")
+            self.stdout.write("Startup scraper batch...")
+            self.stdout.write(f"Scraper: {run_url_scraper_batch()}")
+            self.stdout.write("Startup offer translation...")
+            self.stdout.write(f"Translation: {run_offer_translation_batch(limit=translation_batch)}")
+
+        # Crawler and scraper run in threads: each waits N seconds AFTER the
+        # previous run completes, so no overlap and no APScheduler skip warnings.
+        threading.Thread(
+            target=_loop, args=(run_crawler, crawler_interval, stop), daemon=True, name="crawler"
+        ).start()
+        threading.Thread(
+            target=_loop, args=(run_url_scraper_batch, scraper_interval, stop), daemon=True, name="scraper"
+        ).start()
+
+        # Cron jobs (infrequent) stay on APScheduler.
+        scheduler = BackgroundScheduler(timezone=timezone.get_current_timezone_name())
         scheduler.add_job(
             run_offer_translation_batch,
             "interval",
@@ -99,25 +115,17 @@ class Command(BaseCommand):
             max_instances=1,
             coalesce=True,
         )
-
-        if run_on_start:
-            self.stdout.write("Startup crawler run...")
-            crawler_summary = run_crawler()
-            self.stdout.write(f"Crawler: {crawler_summary}")
-            self.stdout.write("Startup scraper batch...")
-            scraper_summary = run_url_scraper_batch()
-            self.stdout.write(f"Scraper: {scraper_summary}")
-            self.stdout.write("Startup offer translation...")
-            translation_summary = run_offer_translation_batch(limit=translation_batch)
-            self.stdout.write(f"Translation: {translation_summary}")
+        scheduler.start()
 
         self.stdout.write(
-            f"Worker running — crawler every {crawler_interval}s, "
-            f"scraper every {scraper_interval}s, "
+            f"Worker running — crawler every {crawler_interval}s after completion, "
+            f"scraper every {scraper_interval}s after completion, "
             f"translation every {translation_interval} min. Press Ctrl+C to stop."
         )
 
         try:
-            scheduler.start()
+            stop.wait()
         except (KeyboardInterrupt, SystemExit):
+            stop.set()
+            scheduler.shutdown(wait=False)
             self.stdout.write("Worker stopped.")
