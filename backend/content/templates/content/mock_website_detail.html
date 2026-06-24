@@ -3,33 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>{{ opportunity.title }} — Demo University</title>
-  {% if opportunity.offer_type == "internship" %}
-  <meta name="description" content="Internship and work placement for students: gain practical hands-on experience, traineeship, stage, pratica opportunity at Demo University. {{ opportunity.description|truncatechars:80 }}">
-  {% elif opportunity.offer_type == "thesis" %}
-  <meta name="description" content="Thesis and dissertation research project: supervised capstone or final project, master thesis, bachelor thesis, examensarbete at Demo University. {{ opportunity.description|truncatechars:80 }}">
-  {% elif opportunity.offer_type == "research_group" %}
-  <meta name="description" content="Research group and research team at Demo University: department specialization, competence area, academic research community and research unit. {{ opportunity.description|truncatechars:80 }}">
-  {% elif opportunity.offer_type == "project_opportunity" %}
-  <meta name="description" content="Research project and innovation project opportunity: open invitation for R&D project collaboration, joint research, student project at Demo University. {{ opportunity.description|truncatechars:80 }}">
-  {% elif opportunity.offer_type == "training" %}
-  <meta name="description" content="Training programme and course at Demo University: structured education, qualification, credits, certificate, learning programme. {{ opportunity.description|truncatechars:80 }}">
-  {% elif opportunity.offer_type == "hackathon" %}
-  <meta name="description" content="Hackathon and coding sprint event: intensive innovation sprint, makeathon, collaborative coding event at Demo University. {{ opportunity.description|truncatechars:80 }}">
-  {% elif opportunity.offer_type == "challenge" %}
-  <meta name="description" content="Open challenge and competition at Demo University: call for solutions, contest, prize, problem-solving, open innovation, defi. {{ opportunity.description|truncatechars:80 }}">
-  {% elif opportunity.offer_type == "lab" %}
-  <meta name="description" content="Laboratory and research facility access: lab infrastructure, equipment access, shared facility, makerspace, fab lab at Demo University. {{ opportunity.description|truncatechars:80 }}">
-  {% elif opportunity.offer_type == "funding_partner" %}
-  <meta name="description" content="Funding and grant opportunity at Demo University: financial support, call for proposals, research funding, fellowship, bursary. {{ opportunity.description|truncatechars:80 }}">
-  {% elif opportunity.offer_type == "testbed" %}
-  <meta name="description" content="Testbed and testing environment at Demo University: validation, proof of concept, prototype testing, technology demonstration, pilot. {{ opportunity.description|truncatechars:80 }}">
-  {% elif opportunity.offer_type == "service" %}
-  <meta name="description" content="Professional service and consulting at Demo University: advisory, business support, technology transfer, IP management, innovation service. {{ opportunity.description|truncatechars:80 }}">
-  {% elif opportunity.offer_type == "co_creation" %}
-  <meta name="description" content="Co-creation and collaboration at Demo University: joint project, co-design, innovation partnership, consortium. {{ opportunity.description|truncatechars:80 }}">
-  {% else %}
   <meta name="description" content="{{ opportunity.description|truncatechars:160 }}">
-  {% endif %}
 </head>
 <body>
   <header>
@@ -39,7 +13,8 @@
   <main>
     <p>{{ opportunity.description }}</p>
     <ul>
-      <li>Type: {{ opportunity.offer_type }}</li>
+      <li>Type: {{ opportunity.get_offer_type_display }}</li>
+      <li>Category: {{ opportunity.offer_type }}</li>
       <li>For: {{ opportunity.target_profile }}</li>
       <li>Institution: Demo University</li>
     </ul>
