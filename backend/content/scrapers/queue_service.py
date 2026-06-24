@@ -238,9 +238,14 @@ class UrlScraperService(ScrapeService):
         except requests.exceptions.HTTPError as exc:
             http_status = exc.response.status_code if exc.response is not None else None
             self._handle_http_error(crawl_url, http_status, stats)
-            logs.append({"ts": _ts(), "event": "url_failed", "level": "warn",
-                         "source_key": source.key, "url": crawl_url.url,
-                         "http_status": http_status, "reason": "http_error"})
+            if http_status in {404, 410}:
+                logs.append({"ts": _ts(), "event": "url_archived", "level": "info",
+                             "source_key": source.key, "url": crawl_url.url,
+                             "http_status": http_status, "reason": "gone"})
+            else:
+                logs.append({"ts": _ts(), "event": "url_failed", "level": "warn",
+                             "source_key": source.key, "url": crawl_url.url,
+                             "http_status": http_status, "reason": "http_error"})
             return
         except requests.RequestException as exc:
             self._handle_transient_error(crawl_url, str(exc), None, stats)

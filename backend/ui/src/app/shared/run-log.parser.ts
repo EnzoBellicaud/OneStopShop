@@ -24,6 +24,7 @@ export type UrlResult = {
   duration_ms?: number;
   failed: boolean;
   neglected: boolean;
+  archived: boolean;
   message?: string;
   reason?: string;
   action?: string;
@@ -79,6 +80,8 @@ export function toUrlResults(entries: RunLogEntry[]): UrlResult[] {
       entry.event === 'url_neglected' ||
       (entry.event === 'url_failed' && entry.level === 'info');
 
+    const isArchived = entry.event === 'url_archived';
+
     if (!existing) {
       urlMap.set(entry.url, {
         url: entry.url,
@@ -88,6 +91,7 @@ export function toUrlResults(entries: RunLogEntry[]): UrlResult[] {
         duration_ms: entry.duration_ms,
         failed: entry.event === 'url_failed' && !isNeglect,
         neglected: isNeglect,
+        archived: isArchived,
         message: entry.message,
         reason: entry.reason,
         action: entry.action,
@@ -101,6 +105,7 @@ export function toUrlResults(entries: RunLogEntry[]): UrlResult[] {
         duration_ms: entry.duration_ms ?? existing.duration_ms,
         failed: false,
         neglected: false,
+        archived: false,
         action: entry.action ?? existing.action,
         ts: entry.ts ?? existing.ts,
       });
@@ -109,6 +114,17 @@ export function toUrlResults(entries: RunLogEntry[]): UrlResult[] {
         ...existing,
         neglected: true,
         failed: false,
+        archived: false,
+        reason: entry.reason ?? existing.reason,
+        ts: entry.ts ?? existing.ts,
+      });
+    } else if (isArchived) {
+      urlMap.set(entry.url, {
+        ...existing,
+        archived: true,
+        failed: false,
+        neglected: false,
+        http_status: entry.http_status ?? existing.http_status,
         reason: entry.reason ?? existing.reason,
         ts: entry.ts ?? existing.ts,
       });
@@ -117,6 +133,7 @@ export function toUrlResults(entries: RunLogEntry[]): UrlResult[] {
         ...existing,
         failed: true,
         neglected: false,
+        archived: false,
         http_status: entry.http_status ?? existing.http_status,
         message: entry.message ?? existing.message,
         reason: entry.reason ?? existing.reason,
