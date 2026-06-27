@@ -1,0 +1,31 @@
+<%- include('partials/header', { title: 'Opportunities' }) %>
+
+<section>
+  <div class="section-heading">
+    <h2>All opportunities</h2>
+  </div>
+
+  <form class="filter-form" method="get" action="/opportunities">
+    <label for="type">Filter by type</label>
+    <select name="type" id="type" onchange="this.form.submit()">
+      <option value="">All types</option>
+      <% types.forEach(t => { %>
+        <option value="<%= t %>" <%= selectedType === t ? 'selected' : '' %>><%= t %></option>
+      <% }) %>
+    </select>
+    <% if (selectedType) { %>
+      <a class="btn-secondary" href="/opportunities">Clear filter</a>
+    <% } %>
+  </form>
+
+  <div class="card-grid">
+    <% opportunities.forEach(opp => { %>
+      <%- include('partials/opportunity-card', { opp }) %>
+    <% }) %>
+    <% if (opportunities.length === 0) { %>
+      <p>No opportunities match this filter.</p>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

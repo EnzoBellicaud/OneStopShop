@@ -1,0 +1,24 @@
+<%- include('partials/header', { title: 'Home' }) %>
+
+<section class="hero">
+  <h1>Test University</h1>
+  <p>Excellence in teaching and research, open to the world.</p>
+  <a class="btn" href="/opportunities">Browse opportunities</a>
+</section>
+
+<section>
+  <div class="section-heading">
+    <h2>Latest opportunities</h2>
+    <a href="/opportunities">View all &rarr;</a>
+  </div>
+  <div class="card-grid">
+    <% recent.forEach(opp => { %>
+      <%- include('partials/opportunity-card', { opp }) %>
+    <% }) %>
+    <% if (recent.length === 0) { %>
+      <p>No opportunities are currently published.</p>
+    <% } %>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

@@ -1,0 +1,11 @@
+<a class="card" href="/opportunities/<%= opp.id %>">
+  <div class="card-type"><%= opp.type || 'Uncategorized' %></div>
+  <h3 class="card-title"><%= opp.title || 'Untitled listing' %></h3>
+  <p class="card-meta">
+    <% if (opp.department) { %><span><%= opp.department %></span><% } %>
+    <% if (opp.location) { %><span><%= opp.location %></span><% } %>
+  </p>
+  <% if (opp.deadline) { %>
+    <p class="card-deadline">Deadline: <%= opp.deadline %></p>
+  <% } %>
+</a>

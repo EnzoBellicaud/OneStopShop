@@ -1,0 +1,36 @@
+<%- include('partials/header', { title: opportunity.title || 'Opportunity' }) %>
+
+<section class="detail">
+  <a class="back-link" href="/opportunities">&larr; Back to opportunities</a>
+
+  <div class="card-type"><%= opportunity.type || 'Uncategorized' %></div>
+  <h1><%= opportunity.title || 'Untitled listing' %></h1>
+
+  <dl class="detail-meta">
+    <dt>Department</dt>
+    <dd><%= opportunity.department || '—' %></dd>
+
+    <dt>Location</dt>
+    <dd><%= opportunity.location || '—' %></dd>
+
+    <dt>Deadline</dt>
+    <dd><%= opportunity.deadline || '—' %></dd>
+
+    <dt>Published</dt>
+    <dd><%= opportunity.created_at || '—' %></dd>
+  </dl>
+
+  <div class="detail-description">
+    <% if (opportunity.description) { %>
+      <p><%= opportunity.description %></p>
+    <% } else { %>
+      <p class="muted">No description provided.</p>
+    <% } %>
+  </div>
+
+  <% if (opportunity.link_url) { %>
+    <a class="btn" href="<%= opportunity.link_url %>" target="_blank" rel="noopener">Learn more</a>
+  <% } %>
+</section>
+
+<%- include('partials/footer') %>

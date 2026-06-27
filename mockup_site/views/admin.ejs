@@ -1,0 +1,103 @@
+<%- include('partials/header', { title: 'Admin' }) %>
+
+<section>
+  <h1>Admin — Manage opportunities</h1>
+  <p class="muted">
+    Add, edit or delete opportunities below. All fields are optional — leave fields empty to simulate
+    incomplete listings.
+  </p>
+
+  <div class="admin-form-wrapper">
+    <h2><%= editing ? 'Edit opportunity #' + editing.id : 'Add a new opportunity' %></h2>
+    <form
+      class="admin-form"
+      method="post"
+      action="<%= editing ? '/admin/opportunities/' + editing.id + '?_method=PUT' : '/admin/opportunities' %>"
+    >
+      <div class="form-row">
+        <label for="title">Title</label>
+        <input type="text" id="title" name="title" value="<%= editing && editing.title ? editing.title : '' %>">
+      </div>
+
+      <div class="form-row">
+        <label for="type">Type</label>
+        <input type="text" id="type" name="type" list="type-options" value="<%= editing && editing.type ? editing.type : '' %>">
+        <datalist id="type-options">
+          <% types.forEach(t => { %>
+            <option value="<%= t %>"></option>
+          <% }) %>
+        </datalist>
+      </div>
+
+      <div class="form-row">
+        <label for="department">Department</label>
+        <input type="text" id="department" name="department" value="<%= editing && editing.department ? editing.department : '' %>">
+      </div>
+
+      <div class="form-row">
+        <label for="location">Location</label>
+        <input type="text" id="location" name="location" value="<%= editing && editing.location ? editing.location : '' %>">
+      </div>
+
+      <div class="form-row">
+        <label for="deadline">Deadline</label>
+        <input type="date" id="deadline" name="deadline" value="<%= editing && editing.deadline ? editing.deadline : '' %>">
+      </div>
+
+      <div class="form-row">
+        <label for="link_url">Link URL</label>
+        <input type="text" id="link_url" name="link_url" value="<%= editing && editing.link_url ? editing.link_url : '' %>">
+      </div>
+
+      <div class="form-row form-row-full">
+        <label for="description">Description</label>
+        <textarea id="description" name="description" rows="4"><%= editing && editing.description ? editing.description : '' %></textarea>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn"><%= editing ? 'Save changes' : 'Add opportunity' %></button>
+        <% if (editing) { %>
+          <a class="btn-secondary" href="/admin">Cancel</a>
+        <% } %>
+      </div>
+    </form>
+  </div>
+
+  <h2>All opportunities (<%= opportunities.length %>)</h2>
+  <table class="admin-table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Title</th>
+        <th>Type</th>
+        <th>Department</th>
+        <th>Deadline</th>
+        <th>Created</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% opportunities.forEach(opp => { %>
+        <tr>
+          <td><%= opp.id %></td>
+          <td><%= opp.title || '—' %></td>
+          <td><%= opp.type || '—' %></td>
+          <td><%= opp.department || '—' %></td>
+          <td><%= opp.deadline || '—' %></td>
+          <td><%= opp.created_at || '—' %></td>
+          <td class="admin-actions">
+            <a href="/admin/opportunities/<%= opp.id %>/edit">Edit</a>
+            <form method="post" action="/admin/opportunities/<%= opp.id %>?_method=DELETE" onsubmit="return confirm('Delete this opportunity?')">
+              <button type="submit" class="link-button">Delete</button>
+            </form>
+          </td>
+        </tr>
+      <% }) %>
+      <% if (opportunities.length === 0) { %>
+        <tr><td colspan="7">No opportunities yet.</td></tr>
+      <% } %>
+    </tbody>
+  </table>
+</section>
+
+<%- include('partials/footer') %>
